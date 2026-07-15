@@ -340,7 +340,7 @@
   /* ---------- Notices view ---------- */
   .notices-view{max-width:920px;}
 
-  /* ---------- Duty work (복무작업) ---------- */
+  /* ---------- Duty work (복무입력/복무관리) ---------- */
   .duty-view{max-width:100%;}
   .duty-month-bar{
     display:flex;align-items:center;gap:8px;flex-wrap:wrap;
@@ -388,6 +388,47 @@
   .duty-del-cell button{border:none;background:none;color:#D64545;font-size:10.5px;font-weight:700;cursor:pointer;padding:4px 6px;white-space:nowrap;}
   .duty-del-cell button:hover{text-decoration:underline;}
   .duty-actions{display:flex;gap:10px;justify-content:flex-end;}
+
+  /* ---------- Duty report (복무관리) ---------- */
+  .duty-report-view{max-width:1000px;}
+  .duty-stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:12px;}
+  .duty-stat-card{
+    background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:16px 16px 16px 20px;
+    text-align:center;position:relative;overflow:hidden;
+  }
+  .duty-stat-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--accent);}
+  .duty-stat-card.accent-blue::before{background:#4C6EF5;}
+  .duty-stat-card.accent-green::before{background:#27AE60;}
+  .duty-stat-card.accent-red::before{background:#EB5757;}
+  .duty-stat-card.accent-purple::before{background:#9B51E0;}
+  .duty-stat-number{font-size:28px;font-weight:800;color:var(--text);}
+  .duty-stat-label{font-size:11.5px;color:var(--text-soft);font-weight:600;margin-top:4px;}
+  .duty-stat-delta{margin-top:6px;}
+  .duty-prev-note{font-size:11.5px;color:var(--accent-dark);background:var(--accent-soft);padding:8px 12px;border-radius:8px;margin-bottom:14px;font-weight:600;}
+  .duty-prev-note-empty{color:#C9762B;background:#FDF1E7;}
+  .duty-delta{font-size:11px;font-weight:800;padding:2px 6px;border-radius:5px;}
+  .duty-delta-up{color:#1F8A4C;background:#E9F7EF;}
+  .duty-delta-down{color:#D64545;background:#FDEAEA;}
+  .duty-delta-flat{color:var(--text-faint);background:#F0F0EE;}
+  .duty-bar-track{background:#F0EFEA;border-radius:6px;height:6px;overflow:hidden;margin-top:5px;min-width:80px;}
+  .duty-bar-fill{height:100%;background:linear-gradient(90deg,var(--accent),#8AA6FF);border-radius:6px;}
+  .duty-grade-pill{display:inline-block;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:700;margin:2px 2px 2px 0;white-space:nowrap;}
+  .duty-report-section{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:14px;}
+  .duty-report-section-title{font-size:13px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:6px;}
+  .duty-report-table{width:100%;border-collapse:collapse;font-size:12.5px;}
+  .duty-report-table th,.duty-report-table td{border:1px solid var(--border);padding:9px 12px;text-align:center;}
+  .duty-report-table th{background:#FAFAF8;font-weight:700;color:var(--text-soft);}
+  .duty-report-table tbody tr:hover{background:#FBFBF9;}
+  .duty-namelist{font-size:12px;color:var(--text-soft);line-height:1.8;}
+  .duty-report-row2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;}
+  .duty-report-row2 .duty-report-section{margin-bottom:0;}
+  .duty-report-memo{
+    width:100%;min-height:110px;border:1px solid var(--border-strong);border-radius:var(--radius-sm);
+    padding:10px 12px;font-size:13px;font-family:inherit;resize:vertical;
+  }
+  .duty-report-memo:focus{outline:none;border-color:var(--accent);}
+  .duty-report-memo-view{font-size:13px;line-height:1.7;color:var(--text);white-space:pre-wrap;min-height:24px;}
+  .duty-report-memo-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:10px;}
   .notices-toolbar{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center;}
   .notices-search{
     flex:1 1 260px;min-width:200px;border:1px solid var(--border-strong);border-radius:var(--radius-sm);
@@ -531,7 +572,8 @@
     <nav class="tabs">
       <button class="tab" data-view="month" onclick="switchView('month')"><span class="dot"></span><span class="label">📅 캘린더</span></button>
       <button class="tab" data-view="notices" onclick="switchView('notices')"><span class="dot"></span><span class="label">📢 업무공지</span></button>
-      <button class="tab" data-view="duty" onclick="switchView('duty')"><span class="dot"></span><span class="label">📋 복무작업</span></button>
+      <button class="tab" data-view="duty" onclick="switchView('duty')"><span class="dot"></span><span class="label">📋 복무입력</span></button>
+      <button class="tab" data-view="dutyReport" onclick="switchView('dutyReport')"><span class="dot"></span><span class="label">📊 복무관리</span></button>
     </nav>
     <div class="settings-menu-wrap">
       <button class="tab" id="sidebarSettingsTrigger" onclick="toggleSidebarSettingsMenu(event)"><span class="dot"></span><span class="label">⚙️ 설정</span></button>
@@ -807,7 +849,7 @@
 <div class="modal-overlay hidden" id="dutyLockModalOverlay">
   <div class="modal" style="width:480px;">
     <h2>🔒 복무마감 설정</h2>
-    <p style="font-size:11.5px;color:var(--text-soft);margin:-8px 0 14px;">마감(잠금)한 달은 복무작업 탭에서 업로드·수정·삭제가 모두 막히고, 조회와 엑셀 다운로드만 가능해요.</p>
+    <p style="font-size:11.5px;color:var(--text-soft);margin:-8px 0 14px;">마감(잠금)한 달은 복무입력 탭에서 업로드·수정·삭제가 모두 막히고, 조회와 엑셀 다운로드만 가능해요.</p>
     <div id="dutyLockModalBody"></div>
     <div class="modal-actions" style="justify-content:flex-end;">
       <button type="button" class="btn-secondary" onclick="closeDutyLockModal()">닫기</button>
@@ -1312,6 +1354,7 @@ function render(){
   const vc = document.getElementById('viewContainer');
   if(state.view==='month') vc.innerHTML = renderMonth();
   else if(state.view==='notices') vc.innerHTML = renderNotices();
+  else if(state.view==='dutyReport') vc.innerHTML = renderDutyReport();
   else vc.innerHTML = renderDuty();
   updateTodayCard();
 }
@@ -1330,8 +1373,10 @@ function updateTitle(){
     el.textContent = `${d.getFullYear()}년 ${d.getMonth()+1}월`;
   }else if(state.view==='notices'){
     el.textContent = '업무공지';
+  }else if(state.view==='dutyReport'){
+    el.textContent = '복무관리';
   }else{
-    el.textContent = '복무작업';
+    el.textContent = '복무입력';
   }
 }
 
@@ -2234,7 +2279,7 @@ document.getElementById('centerModalOverlay').addEventListener('click', (e)=>{
   if(e.target.id==='centerModalOverlay') closeCenterModal();
 });
 
-/* ============ Duty work (복무작업) ============ */
+/* ============ Duty work (복무입력/복무관리) ============ */
 const DUTY_ITEM_FIELDS = [
   {key:'호봉', header:'호봉'},
   {key:'구분', header:'구분'},
@@ -3008,7 +3053,7 @@ async function onDutyAttendanceUpload(ev){
     }else{
       clearDutyUndoHistory();
     }
-    dutyState = { employees, monthLabel, orgName, daysInMonth: dayCols.length, sourceFileName: file.name };
+    dutyState = { employees, monthLabel, orgName, daysInMonth: dayCols.length, sourceFileName: file.name, memo: (prior && prior.memo) || '' };
     saveDutyMonthSnapshot();
     renderDutyRefresh();
   }catch(err){
@@ -3232,6 +3277,249 @@ function closeDutyValidationModal(){
 document.getElementById('dutyValidationModalOverlay').addEventListener('click', (e)=>{
   if(e.target.id==='dutyValidationModalOverlay') closeDutyValidationModal();
 });
+/* ============ Duty report (복무관리) ============ */
+let dutyReportSelection = { monthLabel: '', orgName: '' };
+function numOrNull(v){
+  if(v===undefined||v===null||v==='') return null;
+  const n = Number(v);
+  return isNaN(n) ? null : n;
+}
+function getDutyReportSelection(){
+  if(dutyReportSelection.monthLabel) return dutyReportSelection;
+  if(dutyState.monthLabel) return { monthLabel: dutyState.monthLabel, orgName: dutyState.orgName || DEFAULT_DUTY_ORG };
+  const cur = getDutyDefaultYearMonth();
+  return { monthLabel: `${cur.year}.${String(cur.month).padStart(2,'0')}`, orgName: DEFAULT_DUTY_ORG };
+}
+function onDutyReportSelectionChange(){
+  const y = Number(document.getElementById('dutyReportYear').value);
+  const m = Number(document.getElementById('dutyReportMonth').value);
+  const org = (document.getElementById('dutyReportOrgInput').value || '').trim() || DEFAULT_DUTY_ORG;
+  dutyReportSelection = { monthLabel: `${y}.${String(m).padStart(2,'0')}`, orgName: org };
+  dutyReportMemoEditing = false;
+  if(state.view==='dutyReport') document.getElementById('viewContainer').innerHTML = renderDutyReport();
+}
+function computeDutyStats(snap){
+  const employees = snap.employees || [];
+  const monthLabel = snap.monthLabel;
+  const total = employees.length;
+  const byGrade = {};
+  employees.forEach(e=>{
+    const g = ((e.items && e.items['호봉']) || '').trim() || '미지정';
+    if(!byGrade[g]) byGrade[g] = [];
+    byGrade[g].push(e);
+  });
+  const gradeKeys = Object.keys(byGrade).sort((a,b)=>{
+    if(a==='미지정') return 1;
+    if(b==='미지정') return -1;
+    return a.localeCompare(b, 'ko');
+  });
+  const hires = employees.filter(e=>dutyMonthMatch(e.hireDate, monthLabel));
+  const leaves = employees.filter(e=>dutyMonthMatch(e.leaveDate, monthLabel));
+  const leaveVals = employees.map(e=>numOrNull(e.items && e.items['연차정산'])).filter(v=>v!==null);
+  const leaveSum = leaveVals.reduce((a,b)=>a+b,0);
+  const leaveAvg = leaveVals.length ? leaveSum/leaveVals.length : 0;
+  const gradeByGrade = {};
+  gradeKeys.forEach(g=>{
+    const counts = {};
+    byGrade[g].forEach(e=>{
+      const ev = ((e.items && e.items['근무평가등급']) || '').trim() || '미평가';
+      counts[ev] = (counts[ev]||0)+1;
+    });
+    gradeByGrade[g] = counts;
+  });
+  const payByGrade = {};
+  gradeKeys.forEach(g=>{
+    const list = byGrade[g];
+    const byeonVals = list.map(e=>numOrNull(e.items && e.items['성과급_변동'])).filter(v=>v!==null);
+    const centerVals = list.map(e=>numOrNull(e.items && e.items['성과급_센터'])).filter(v=>v!==null);
+    const sum = arr=>arr.reduce((a,b)=>a+b,0);
+    payByGrade[g] = {
+      count: list.length,
+      byeonSum: sum(byeonVals), byeonAvg: byeonVals.length?sum(byeonVals)/byeonVals.length:0,
+      centerSum: sum(centerVals), centerAvg: centerVals.length?sum(centerVals)/centerVals.length:0
+    };
+  });
+  const specialLeave = {
+    유사산휴가기간: employees.filter(e=>e.items && e.items['유사산휴가기간']).length,
+    육아단축: employees.filter(e=>e.items && e.items['육아단축']).length,
+    산휴휴직: employees.filter(e=>e.items && e.items['산휴휴직']).length
+  };
+  return { total, byGrade, gradeKeys, hires, leaves, leaveSum, leaveAvg, leaveCount: leaveVals.length, gradeByGrade, payByGrade, specialLeave };
+}
+function dutyDeltaHtml(diff, opts){
+  opts = opts || {};
+  const suffix = opts.suffix || '';
+  const invertColor = !!opts.invert;
+  if(diff===0 || !isFinite(diff)) return `<span class="duty-delta duty-delta-flat">± 0${suffix}</span>`;
+  const isUp = diff>0;
+  const goodColor = invertColor ? !isUp : isUp;
+  const cls = goodColor ? 'duty-delta-up' : 'duty-delta-down';
+  const arrow = isUp ? '▲' : '▼';
+  const val = Math.abs(diff);
+  const valStr = (opts.round!==false) ? Math.round(val).toLocaleString() : val.toLocaleString();
+  return `<span class="duty-delta ${cls}">${arrow} ${valStr}${suffix}</span>`;
+}
+const DUTY_GRADE_PALETTE = [
+  {bg:'#E9F7EF',fg:'#1F8A4C'}, {bg:'#EAF1FF',fg:'#3D6BE0'}, {bg:'#FDF1E7',fg:'#C9762B'},
+  {bg:'#FDEAEA',fg:'#D64545'}, {bg:'#F5EBFC',fg:'#8434C4'}, {bg:'#F0F0EE',fg:'#6B6A66'}
+];
+function dutyGradeColor(g, idx){
+  if(g==='미평가') return {bg:'#F0F0EE',fg:'#8B8A85'};
+  return DUTY_GRADE_PALETTE[idx % DUTY_GRADE_PALETTE.length];
+}
+function renderDutyStatsHtml(stats, prevStats, prevLabel){
+  const gradeKeyIndex = {};
+  let gi = 0;
+  const allGradeValuesSeen = new Set();
+  stats.gradeKeys.forEach(g=> Object.keys(stats.gradeByGrade[g]).forEach(ev=>allGradeValuesSeen.add(ev)));
+  Array.from(allGradeValuesSeen).sort().forEach(ev=>{ gradeKeyIndex[ev]=gi++; });
+
+  const combinedRows = stats.gradeKeys.map(g=>{
+    const list = stats.byGrade[g];
+    const pct = stats.total ? Math.round(list.length/stats.total*1000)/10 : 0;
+    const counts = stats.gradeByGrade[g];
+    const prevCounts = (prevStats && prevStats.gradeByGrade[g]) || {};
+    const gradeKeysUnion = Array.from(new Set([...Object.keys(counts), ...Object.keys(prevCounts)])).sort();
+    const gradePills = gradeKeysUnion.map(ev=>{
+      const cur = counts[ev]||0, prev = prevCounts[ev]||0;
+      const diff = cur - prev;
+      const color = dutyGradeColor(ev, gradeKeyIndex[ev]||0);
+      const diffBadge = prevStats ? (diff===0?'':` <b style="color:${diff>0?'#1F8A4C':'#D64545'};">${diff>0?'▲':'▼'}${Math.abs(diff)}</b>`) : '';
+      return `<span class="duty-grade-pill" style="background:${color.bg};color:${color.fg};">${escapeHtml(ev)} ${cur}명${diffBadge}</span>`;
+    }).join(' ');
+    const p = stats.payByGrade[g];
+    const prevP = prevStats ? prevStats.payByGrade[g] : null;
+    const byeonAvgDelta = prevP ? dutyDeltaHtml(p.byeonAvg - prevP.byeonAvg) : '';
+    const centerAvgDelta = prevP ? dutyDeltaHtml(p.centerAvg - prevP.centerAvg) : '';
+    return `<tr>
+      <td style="text-align:left;font-weight:600;white-space:nowrap;">${escapeHtml(g)}</td>
+      <td>
+        <div>${list.length}명 <span style="color:var(--text-faint);">(${pct}%)</span></div>
+        <div class="duty-bar-track"><div class="duty-bar-fill" style="width:${pct}%;"></div></div>
+      </td>
+      <td style="text-align:left;white-space:normal;min-width:180px;">${gradePills || '<span style="color:var(--text-faint);">-</span>'}</td>
+      <td style="white-space:nowrap;">${Math.round(p.byeonAvg).toLocaleString()}<br>${byeonAvgDelta}</td>
+      <td style="white-space:nowrap;">${Math.round(p.centerAvg).toLocaleString()}<br>${centerAvgDelta}</td>
+    </tr>`;
+  }).join('');
+  const hireNames = stats.hires.map(e=>escapeHtml(e.name||e.sabun)).join(', ') || '없음';
+  const leaveNames = stats.leaves.map(e=>escapeHtml(e.name||e.sabun)).join(', ') || '없음';
+
+  const totalDelta = prevStats ? dutyDeltaHtml(stats.total - prevStats.total, {suffix:'명'}) : '';
+  const leaveSumDelta = prevStats ? dutyDeltaHtml(stats.leaveSum - prevStats.leaveSum, {suffix:'일'}) : '';
+  const hireDelta = prevStats ? dutyDeltaHtml(stats.hires.length - prevStats.hires.length, {suffix:'명'}) : '';
+  const leaveCntDelta = prevStats ? dutyDeltaHtml(stats.leaves.length - prevStats.leaves.length, {suffix:'명', invert:true}) : '';
+
+  return `
+    <div class="duty-stat-grid">
+      <div class="duty-stat-card accent-blue"><div class="duty-stat-number">${stats.total}명</div><div class="duty-stat-label">전체인원</div>${totalDelta?`<div class="duty-stat-delta">${totalDelta}</div>`:''}</div>
+      <div class="duty-stat-card accent-green"><div class="duty-stat-number">${stats.hires.length}명</div><div class="duty-stat-label">당월입사</div>${hireDelta?`<div class="duty-stat-delta">${hireDelta}</div>`:''}</div>
+      <div class="duty-stat-card accent-red"><div class="duty-stat-number">${stats.leaves.length}명</div><div class="duty-stat-label">당월퇴사</div>${leaveCntDelta?`<div class="duty-stat-delta">${leaveCntDelta}</div>`:''}</div>
+      <div class="duty-stat-card accent-purple"><div class="duty-stat-number">${stats.leaveSum.toLocaleString()}</div><div class="duty-stat-label">정산연차 합계 (평균 ${stats.leaveCount?stats.leaveAvg.toFixed(1):0}일)</div>${leaveSumDelta?`<div class="duty-stat-delta">${leaveSumDelta}</div>`:''}</div>
+    </div>
+    ${prevStats?`<div class="duty-prev-note">📊 전월(${escapeHtml(prevLabel)}) 대비 증감을 함께 표시하고 있어요.</div>`:`<div class="duty-prev-note duty-prev-note-empty">⚠ 전월(${escapeHtml(prevLabel)}) 데이터가 없어서 증감 비교는 생략돼요.</div>`}
+    <div class="duty-report-row2">
+      <div class="duty-report-section">
+        <div class="duty-report-section-title">👥 당월입사·퇴사 명단</div>
+        <div class="duty-namelist"><b>입사:</b> ${hireNames}</div>
+        <div class="duty-namelist"><b>퇴사:</b> ${leaveNames}</div>
+      </div>
+      <div class="duty-report-section">
+        <div class="duty-report-section-title">📌 기타 현황</div>
+        <div style="font-size:12.5px;">유사산휴가 대상 ${stats.specialLeave.유사산휴가기간}명 · 육아단축 대상 ${stats.specialLeave.육아단축}명 · 산휴/휴직 대상 ${stats.specialLeave.산휴휴직}명</div>
+      </div>
+    </div>
+    <div class="duty-report-section">
+      <div class="duty-report-section-title">🏷️ 호봉별 통계 (인원 · 근무평가등급 · 성과급 평균, 전월대비 GAP 포함)</div>
+      <div style="overflow-x:auto;">
+        <table class="duty-report-table" style="white-space:nowrap;">
+          <thead><tr>
+            <th>호봉</th><th>인원 비율</th><th>근무평가등급 분포</th>
+            <th>성과급_변동<br>평균</th><th>성과급_센터<br>평균</th>
+          </tr></thead>
+          <tbody>${combinedRows}</tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+let dutyReportMemoEditing = false;
+function startDutyReportMemoEdit(){
+  dutyReportMemoEditing = true;
+  if(state.view==='dutyReport') document.getElementById('viewContainer').innerHTML = renderDutyReport();
+  setTimeout(()=>{
+    const t = document.getElementById('dutyReportMemo');
+    if(t){ t.focus(); t.setSelectionRange(t.value.length, t.value.length); }
+  },50);
+}
+function cancelDutyReportMemoEdit(){
+  dutyReportMemoEditing = false;
+  if(state.view==='dutyReport') document.getElementById('viewContainer').innerHTML = renderDutyReport();
+}
+function saveDutyReportMemo(){
+  const sel = getDutyReportSelection();
+  const textarea = document.getElementById('dutyReportMemo');
+  if(!textarea) return;
+  const val = textarea.value;
+  dutyStore.monthly[sel.monthLabel] = dutyStore.monthly[sel.monthLabel] || {};
+  const existing = dutyStore.monthly[sel.monthLabel][sel.orgName];
+  dutyStore.monthly[sel.monthLabel][sel.orgName] = existing
+    ? {...existing, memo: val}
+    : {employees: [], monthLabel: sel.monthLabel, orgName: sel.orgName, daysInMonth: 31, sourceFileName: '', memo: val};
+  saveData();
+  dutyReportMemoEditing = false;
+  if(state.view==='dutyReport') document.getElementById('viewContainer').innerHTML = renderDutyReport();
+}
+function getDutyPrevMonthLabel(monthLabel){
+  const parts = monthLabel.split('.').map(Number);
+  let y = parts[0], m = parts[1]-1;
+  if(m===0){ m=12; y-=1; }
+  return `${y}.${String(m).padStart(2,'0')}`;
+}
+function renderDutyReport(){
+  const sel = getDutyReportSelection();
+  const parts = sel.monthLabel.split('.').map(Number);
+  const snap = loadDutyMonthSnapshot(sel.monthLabel, sel.orgName);
+  const prevLabel = getDutyPrevMonthLabel(sel.monthLabel);
+  const prevSnap = loadDutyMonthSnapshot(prevLabel, sel.orgName);
+  const prevStats = (prevSnap && prevSnap.employees && prevSnap.employees.length) ? computeDutyStats(prevSnap) : null;
+  let html = `<div class="duty-report-view">
+    <div class="duty-month-bar">
+      <span class="duty-month-label">📅 조회 연월</span>
+      ${buildDutyMonthSelectorHtml('dutyReport', parts[0], parts[1])}
+      <span class="duty-month-label">🏢 센터</span>
+      ${buildDutyOrgSelectHtml('dutyReportOrgInput', sel.orgName)}
+      <button class="btn-secondary" onclick="onDutyReportSelectionChange()">조회</button>
+      <span class="duty-month-hint">복무입력 탭에 저장된 연월·센터 데이터를 골라서 통계를 볼 수 있어요. (전월 ${escapeHtml(prevLabel)} 대비 증감도 함께 표시돼요)</span>
+    </div>`;
+  if(!snap || !snap.employees || snap.employees.length===0){
+    html += `<div class="empty-state" style="padding:60px 0;">${escapeHtml(sel.monthLabel)} · ${escapeHtml(sel.orgName)}에 저장된 복무입력 데이터가 없어요.</div>`;
+  }else{
+    html += renderDutyStatsHtml(computeDutyStats(snap), prevStats, prevLabel);
+  }
+  const memoVal = (snap && snap.memo) || '';
+  if(dutyReportMemoEditing){
+    html += `<div class="duty-report-section">
+      <div class="duty-report-section-title"><span>📝 메모</span></div>
+      <textarea id="dutyReportMemo" class="duty-report-memo" placeholder="이 달 특이사항이나 메모를 자유롭게 적어두세요">${escapeHtml(memoVal)}</textarea>
+      <div class="duty-report-memo-actions">
+        <button class="btn-secondary" onclick="cancelDutyReportMemoEdit()">취소</button>
+        <button class="btn-primary" onclick="saveDutyReportMemo()">저장</button>
+      </div>
+    </div>`;
+  }else{
+    html += `<div class="duty-report-section">
+      <div class="duty-report-section-title">
+        <span>📝 메모</span>
+        <button class="btn-secondary" style="margin-left:auto;" onclick="startDutyReportMemoEdit()">✏️ 수정</button>
+      </div>
+      <div class="duty-report-memo-view">${memoVal ? escapeHtml(memoVal).replace(/\n/g,'<br>') : '<span style="color:var(--text-faint);">아직 메모가 없어요. "수정" 버튼을 눌러 작성해보세요.</span>'}</div>
+    </div>`;
+  }
+  html += `</div>`;
+  return html;
+}
+
 function generateDutyExcel(){
   if(dutyState.employees.length===0){ alert('먼저 근태관리 파일을 업로드해주세요.'); return; }
   const header = buildDutyHeaderRow();
