@@ -2224,9 +2224,6 @@ const DUTY_ITEM_FIELDS = [
   {key:'근무시간2', header:'근무시간2'},
   {key:'초과근무시간', header:'초과근무시간(고정OT)'},
   {key:'야간근무시간', header:'야간근무시간(고정OT)'},
-  {key:'근무유형', header:'근무유형'},
-  {key:'직급', header:'직급'},
-  {key:'근무조', header:'근무조'},
   {key:'근무평가등급', header:'근무평가등급'},
   {key:'비고', header:'비고'},
   {key:'연차정산', header:'연차정산\n(잔여일수)'},
@@ -2241,6 +2238,23 @@ const DUTY_ITEM_FIELDS = [
   {key:'육아단축', header:'육아단축\n(    H)'},
   {key:'산휴휴직', header:'산휴/휴직'}
 ];
+/* 근무유형/직급/근무조는 전 직원 공통 고정값 (수정 불가) */
+const DUTY_FIXED_VALUES = { '근무유형':'상근', '직급':'0', '근무조':'일반외' };
+/* 호봉 값에 따라 구분/근무시간/초과·야간근무시간 기본값을 자동 세팅 (이후 수동 수정 가능) */
+function applyDutyGradeDefaults(emp){
+  const grade = (emp.items['호봉']||'').trim();
+  if(grade === 'KB손해보험 부천센터_컨설턴트(상담)'){
+    emp.items['구분'] = '4H';
+    emp.items['근무시간1'] = '1주 / 20시간';
+    emp.items['근무시간2'] = '09:00 ~ 13:30';
+  }else{
+    emp.items['구분'] = '8H';
+    emp.items['근무시간1'] = '1주 / 40시간';
+    emp.items['근무시간2'] = '09:00 ~ 18:00';
+  }
+  emp.items['초과근무시간'] = 0;
+  emp.items['야간근무시간'] = 0;
+}
 const DUTY_OT_TYPES = ['평일연장','휴일근무','평일야간','휴일연장'];
 let dutyState = { employees: [], monthLabel: '', orgName: '', daysInMonth: 31, sourceFileName: '' };
 let dutyStore = { monthly: {}, lockedKeys: [] }; /* 캘린더 데이터와 함께 Supabase에 동기화됨 */
@@ -2413,8 +2427,8 @@ function renderDuty(){
         ${savedMonths.length?`<div style="font-size:10.5px;color:var(--text-faint);">저장된 연월: ${savedMonths.map(escapeHtml).join(', ')}</div>`:''}
       </div>
       <div class="duty-upload-card">
-        <div class="duty-upload-title">3. 호봉~근무조 일괄 업로드</div>
-        <div class="duty-upload-desc">[사번, 이름, 호봉, 구분, 근무시간1, 근무시간2, 초과근무시간(고정OT), 야간근무시간(고정OT), 근무유형, 직급, 근무조] 형식. 있는 열만 인식해서 한번에 반영돼요.</div>
+        <div class="duty-upload-title">3. 호봉 일괄 업로드</div>
+        <div class="duty-upload-desc">[사번, 이름, 호봉] 형식. 호봉값이 "KB손해보험 부천센터_컨설턴트(상담)"이면 구분·근무시간이 자동으로 4H/1주 20시간으로, 그 외에는 8H/1주 40시간으로 설정돼요 (이후 직접 수정 가능).</div>
         <input type="file" accept=".xlsx,.xls" onchange="onDutyBasicBulkUpload(event)" ${dis}>
       </div>
       <div class="duty-upload-card">
@@ -2478,9 +2492,9 @@ function buildDutyRowValues(e, gubun){
   row[8] = e.items['근무시간2']||'';
   row[9] = e.items['초과근무시간']||0;
   row[10] = e.items['야간근무시간']||0;
-  row[11] = e.items['근무유형']||'';
-  row[12] = e.items['직급']||'';
-  row[13] = e.items['근무조']||'';
+  row[11] = DUTY_FIXED_VALUES['근무유형'];
+  row[12] = DUTY_FIXED_VALUES['직급'];
+  row[13] = DUTY_FIXED_VALUES['근무조'];
   row[14] = gubun;
   row[15] = dutyState.monthLabel||'';
   if(gubun==='TM근태'){
@@ -2524,7 +2538,7 @@ function getDutyCellKind(colIdx, gubun){
     if(gubun==='TM근태') return null;
     return {kind:'ot-computed'};
   }
-  const basicMap = {5:'호봉',6:'구분',7:'근무시간1',8:'근무시간2',9:'초과근무시간',10:'야간근무시간',11:'근무유형',12:'직급',13:'근무조'};
+  const basicMap = {5:'호봉',6:'구분',7:'근무시간1',8:'근무시간2',9:'초과근무시간',10:'야간근무시간'};
   if(basicMap[colIdx]) return {kind:'item', key:basicMap[colIdx]};
   const trailMap = {48:'근무평가등급',49:'비고',52:'연차정산',53:'중식비공제',54:'성과급_변동',
     55:'성과급_센터',56:'통신비',57:'근속수당',58:'심야통근비',59:'석식비',
@@ -2588,7 +2602,10 @@ function confirmDutyCellEdit(){
     else emp.otDaily[gubun][meta.key] = isNaN(Number(val)) ? val : Number(val);
   }
   else if(meta.kind==='ot'){ emp.ot[gubun] = val===''?undefined:(isNaN(Number(val))?val:Number(val)); }
-  else if(meta.kind==='item') emp.items[meta.key] = val;
+  else if(meta.kind==='item'){
+    emp.items[meta.key] = val;
+    if(meta.key==='호봉') applyDutyGradeDefaults(emp);
+  }
   saveDutyMonthSnapshot();
   closeDutyCellEditModal();
   renderDutyRefresh();
@@ -2932,7 +2949,6 @@ async function onDutyAttendanceUpload(ev){
   }
   ev.target.value='';
 }
-const DUTY_BULK_BASIC_KEYS = ['호봉','구분','근무시간1','근무시간2','초과근무시간','야간근무시간','근무유형','직급','근무조'];
 async function onDutyBasicBulkUpload(ev){
   const file = ev.target.files[0]; if(!file) return;
   if(isDutyMonthLocked(dutyState.monthLabel, dutyState.orgName)){ alert('마감(잠금)된 달은 수정할 수 없어요. 설정에서 잠금을 해제해주세요.'); ev.target.value=''; return; }
@@ -2941,18 +2957,15 @@ async function onDutyBasicBulkUpload(ev){
     const ws = wb.Sheets[wb.SheetNames[0]];
     const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:null});
     const header = rows[0] || [];
-    let sabunIdx=-1;
-    const colMap = {};
+    let sabunIdx=-1, gradeIdx=-1;
     header.forEach((h,idx)=>{
       const norm = normalizeHeader(h);
       if(norm==='사번'){ sabunIdx=idx; return; }
       if(norm==='이름'||norm==='성명') return;
-      const field = DUTY_ITEM_FIELDS.find(f=> DUTY_BULK_BASIC_KEYS.includes(f.key) && normalizeHeader(f.header)===norm);
-      if(field) colMap[field.key] = idx;
+      if(norm==='호봉') gradeIdx=idx;
     });
     if(sabunIdx===-1){ alert('사번 열을 찾을 수 없어요.'); ev.target.value=''; return; }
-    const matchedKeys = Object.keys(colMap);
-    if(matchedKeys.length===0){ alert('호봉/구분/근무시간1/근무시간2/초과근무시간(고정OT)/야간근무시간(고정OT)/근무유형/직급/근무조 중 인식된 열이 없어요. 헤더명을 확인해주세요.'); ev.target.value=''; return; }
+    if(gradeIdx===-1){ alert('호봉 열을 찾을 수 없어요. [사번, 이름, 호봉] 형식인지 확인해주세요.'); ev.target.value=''; return; }
     pushDutyUndoSnapshot();
     let applied=0, skipped=0;
     for(let r=1;r<rows.length;r++){
@@ -2961,11 +2974,11 @@ async function onDutyBasicBulkUpload(ev){
       if(!sabun) continue;
       const emp = dutyState.employees.find(x=>x.sabun===sabun);
       if(!emp){ skipped++; continue; }
-      matchedKeys.forEach(key=>{ emp.items[key] = row[colMap[key]]; });
+      emp.items['호봉'] = row[gradeIdx];
+      applyDutyGradeDefaults(emp);
       applied++;
     }
-    const labels = matchedKeys.map(k=>DUTY_ITEM_FIELDS.find(f=>f.key===k).header.replace(/\n/g,' '));
-    alert(`${labels.length}개 항목(${labels.join(', ')}) 일괄 반영: ${applied}명${skipped?` · ${skipped}명 제외(사번 불일치)`:''}`);
+    alert(`호봉 일괄 반영: ${applied}명${skipped?` · ${skipped}명 제외(사번 불일치)`:''} (구분·근무시간은 호봉에 따라 자동 설정됨)`);
     saveDutyMonthSnapshot();
     renderDutyRefresh();
   }catch(err){
