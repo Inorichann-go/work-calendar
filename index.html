@@ -774,6 +774,24 @@
   </div>
 </div>
 
+<div class="modal-overlay hidden" id="dutyAddEmployeeModalOverlay">
+  <div class="modal" style="width:360px;">
+    <h2>직원 추가</h2>
+    <div class="field">
+      <label>사번</label>
+      <input type="text" id="dutyAddEmpSabun" placeholder="예: 2390591">
+    </div>
+    <div class="field">
+      <label>이름</label>
+      <input type="text" id="dutyAddEmpName" placeholder="예: 홍길동">
+    </div>
+    <div class="modal-actions" style="justify-content:flex-end;">
+      <button type="button" class="btn-secondary" onclick="closeDutyAddEmployeeModal()">취소</button>
+      <button type="button" class="btn-primary" onclick="confirmDutyAddEmployee()">추가</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay hidden" id="dutyValidationModalOverlay">
   <div class="modal" style="width:600px;max-height:80vh;">
     <h2>🔍 근태 검증 결과</h2>
@@ -2243,7 +2261,7 @@ const DUTY_FIXED_VALUES = { '근무유형':'상근', '직급':'0', '근무조':'
 /* 호봉 값에 따라 구분/근무시간/초과·야간근무시간 기본값을 자동 세팅 (이후 수동 수정 가능) */
 function applyDutyGradeDefaults(emp){
   const grade = (emp.items['호봉']||'').trim();
-  if(grade === 'KB손해보험 부천센터_컨설턴트(상담)'){
+  if(grade.startsWith('KB손해보험 부천센터_컨설턴트(상담)')){
     emp.items['구분'] = '4H';
     emp.items['근무시간1'] = '1주 / 20시간';
     emp.items['근무시간2'] = '09:00 ~ 13:30';
@@ -2254,6 +2272,17 @@ function applyDutyGradeDefaults(emp){
   }
   emp.items['초과근무시간'] = 0;
   emp.items['야간근무시간'] = 0;
+  emp.otFieldsLocked = false;
+  /* 직급(호봉)에 따라 초과근무/야간근무시간을 고정하고 수정 불가 처리 */
+  if(grade.startsWith('KB손해보험 부천센터_교육/QA')){
+    emp.items['초과근무시간'] = 3; emp.items['야간근무시간'] = 0; emp.otFieldsLocked = true;
+  }else if(grade.startsWith('KB손해보험 부천센터_팀장')){
+    emp.items['초과근무시간'] = 7; emp.items['야간근무시간'] = 0; emp.otFieldsLocked = true;
+  }else if(grade.startsWith('KB손해보험 부천센터_실장')){
+    emp.items['초과근무시간'] = 12; emp.items['야간근무시간'] = 0; emp.otFieldsLocked = true;
+  }else if(grade.startsWith('KB손해보험 부천센터_센터장')){
+    emp.items['초과근무시간'] = 20; emp.items['야간근무시간'] = 0; emp.otFieldsLocked = true;
+  }
 }
 const DUTY_OT_TYPES = ['평일연장','휴일근무','평일야간','휴일연장'];
 let dutyState = { employees: [], monthLabel: '', orgName: '', daysInMonth: 31, sourceFileName: '' };
@@ -2406,6 +2435,7 @@ function renderDuty(){
       <span class="duty-month-label">🏢 센터</span>
       ${buildDutyOrgSelectHtml('dutyOrgInput', currentOrg)}
       <button class="btn-secondary" onclick="onDutyWorkMonthChange()">이 연월/센터로 전환</button>
+      <button class="btn-secondary" onclick="openDutyAddEmployeeModal()" ${locked?'disabled':''}>+ 직원 추가</button>
       ${locked?`<span class="duty-lock-badge">🔒 마감(잠금)됨 — 조회·다운로드만 가능</span><button class="btn-secondary" onclick="quickUnlockDutyMonth()">잠금 해제</button>`:''}
       <span class="duty-month-hint">연월+센터 조합으로 각각 따로 저장돼요. 파일을 업로드하면 지금 선택된 연월·센터 기준으로 자동 저장돼요. 마감(잠금)은 왼쪽 하단 ⚙️ 설정에서 관리해요.</span>
     </div>
@@ -2556,7 +2586,10 @@ function isDutyCellEditable(meta, e, gubun){
   if(meta.kind==='otday') return e.daily[meta.key]==='○';
   if(meta.kind==='ot') return true;
   if(meta.kind==='ot-computed') return false;
-  if(meta.kind==='item') return true;
+  if(meta.kind==='item'){
+    if((meta.key==='초과근무시간' || meta.key==='야간근무시간') && e.otFieldsLocked) return false;
+    return true;
+  }
   if(meta.kind==='item-locked') return false;
   return false;
 }
@@ -2612,6 +2645,41 @@ function confirmDutyCellEdit(){
 }
 document.getElementById('dutyCellEditModalOverlay').addEventListener('click', (e)=>{
   if(e.target.id==='dutyCellEditModalOverlay') closeDutyCellEditModal();
+});
+function openDutyAddEmployeeModal(){
+  if(!dutyState.monthLabel){
+    const cur = getDutyDefaultYearMonth();
+    dutyState.monthLabel = `${cur.year}.${String(cur.month).padStart(2,'0')}`;
+  }
+  if(!dutyState.orgName){
+    const orgEl = document.getElementById('dutyOrgInput');
+    dutyState.orgName = (orgEl && orgEl.value) || DEFAULT_DUTY_ORG;
+  }
+  if(isDutyMonthLocked(dutyState.monthLabel, dutyState.orgName)){ alert('마감(잠금)된 달은 수정할 수 없어요. 설정에서 잠금을 해제해주세요.'); return; }
+  document.getElementById('dutyAddEmpSabun').value = '';
+  document.getElementById('dutyAddEmpName').value = '';
+  document.getElementById('dutyAddEmployeeModalOverlay').classList.remove('hidden');
+  setTimeout(()=>document.getElementById('dutyAddEmpSabun').focus(),50);
+}
+function closeDutyAddEmployeeModal(){
+  document.getElementById('dutyAddEmployeeModalOverlay').classList.add('hidden');
+}
+function confirmDutyAddEmployee(){
+  const sabun = document.getElementById('dutyAddEmpSabun').value.trim();
+  const name = document.getElementById('dutyAddEmpName').value.trim();
+  if(!sabun){ alert('사번을 입력해주세요.'); return; }
+  if(dutyState.employees.find(e=>e.sabun===sabun)){ alert('이미 목록에 있는 사번이에요.'); return; }
+  pushDutyUndoSnapshot();
+  dutyState.employees.push({
+    sabun, name, team:'', hireDate:null, leaveDate:null,
+    daily:{}, ot:{}, otDaily:{}, items:{}
+  });
+  saveDutyMonthSnapshot();
+  closeDutyAddEmployeeModal();
+  renderDutyRefresh();
+}
+document.getElementById('dutyAddEmployeeModalOverlay').addEventListener('click', (e)=>{
+  if(e.target.id==='dutyAddEmployeeModalOverlay') closeDutyAddEmployeeModal();
 });
 function deleteDutyEmployee(empIdx){
   if(isDutyMonthLocked(dutyState.monthLabel, dutyState.orgName)){ alert('마감(잠금)된 달은 수정할 수 없어요. 설정에서 잠금을 해제해주세요.'); return; }
