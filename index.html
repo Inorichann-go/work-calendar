@@ -352,6 +352,11 @@
     border:1px solid var(--border-strong);border-radius:var(--radius-sm);
     padding:6px 8px;font-size:12.5px;font-family:inherit;background:#fff;
   }
+  .duty-org-input{
+    border:1px solid var(--border-strong);border-radius:var(--radius-sm);
+    padding:6px 10px;font-size:12.5px;font-family:inherit;background:#fff;min-width:160px;
+  }
+  .duty-org-input:focus{outline:none;border-color:var(--accent);}
   .duty-month-hint{font-size:11px;color:var(--text-faint);flex-basis:100%;}
   .duty-lock-badge{font-size:11.5px;font-weight:700;color:#D64545;background:#FDEAEA;padding:6px 10px;border-radius:6px;}
   .duty-upload-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:20px;}
@@ -375,6 +380,7 @@
   .duty-table th{background:#FAFAF8;position:sticky;top:0;z-index:2;font-weight:700;color:var(--text-soft);}
   .duty-name-cell{text-align:left;font-weight:600;}
   .duty-holiday-cell{color:#E0392F;font-weight:700;background:#FDEAEA;}
+  .duty-code-cell{max-width:38px;width:38px;min-width:38px;padding-left:2px !important;padding-right:2px !important;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .duty-readonly-cell{background:#FAFAF8;color:var(--text-soft);}
   .duty-editable-cell{cursor:pointer;background:#fff;}
   .duty-editable-cell:hover{background:#FFFBEA;}
@@ -768,6 +774,18 @@
   </div>
 </div>
 
+<div class="modal-overlay hidden" id="dutyValidationModalOverlay">
+  <div class="modal" style="width:600px;max-height:80vh;">
+    <h2>🔍 근태 검증 결과</h2>
+    <p style="font-size:11.5px;color:var(--text-soft);margin:-8px 0 12px;">근태관리 원본 파일의 요약 수치(출근·연차·반차 등)와 지금 표에 입력된 일자별 코드를 세어 비교해요.</p>
+    <p id="dutyValidationSummary" style="font-size:12.5px;font-weight:700;margin:0 0 12px;"></p>
+    <div id="dutyValidationBody" style="max-height:400px;overflow:auto;"></div>
+    <div class="modal-actions" style="justify-content:flex-end;">
+      <button type="button" class="btn-secondary" onclick="closeDutyValidationModal()">닫기</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay hidden" id="dutyLockModalOverlay">
   <div class="modal" style="width:480px;">
     <h2>🔒 복무마감 설정</h2>
@@ -1037,6 +1055,7 @@ async function supabaseUpsertRow(cleanPayload){
     notices: cleanPayload.notices,
     centers: cleanPayload.centers,
     notice_categories: cleanPayload.noticeCategories,
+    duty_data: cleanPayload.dutyData,
     updated_at: new Date().toISOString()
   };
   const res = await fetch(`${SUPABASE_URL}/rest/v1/${SUPABASE_TABLE}`, {
@@ -1056,7 +1075,8 @@ function applySupabaseRow(row){
     events: row.events,
     notices: row.notices,
     centers: row.centers,
-    noticeCategories: row.notice_categories
+    noticeCategories: row.notice_categories,
+    dutyData: row.duty_data
   });
   syncApplyingRemote = false;
   syncLastUpdatedAt = row.updated_at;
@@ -1151,11 +1171,13 @@ function applyLoadedPayload(parsed){
   state.notices = parsed.notices || [];
   state.centers = parsed.centers || [];
   state.noticeCategories = parsed.noticeCategories || [];
+  dutyStore = normalizeDutyStore(parsed.dutyData || { monthly: {}, lockedKeys: [] });
 }
 async function saveData(){
   const cleanPayload = JSON.parse(JSON.stringify({
     events: state.events, notices: state.notices,
-    centers: state.centers, noticeCategories: state.noticeCategories
+    centers: state.centers, noticeCategories: state.noticeCategories,
+    dutyData: dutyStore
   }));
   const payload = JSON.stringify(cleanPayload);
 
@@ -1883,7 +1905,7 @@ function renderNotices(){
 
   return `<div class="notices-view">
     <div class="notices-toolbar">
-      <input type="text" class="notices-search" id="noticeSearchInput" placeholder="제목, 내용으로 검색" value="${escapeHtml(state.noticeSearch||'')}" oninput="onNoticeSearch(event)">
+      <input type="text" class="notices-search" id="noticeSearchInput" placeholder="제목, 내용으로 검색" value="${escapeHtml(state.noticeSearch||'')}" oninput="onNoticeSearch(event)" oncompositionend="onNoticeSearch(event)">
       <div class="category-chips">${chips}</div>
       <button class="gear-btn" onclick="openCategoryModal()" title="구분 관리">⚙️</button>
       <button class="notice-add-btn" onclick="openAddNotice()">+ 새 공지</button>
@@ -1893,7 +1915,8 @@ function renderNotices(){
 }
 
 function onNoticeSearch(ev){
-  state.noticeSearch = ev.target.value;
+  if(ev && ev.isComposing) return; /* 한글 조합 중에는 리렌더링하지 않음 */
+  state.noticeSearch = document.getElementById('noticeSearchInput').value;
   const vc = document.getElementById('viewContainer');
   vc.innerHTML = renderNotices();
   const input = document.getElementById('noticeSearchInput');
@@ -2216,14 +2239,56 @@ const DUTY_ITEM_FIELDS = [
   {key:'산휴휴직', header:'산휴/휴직'}
 ];
 const DUTY_OT_TYPES = ['평일연장','휴일근무','평일야간','휴일연장'];
-let dutyState = { employees: [], monthLabel: '', daysInMonth: 31, sourceFileName: '' };
+let dutyState = { employees: [], monthLabel: '', orgName: '', daysInMonth: 31, sourceFileName: '' };
+let dutyStore = { monthly: {}, lockedKeys: [] }; /* 캘린더 데이터와 함께 Supabase에 동기화됨 */
+let dutyUndoStack = [];
+let dutyRedoStack = [];
+const DUTY_UNDO_LIMIT = 20;
+function pushDutyUndoSnapshot(){
+  dutyUndoStack.push(JSON.parse(JSON.stringify(dutyState)));
+  if(dutyUndoStack.length > DUTY_UNDO_LIMIT) dutyUndoStack.shift();
+  dutyRedoStack = [];
+}
+function clearDutyUndoHistory(){
+  dutyUndoStack = [];
+  dutyRedoStack = [];
+}
+function dutyUndo(){
+  if(dutyUndoStack.length===0) return;
+  if(isDutyMonthLocked(dutyState.monthLabel, dutyState.orgName)){ alert('마감(잠금)된 달은 수정할 수 없어요. 설정에서 잠금을 해제해주세요.'); return; }
+  dutyRedoStack.push(JSON.parse(JSON.stringify(dutyState)));
+  dutyState = dutyUndoStack.pop();
+  saveDutyMonthSnapshot();
+  renderDutyRefresh();
+}
+function dutyRedo(){
+  if(dutyRedoStack.length===0) return;
+  if(isDutyMonthLocked(dutyState.monthLabel, dutyState.orgName)){ alert('마감(잠금)된 달은 수정할 수 없어요. 설정에서 잠금을 해제해주세요.'); return; }
+  dutyUndoStack.push(JSON.parse(JSON.stringify(dutyState)));
+  dutyState = dutyRedoStack.pop();
+  saveDutyMonthSnapshot();
+  renderDutyRefresh();
+}
+function resetDutyCurrentView(){
+  if(dutyState.employees.length===0){ alert('초기화할 데이터가 없어요.'); return; }
+  const monthLabel = dutyState.monthLabel;
+  const org = dutyState.orgName || DEFAULT_DUTY_ORG;
+  if(isDutyMonthLocked(monthLabel, org)){ alert('마감(잠금)된 달은 초기화할 수 없어요. 설정에서 잠금을 해제해주세요.'); return; }
+  if(!confirm(`${monthLabel} · ${org} 데이터를 전부 초기화할까요?\n이 작업은 되돌릴 수 없어요.`)) return;
+  if(dutyStore.monthly[monthLabel]) delete dutyStore.monthly[monthLabel][org];
+  dutyState = { employees: [], monthLabel, orgName: org, daysInMonth: 31, sourceFileName: '' };
+  clearDutyUndoHistory();
+  saveData();
+  renderDutyRefresh();
+}
 let dutyShowOnlyTM = false;
 function toggleDutyShowOnlyTM(){
   dutyShowOnlyTM = !dutyShowOnlyTM;
   renderDutyRefresh();
 }
 let dutySearchQuery = '';
-function onDutySearch(){
+function onDutySearch(ev){
+  if(ev && ev.isComposing) return; /* 한글 조합 중에는 리렌더링하지 않음 */
   dutySearchQuery = document.getElementById('dutySearchInput').value;
   const vc = document.getElementById('viewContainer');
   vc.innerHTML = renderDuty();
@@ -2243,6 +2308,34 @@ async function readWorkbookFromFile(file){
   const buf = await file.arrayBuffer();
   return XLSX.read(buf, {type:'array', cellDates:true});
 }
+const DEFAULT_DUTY_ORG = 'KB손해보험 부천센터';
+/* 이전 버전(센터 구분 없던 구조)의 dutyStore를 연월+센터 구조로 정규화 */
+function normalizeDutyStore(raw){
+  const result = { monthly: {}, lockedKeys: [] };
+  const monthly = (raw && raw.monthly) || {};
+  Object.keys(monthly).forEach(monthLabel=>{
+    const val = monthly[monthLabel];
+    if(val && Array.isArray(val.employees)){
+      /* 예전 구조: monthly[월] = 스냅샷 그 자체 (센터 미구분) */
+      const org = val.orgName || DEFAULT_DUTY_ORG;
+      val.orgName = org;
+      result.monthly[monthLabel] = { [org]: val };
+    }else if(val && typeof val === 'object'){
+      result.monthly[monthLabel] = val;
+    }
+  });
+  if(raw && Array.isArray(raw.lockedKeys)){
+    result.lockedKeys = raw.lockedKeys.slice();
+  }
+  if(raw && Array.isArray(raw.lockedMonths)){
+    /* 예전 구조: lockedMonths = ["2026.07", ...] (센터 미구분) */
+    raw.lockedMonths.forEach(m=>{
+      const key = `${m}__${DEFAULT_DUTY_ORG}`;
+      if(!result.lockedKeys.includes(key)) result.lockedKeys.push(key);
+    });
+  }
+  return result;
+}
 function getDutyDefaultYearMonth(){
   if(dutyState.monthLabel){
     const p = dutyState.monthLabel.split('.').map(Number);
@@ -2259,37 +2352,62 @@ function buildDutyMonthSelectorHtml(idPrefix, selectedYear, selectedMonth){
   const monthOpts = Array.from({length:12},(_,i)=>i+1).map(m=>`<option value="${m}" ${m===selectedMonth?'selected':''}>${m}월</option>`).join('');
   return `<select id="${idPrefix}Year" class="duty-month-select">${yearOpts}</select><select id="${idPrefix}Month" class="duty-month-select">${monthOpts}</select>`;
 }
+function listAllDutyCenters(){
+  const set = new Set();
+  Object.values(dutyStore.monthly||{}).forEach(centers=>{
+    Object.keys(centers||{}).forEach(org=>set.add(org));
+  });
+  return Array.from(set).sort();
+}
+/* 설정 > 센터명 설정에 등록된 센터를 드롭다운으로 제공 (예전에 쓰던 센터명도 뒤에 함께 표시) */
+function buildDutyOrgSelectHtml(id, selectedName){
+  const configured = state.centers.map(c=>c.name);
+  const extra = listAllDutyCenters().filter(o=>!configured.includes(o));
+  const all = [...configured, ...extra];
+  if(selectedName && !all.includes(selectedName)) all.push(selectedName);
+  if(all.length===0){
+    return `<select id="${id}" class="duty-org-input"><option value="">⚙️ 설정 > 센터명 설정에서 센터를 추가해주세요</option></select>`;
+  }
+  const opts = all.map(n=>`<option value="${escapeHtml(n)}" ${n===selectedName?'selected':''}>${escapeHtml(n)}</option>`).join('');
+  return `<select id="${id}" class="duty-org-input">${opts}</select>`;
+}
 function renderDuty(){
   const hasData = dutyState.employees.length>0;
   const cur = getDutyDefaultYearMonth();
+  const currentOrg = dutyState.orgName || DEFAULT_DUTY_ORG;
   const savedMonths = listDutySavedMonths();
   const importDefault = savedMonths.find(m=>m!==dutyState.monthLabel) || dutyState.monthLabel;
   const impParts = (importDefault||`${cur.year}.${String(cur.month).padStart(2,'0')}`).split('.').map(Number);
-  const locked = isDutyMonthLocked(dutyState.monthLabel);
+  const importCentersForMonth = listDutyCentersForMonth(importDefault||'');
+  const importOrgDefault = importCentersForMonth.find(o=>o!==currentOrg) || importCentersForMonth[0] || currentOrg;
+  const locked = isDutyMonthLocked(dutyState.monthLabel, currentOrg);
   const dis = (locked || !hasData) ? 'disabled' : '';
   let html = `<div class="duty-view">
     <div class="duty-month-bar">
       <span class="duty-month-label">📅 작업 대상 연월</span>
       ${buildDutyMonthSelectorHtml('dutyWork', cur.year, cur.month)}
-      <button class="btn-secondary" onclick="onDutyWorkMonthChange()">이 연월로 전환</button>
-      ${locked?`<span class="duty-lock-badge">🔒 이 달은 마감(잠금)됨 — 조회·다운로드만 가능</span><button class="btn-secondary" onclick="quickUnlockDutyMonth()">잠금 해제</button>`:''}
-      <span class="duty-month-hint">선택한 연월에 파일을 업로드하면 그 달 기준으로 자동 저장돼요. 이미 저장된 달을 선택하면 그 내용을 불러와요. 마감(잠금)은 왼쪽 하단 ⚙️ 설정에서 관리해요.</span>
+      <span class="duty-month-label">🏢 센터</span>
+      ${buildDutyOrgSelectHtml('dutyOrgInput', currentOrg)}
+      <button class="btn-secondary" onclick="onDutyWorkMonthChange()">이 연월/센터로 전환</button>
+      ${locked?`<span class="duty-lock-badge">🔒 마감(잠금)됨 — 조회·다운로드만 가능</span><button class="btn-secondary" onclick="quickUnlockDutyMonth()">잠금 해제</button>`:''}
+      <span class="duty-month-hint">연월+센터 조합으로 각각 따로 저장돼요. 파일을 업로드하면 지금 선택된 연월·센터 기준으로 자동 저장돼요. 마감(잠금)은 왼쪽 하단 ⚙️ 설정에서 관리해요.</span>
     </div>
     <div class="duty-upload-grid">
       <div class="duty-upload-card">
         <div class="duty-upload-title">1. 근태관리 파일</div>
-        <div class="duty-upload-desc">선택한 연월의 근태관리 엑셀을 올리면 명단·일별 근태가 생성/갱신돼요.</div>
+        <div class="duty-upload-desc">선택한 연월·센터의 근태관리 엑셀을 올리면 명단·일별 근태가 생성/갱신돼요.</div>
         <input type="file" accept=".xlsx,.xls" onchange="onDutyAttendanceUpload(event)" ${locked?'disabled':''}>
-        ${dutyState.sourceFileName?`<div class="duty-upload-status">✅ ${escapeHtml(dutyState.sourceFileName)} · ${dutyState.employees.length}명 · ${escapeHtml(dutyState.monthLabel||'?')}</div>`:''}
+        ${dutyState.sourceFileName?`<div class="duty-upload-status">✅ ${escapeHtml(dutyState.sourceFileName)} · ${dutyState.employees.length}명 · ${escapeHtml(dutyState.monthLabel||'?')} · ${escapeHtml(currentOrg)}</div>`:''}
       </div>
       <div class="duty-upload-card">
-        <div class="duty-upload-title">2. 다른 달에서 항목 가져오기</div>
-        <div class="duty-upload-desc">호봉~근무조 등 항목을 사번 기준으로 저장해둔 다른 달 자료에서 불러와요. (당월·해당 달 명단에 모두 있는 사람만)</div>
+        <div class="duty-upload-title">2. 다른 달·센터에서 항목 가져오기</div>
+        <div class="duty-upload-desc">호봉~근무조 등 항목을 사번 기준으로 저장해둔 다른 달/센터 자료에서 불러와요. (당월·해당 자료 명단에 모두 있는 사람만)</div>
         <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
           ${buildDutyMonthSelectorHtml('dutyImport', impParts[0], impParts[1])}
+          ${buildDutyOrgSelectHtml('dutyImportOrgInput', importOrgDefault)}
         </div>
-        <button class="btn-secondary" style="width:100%;" onclick="importItemsFromMonth()" ${dis}>📥 이 달에서 가져오기</button>
-        ${savedMonths.length?`<div style="font-size:10.5px;color:var(--text-faint);">저장된 달: ${savedMonths.map(escapeHtml).join(', ')}</div>`:''}
+        <button class="btn-secondary" style="width:100%;" onclick="importItemsFromMonth()" ${dis}>📥 가져오기</button>
+        ${savedMonths.length?`<div style="font-size:10.5px;color:var(--text-faint);">저장된 연월: ${savedMonths.map(escapeHtml).join(', ')}</div>`:''}
       </div>
       <div class="duty-upload-card">
         <div class="duty-upload-title">3. 호봉~근무조 일괄 업로드</div>
@@ -2311,10 +2429,11 @@ function renderDuty(){
   if(hasData){
     html += renderDutyPreviewTable();
     html += `<div class="duty-actions">
+      <button class="btn-secondary" onclick="openDutyValidationModal()">🔍 검증하기</button>
       <button class="btn-primary" onclick="generateDutyExcel()">📥 복무 엑셀 다운로드</button>
     </div>`;
   }else{
-    html += `<div class="empty-state" style="padding:60px 0;">근태관리 파일을 업로드하면 시작할 수 있어요. (자동으로 선택한 연월 기준으로 저장돼요)</div>`;
+    html += `<div class="empty-state" style="padding:60px 0;">근태관리 파일을 업로드하면 시작할 수 있어요. (선택한 연월·센터 기준으로 자동 저장돼요)</div>`;
   }
   html += `</div>`;
   return html;
@@ -2349,7 +2468,7 @@ function buildDutyRowValues(e, gubun){
   row[1] = e.sabun;
   row[2] = e.name || '';
   row[3] = 'TM';
-  row[4] = 'KB손해보험 부천센터';
+  row[4] = dutyState.orgName || DEFAULT_DUTY_ORG;
   row[5] = e.items['호봉']||'';
   row[6] = e.items['구분']||'';
   row[7] = e.items['근무시간1']||'';
@@ -2426,7 +2545,7 @@ function isDutyCellEditable(meta, e, gubun){
 }
 let dutyCellEditCtx = null;
 function openDutyCellEditModal(empIdx, gubun, colIdx){
-  if(isDutyMonthLocked(dutyState.monthLabel)) return;
+  if(isDutyMonthLocked(dutyState.monthLabel, dutyState.orgName)) return;
   const emp = dutyState.employees[empIdx]; if(!emp) return;
   const meta = getDutyCellKind(colIdx, gubun);
   if(!meta || !isDutyCellEditable(meta, emp, gubun)) return;
@@ -2455,6 +2574,7 @@ function confirmDutyCellEdit(){
   if(!dutyCellEditCtx) return;
   const {empIdx, gubun, meta} = dutyCellEditCtx;
   const emp = dutyState.employees[empIdx]; if(!emp){ closeDutyCellEditModal(); return; }
+  pushDutyUndoSnapshot();
   const val = document.getElementById('dutyCellEditInput').value.trim();
   if(meta.kind==='name') emp.name = val;
   else if(meta.kind==='day'){ if(gubun==='TM근태') emp.daily[meta.key] = val; }
@@ -2474,18 +2594,22 @@ document.getElementById('dutyCellEditModalOverlay').addEventListener('click', (e
   if(e.target.id==='dutyCellEditModalOverlay') closeDutyCellEditModal();
 });
 function deleteDutyEmployee(empIdx){
-  if(isDutyMonthLocked(dutyState.monthLabel)){ alert('마감(잠금)된 달은 수정할 수 없어요. 설정에서 잠금을 해제해주세요.'); return; }
+  if(isDutyMonthLocked(dutyState.monthLabel, dutyState.orgName)){ alert('마감(잠금)된 달은 수정할 수 없어요. 설정에서 잠금을 해제해주세요.'); return; }
   const emp = dutyState.employees[empIdx];
   if(!emp) return;
   if(!confirm(`${emp.name||'(이름없음)'} (사번 ${emp.sabun}) 님을 목록에서 삭제할까요?`)) return;
+  pushDutyUndoSnapshot();
   dutyState.employees.splice(empIdx,1);
   saveDutyMonthSnapshot();
   renderDutyRefresh();
 }
 function renderDutyPreviewTable(){
   const header = buildDutyHeaderRow();
-  const headerHtml = ['관리', ...header].map(h=>`<th>${escapeHtml(String(h).replace(/\n/g,' '))}</th>`).join('');
-  const locked = isDutyMonthLocked(dutyState.monthLabel);
+  const headerHtml = ['관리', ...header].map((h,i)=>{
+    const isDayHeader = i>=17 && i<=47; /* 관리(0) 포함 offset, 01~31은 원본 인덱스 16~46 */
+    return `<th class="${isDayHeader?'duty-code-cell':''}">${escapeHtml(String(h).replace(/\n/g,' '))}</th>`;
+  }).join('');
+  const locked = isDutyMonthLocked(dutyState.monthLabel, dutyState.orgName);
   const q = (dutySearchQuery||'').trim().toLowerCase();
   const visibleList = dutyState.employees
     .map((e, empIdx)=>({e, empIdx}))
@@ -2506,12 +2630,14 @@ function renderDutyPreviewTable(){
         const editable = !locked && isDutyCellEditable(meta, e, gubun);
         const isHoliday = meta && meta.kind==='day' && val==='공휴일';
         const isName = colIdx===2;
-        const cls = `${isHoliday?'duty-holiday-cell':''} ${isName?'duty-name-cell':''} ${editable?'duty-editable-cell':'duty-readonly-cell'}`.trim();
+        const isDayCol = colIdx>=16 && colIdx<=46;
+        const cls = `${isHoliday?'duty-holiday-cell':''} ${isName?'duty-name-cell':''} ${isDayCol?'duty-code-cell':''} ${editable?'duty-editable-cell':'duty-readonly-cell'}`.trim();
         const displayVal = (val===null||val===undefined) ? '' : String(val);
+        const titleAttr = isDayCol && displayVal ? ` title="${escapeHtml(displayVal)}"` : '';
         if(editable){
-          rowHtml += `<td class="${cls}" onclick="openDutyCellEditModal(${empIdx},'${gubun}',${colIdx})">${escapeHtml(displayVal)}</td>`;
+          rowHtml += `<td class="${cls}"${titleAttr} onclick="openDutyCellEditModal(${empIdx},'${gubun}',${colIdx})">${escapeHtml(displayVal)}</td>`;
         }else{
-          rowHtml += `<td class="${cls}">${escapeHtml(displayVal)}</td>`;
+          rowHtml += `<td class="${cls}"${titleAttr}>${escapeHtml(displayVal)}</td>`;
         }
       });
       bodyHtml += `<tr>${rowHtml}</tr>`;
@@ -2521,8 +2647,11 @@ function renderDutyPreviewTable(){
     <div class="duty-preview-title">
       <span>미리보기 · ${escapeHtml(dutyState.monthLabel||'')} · 총 ${dutyState.employees.length}명${q?` · 검색결과 ${visibleList.length}명`:''} ${locked?'· 🔒 마감(잠금)되어 조회만 가능':'· 흰 칸 클릭 시 수정 팝업, 왼쪽 ✕로 직원 전체 삭제'} (복무 파일과 동일한 구성)</span>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-        <input type="text" id="dutySearchInput" class="duty-search-input" placeholder="🔍 이름 또는 사번 검색" value="${escapeHtml(dutySearchQuery||'')}" oninput="onDutySearch()">
+        <input type="text" id="dutySearchInput" class="duty-search-input" placeholder="🔍 이름 또는 사번 검색" value="${escapeHtml(dutySearchQuery||'')}" oninput="onDutySearch(event)" oncompositionend="onDutySearch(event)">
         <button type="button" class="btn-secondary" onclick="toggleDutyShowOnlyTM()">${dutyShowOnlyTM?'전체 5줄 보기':'TM근태 줄만 보기'}</button>
+        <button type="button" class="btn-secondary" onclick="dutyUndo()" ${(locked||dutyUndoStack.length===0)?'disabled':''} title="한 단계 되돌리기">↩️ 뒤로</button>
+        <button type="button" class="btn-secondary" onclick="dutyRedo()" ${(locked||dutyRedoStack.length===0)?'disabled':''} title="한 단계 다시하기">↪️ 앞으로</button>
+        <button type="button" class="btn-danger-text" onclick="resetDutyCurrentView()" ${locked?'disabled':''} title="이 연월·센터 데이터 전체 초기화">🔄 초기화</button>
       </div>
     </div>
     <div class="duty-table-scroll">
@@ -2563,55 +2692,63 @@ function applyDutyHolidayOverride(employees, monthLabel, daysInMonth){
     }
   });
 }
-const DUTY_STORAGE_PREFIX = 'duty-month-';
-const DUTY_LAST_ACTIVE_KEY = 'duty-last-active-month';
+const DUTY_LAST_ACTIVE_KEY = 'duty-last-active-month'; /* 이 기기에서 마지막으로 보던 달(개인 설정, 로컬 유지) */
+function dutyLockKey(monthLabel, orgName){
+  return `${monthLabel}__${orgName}`;
+}
 function saveDutyMonthSnapshot(){
   if(!dutyState.monthLabel) return;
-  try{
-    localStorage.setItem(DUTY_STORAGE_PREFIX + dutyState.monthLabel, JSON.stringify(dutyState));
-    localStorage.setItem(DUTY_LAST_ACTIVE_KEY, dutyState.monthLabel);
-  }catch(e){ console.error('복무 데이터 저장 실패', e); }
+  const org = dutyState.orgName || DEFAULT_DUTY_ORG;
+  dutyState.orgName = org;
+  dutyStore.monthly[dutyState.monthLabel] = dutyStore.monthly[dutyState.monthLabel] || {};
+  dutyStore.monthly[dutyState.monthLabel][org] = JSON.parse(JSON.stringify(dutyState));
+  try{ localStorage.setItem(DUTY_LAST_ACTIVE_KEY, JSON.stringify({monthLabel: dutyState.monthLabel, orgName: org})); }catch(e){}
+  saveData();
 }
 function restoreDutyOnLoad(){
   try{
-    const lastMonth = localStorage.getItem(DUTY_LAST_ACTIVE_KEY);
-    if(lastMonth){
-      const snap = loadDutyMonthSnapshot(lastMonth);
-      if(snap){ dutyState = snap; return; }
+    const raw = localStorage.getItem(DUTY_LAST_ACTIVE_KEY);
+    if(raw){
+      const {monthLabel, orgName} = JSON.parse(raw);
+      const snap = loadDutyMonthSnapshot(monthLabel, orgName);
+      if(snap){ dutyState = JSON.parse(JSON.stringify(snap)); return; }
     }
   }catch(e){}
 }
 
 /* ---- 복무마감(잠금) ---- */
-const DUTY_LOCK_KEY = 'duty-locked-months';
-function getDutyLockedMonths(){
-  try{ return JSON.parse(localStorage.getItem(DUTY_LOCK_KEY)||'[]'); }catch(e){ return []; }
+function getDutyLockedKeys(){
+  return dutyStore.lockedKeys || [];
 }
-function isDutyMonthLocked(monthLabel){
+function isDutyMonthLocked(monthLabel, orgName){
   if(!monthLabel) return false;
-  return getDutyLockedMonths().includes(monthLabel);
+  return getDutyLockedKeys().includes(dutyLockKey(monthLabel, orgName||DEFAULT_DUTY_ORG));
 }
-function setDutyMonthLocked(monthLabel, locked){
-  let list = getDutyLockedMonths();
-  if(locked){ if(!list.includes(monthLabel)) list.push(monthLabel); }
-  else{ list = list.filter(m=>m!==monthLabel); }
-  try{ localStorage.setItem(DUTY_LOCK_KEY, JSON.stringify(list)); }catch(e){}
+function setDutyMonthLocked(monthLabel, orgName, locked){
+  const key = dutyLockKey(monthLabel, orgName||DEFAULT_DUTY_ORG);
+  let list = getDutyLockedKeys().slice();
+  if(locked){ if(!list.includes(key)) list.push(key); }
+  else{ list = list.filter(k=>k!==key); }
+  dutyStore.lockedKeys = list;
+  saveData();
 }
-function toggleDutyMonthLockFromModal(monthLabel){
-  setDutyMonthLocked(monthLabel, !isDutyMonthLocked(monthLabel));
+function toggleDutyMonthLockFromModal(monthLabel, orgName){
+  setDutyMonthLocked(monthLabel, orgName, !isDutyMonthLocked(monthLabel, orgName));
   renderDutyLockModalBody();
   renderDutyRefresh();
 }
 function quickUnlockDutyMonth(){
-  if(!confirm(`${dutyState.monthLabel} 마감(잠금)을 해제할까요?`)) return;
-  setDutyMonthLocked(dutyState.monthLabel, false);
+  const org = dutyState.orgName || DEFAULT_DUTY_ORG;
+  if(!confirm(`${dutyState.monthLabel} · ${org} 마감(잠금)을 해제할까요?`)) return;
+  setDutyMonthLocked(dutyState.monthLabel, org, false);
   renderDutyRefresh();
 }
 function lockCustomMonth(){
   const y = document.getElementById('dutyLockAddYear').value;
   const m = document.getElementById('dutyLockAddMonth').value;
+  const org = (document.getElementById('dutyLockAddOrgInput').value || '').trim() || DEFAULT_DUTY_ORG;
   const label = `${y}.${String(m).padStart(2,'0')}`;
-  setDutyMonthLocked(label, true);
+  setDutyMonthLocked(label, org, true);
   renderDutyLockModalBody();
   renderDutyRefresh();
 }
@@ -2623,23 +2760,28 @@ function closeDutyLockModal(){
   document.getElementById('dutyLockModalOverlay').classList.add('hidden');
 }
 function renderDutyLockModalBody(){
-  const months = listDutySavedMonths();
-  const locked = getDutyLockedMonths();
+  const combos = [];
+  Object.keys(dutyStore.monthly||{}).sort().forEach(m=>{
+    Object.keys(dutyStore.monthly[m]||{}).sort().forEach(org=>combos.push({monthLabel:m, orgName:org}));
+  });
+  const locked = getDutyLockedKeys();
   const cur = getDutyDefaultYearMonth();
   const body = document.getElementById('dutyLockModalBody');
-  const rows = months.map(m=>{
-    const isLocked = locked.includes(m);
+  const rows = combos.map(({monthLabel, orgName})=>{
+    const key = dutyLockKey(monthLabel, orgName);
+    const isLocked = locked.includes(key);
     return `<li class="center-row">
-      <span style="flex:1;font-size:13px;font-weight:600;">${escapeHtml(m)}</span>
+      <span style="flex:1;font-size:13px;font-weight:600;">${escapeHtml(monthLabel)} · ${escapeHtml(orgName)}</span>
       <span style="font-size:11px;font-weight:700;margin-right:8px;color:${isLocked?'#D64545':'#1F8A4C'};">${isLocked?'🔒 마감됨':'🔓 해제됨'}</span>
-      <button type="button" class="btn-secondary" style="padding:6px 10px;font-size:11.5px;" onclick="toggleDutyMonthLockFromModal('${m}')">${isLocked?'잠금 해제':'마감(잠금)'}</button>
+      <button type="button" class="btn-secondary" style="padding:6px 10px;font-size:11.5px;" onclick="toggleDutyMonthLockFromModal('${monthLabel}','${escapeHtml(orgName).replace(/'/g,"\\'")}')">${isLocked?'잠금 해제':'마감(잠금)'}</button>
     </li>`;
   }).join('') || '<li class="empty-state" style="padding:10px 0;">저장된 복무 데이터가 없어요.</li>';
   body.innerHTML = `
     <ul class="center-list" style="margin-bottom:0;">${rows}</ul>
     <div style="display:flex;gap:6px;align-items:center;margin-top:14px;flex-wrap:wrap;">
-      <span style="font-size:11.5px;color:var(--text-soft);">다른 연월 지정:</span>
+      <span style="font-size:11.5px;color:var(--text-soft);">다른 연월/센터 지정:</span>
       ${buildDutyMonthSelectorHtml('dutyLockAdd', cur.year, cur.month)}
+      ${buildDutyOrgSelectHtml('dutyLockAddOrgInput', dutyState.orgName||DEFAULT_DUTY_ORG)}
       <button type="button" class="btn-secondary" onclick="lockCustomMonth()">마감(잠금)</button>
     </div>
   `;
@@ -2648,56 +2790,58 @@ document.getElementById('dutyLockModalOverlay').addEventListener('click', (e)=>{
   if(e.target.id==='dutyLockModalOverlay') closeDutyLockModal();
 });
 
-function loadDutyMonthSnapshot(monthLabel){
-  try{
-    const raw = localStorage.getItem(DUTY_STORAGE_PREFIX + monthLabel);
-    if(raw) return JSON.parse(raw);
-  }catch(e){}
-  return null;
+function loadDutyMonthSnapshot(monthLabel, orgName){
+  const centers = dutyStore.monthly[monthLabel];
+  if(!centers) return null;
+  return centers[orgName||DEFAULT_DUTY_ORG] || null;
 }
 function listDutySavedMonths(){
-  const months = [];
-  for(let i=0;i<localStorage.length;i++){
-    const key = localStorage.key(i);
-    if(key && key.startsWith(DUTY_STORAGE_PREFIX)) months.push(key.slice(DUTY_STORAGE_PREFIX.length));
-  }
-  return months.sort();
+  return Object.keys(dutyStore.monthly || {}).sort();
+}
+function listDutyCentersForMonth(monthLabel){
+  return Object.keys((dutyStore.monthly||{})[monthLabel] || {}).sort();
 }
 function onDutyWorkMonthChange(){
   const y = Number(document.getElementById('dutyWorkYear').value);
   const m = Number(document.getElementById('dutyWorkMonth').value);
   const newLabel = `${y}.${String(m).padStart(2,'0')}`;
-  if(newLabel === dutyState.monthLabel) return;
+  const newOrg = (document.getElementById('dutyOrgInput').value || '').trim() || DEFAULT_DUTY_ORG;
+  if(newLabel === dutyState.monthLabel && newOrg === (dutyState.orgName||DEFAULT_DUTY_ORG)) return;
   if(dutyState.employees.length) saveDutyMonthSnapshot();
-  const snap = loadDutyMonthSnapshot(newLabel);
+  const snap = loadDutyMonthSnapshot(newLabel, newOrg);
   if(snap){
-    dutyState = snap;
+    dutyState = JSON.parse(JSON.stringify(snap));
   }else{
-    dutyState = { employees: [], monthLabel: newLabel, daysInMonth: 31, sourceFileName: '' };
+    dutyState = { employees: [], monthLabel: newLabel, orgName: newOrg, daysInMonth: 31, sourceFileName: '' };
   }
   dutySearchQuery = '';
+  clearDutyUndoHistory();
   renderDutyRefresh();
 }
 function importItemsFromMonth(){
-  if(isDutyMonthLocked(dutyState.monthLabel)){ alert('마감(잠금)된 달은 수정할 수 없어요. 설정에서 잠금을 해제해주세요.'); return; }
+  const curOrg = dutyState.orgName || DEFAULT_DUTY_ORG;
+  if(isDutyMonthLocked(dutyState.monthLabel, curOrg)){ alert('마감(잠금)된 달은 수정할 수 없어요. 설정에서 잠금을 해제해주세요.'); return; }
   const y = Number(document.getElementById('dutyImportYear').value);
   const m = Number(document.getElementById('dutyImportMonth').value);
+  const srcOrg = (document.getElementById('dutyImportOrgInput').value || '').trim() || DEFAULT_DUTY_ORG;
   const label = `${y}.${String(m).padStart(2,'0')}`;
-  const snap = loadDutyMonthSnapshot(label);
-  if(!snap || !snap.employees || !snap.employees.length){ alert(`${label}에 저장된 데이터가 없어요.`); return; }
+  const snap = loadDutyMonthSnapshot(label, srcOrg);
+  if(!snap || !snap.employees || !snap.employees.length){ alert(`${label} · ${srcOrg}에 저장된 데이터가 없어요.`); return; }
+  pushDutyUndoSnapshot();
   let matched=0, unmatched=0;
   dutyState.employees.forEach(e=>{
     const p = snap.employees.find(x=>x.sabun===e.sabun);
     if(p){ e.items = {...e.items, ...(p.items||{})}; matched++; }
     else unmatched++;
   });
-  alert(`${label} 자료에서 ${matched}명 항목을 가져왔어요.${unmatched?` (${unmatched}명은 그 달 자료 없음)`:''}`);
+  alert(`${label} · ${srcOrg} 자료에서 ${matched}명 항목을 가져왔어요.${unmatched?` (${unmatched}명은 그 자료에 없음)`:''}`);
   saveDutyMonthSnapshot();
   renderDutyRefresh();
 }
 async function onDutyAttendanceUpload(ev){
   const file = ev.target.files[0]; if(!file) return;
-  if(isDutyMonthLocked(dutyState.monthLabel)){ alert('마감(잠금)된 달은 수정할 수 없어요. 설정에서 잠금을 해제해주세요.'); ev.target.value=''; return; }
+  const curOrgForCheck = dutyState.orgName || DEFAULT_DUTY_ORG;
+  if(isDutyMonthLocked(dutyState.monthLabel, curOrgForCheck)){ alert('마감(잠금)된 달은 수정할 수 없어요. 설정에서 잠금을 해제해주세요.'); ev.target.value=''; return; }
   try{
     const wb = await readWorkbookFromFile(file);
     const sheetName = wb.SheetNames[0];
@@ -2710,9 +2854,17 @@ async function onDutyAttendanceUpload(ev){
       if(m) dayCols.push({idx, day:parseInt(m[1],10)});
     });
     if(dayCols.length===0){ alert('일자 컬럼(예: 1(수))을 찾을 수 없어요. 근태관리 파일이 맞는지 확인해주세요.'); ev.target.value=''; return; }
+    const SUMMARY_LABELS = ['출근','연차','반차','결근','청휴','병가','무급','공휴일','기타'];
+    const summaryCols = {};
+    header.forEach((h,idx)=>{
+      const t = String(h||'').trim();
+      if(SUMMARY_LABELS.includes(t)) summaryCols[t] = idx;
+    });
     const mm = sheetName.match(/(\d{4})\D*?(\d{1,2})월/);
     const cur = getDutyDefaultYearMonth();
     const monthLabel = mm ? `${mm[1]}.${String(mm[2]).padStart(2,'0')}` : `${cur.year}.${String(cur.month).padStart(2,'0')}`;
+    const orgInputEl = document.getElementById('dutyOrgInput');
+    const orgName = (orgInputEl && orgInputEl.value.trim()) || dutyState.orgName || DEFAULT_DUTY_ORG;
     const idxName=1, idxSabun=2, idxTeam=3, idxHire=4, idxLeave=5;
     const employees = [];
     for(let r=1;r<rows.length;r++){
@@ -2723,18 +2875,31 @@ async function onDutyAttendanceUpload(ev){
         let v = row[dc.idx];
         daily[dc.day] = (v===null||v===undefined) ? '' : String(v).trim();
       });
-      employees.push({sabun, name:row[idxName]||'', team:row[idxTeam]||'', hireDate:row[idxHire]||null, leaveDate:row[idxLeave]||null, daily, ot:{}, otDaily:{}, items:{}});
+      const attendanceSummary = {};
+      SUMMARY_LABELS.forEach(label=>{
+        if(summaryCols[label]!==undefined){
+          const v = row[summaryCols[label]];
+          attendanceSummary[label] = (v===null||v===undefined||v==='') ? 0 : Number(v);
+        }
+      });
+      employees.push({sabun, name:row[idxName]||'', team:row[idxTeam]||'', hireDate:row[idxHire]||null, leaveDate:row[idxLeave]||null, daily, ot:{}, otDaily:{}, items:{}, attendanceSummary});
     }
     applyDutyHolidayOverride(employees, monthLabel, dayCols.length);
-    /* 같은 달에 이미 입력해둔 항목/연장근무가 있으면 유지 (명단·근태만 새로 갱신) */
-    const prior = (dutyState.monthLabel===monthLabel && dutyState.employees.length) ? dutyState : loadDutyMonthSnapshot(monthLabel);
+    /* 같은 연월·센터에 이미 입력해둔 항목/연장근무가 있으면 유지 (명단·근태만 새로 갱신) */
+    const prior = (dutyState.monthLabel===monthLabel && (dutyState.orgName||DEFAULT_DUTY_ORG)===orgName && dutyState.employees.length)
+      ? dutyState : loadDutyMonthSnapshot(monthLabel, orgName);
     if(prior && prior.employees){
       employees.forEach(e=>{
         const p = prior.employees.find(x=>x.sabun===e.sabun);
         if(p){ e.items = p.items||{}; e.ot = p.ot||{}; e.otDaily = p.otDaily||{}; }
       });
     }
-    dutyState = { employees, monthLabel, daysInMonth: dayCols.length, sourceFileName: file.name };
+    if(dutyState.monthLabel===monthLabel && (dutyState.orgName||DEFAULT_DUTY_ORG)===orgName && dutyState.employees.length){
+      pushDutyUndoSnapshot();
+    }else{
+      clearDutyUndoHistory();
+    }
+    dutyState = { employees, monthLabel, orgName, daysInMonth: dayCols.length, sourceFileName: file.name };
     saveDutyMonthSnapshot();
     renderDutyRefresh();
   }catch(err){
@@ -2746,7 +2911,7 @@ async function onDutyAttendanceUpload(ev){
 const DUTY_BULK_BASIC_KEYS = ['호봉','구분','근무시간1','근무시간2','초과근무시간','야간근무시간','근무유형','직급','근무조'];
 async function onDutyBasicBulkUpload(ev){
   const file = ev.target.files[0]; if(!file) return;
-  if(isDutyMonthLocked(dutyState.monthLabel)){ alert('마감(잠금)된 달은 수정할 수 없어요. 설정에서 잠금을 해제해주세요.'); ev.target.value=''; return; }
+  if(isDutyMonthLocked(dutyState.monthLabel, dutyState.orgName)){ alert('마감(잠금)된 달은 수정할 수 없어요. 설정에서 잠금을 해제해주세요.'); ev.target.value=''; return; }
   try{
     const wb = await readWorkbookFromFile(file);
     const ws = wb.Sheets[wb.SheetNames[0]];
@@ -2764,6 +2929,7 @@ async function onDutyBasicBulkUpload(ev){
     if(sabunIdx===-1){ alert('사번 열을 찾을 수 없어요.'); ev.target.value=''; return; }
     const matchedKeys = Object.keys(colMap);
     if(matchedKeys.length===0){ alert('호봉/구분/근무시간1/근무시간2/초과근무시간(고정OT)/야간근무시간(고정OT)/근무유형/직급/근무조 중 인식된 열이 없어요. 헤더명을 확인해주세요.'); ev.target.value=''; return; }
+    pushDutyUndoSnapshot();
     let applied=0, skipped=0;
     for(let r=1;r<rows.length;r++){
       const row = rows[r]; if(!row) continue;
@@ -2799,11 +2965,12 @@ function parseDutyDayValue(dateVal){
 }
 async function onDutyOvertimeUpload(ev){
   const file = ev.target.files[0]; if(!file) return;
-  if(isDutyMonthLocked(dutyState.monthLabel)){ alert('마감(잠금)된 달은 수정할 수 없어요. 설정에서 잠금을 해제해주세요.'); ev.target.value=''; return; }
+  if(isDutyMonthLocked(dutyState.monthLabel, dutyState.orgName)){ alert('마감(잠금)된 달은 수정할 수 없어요. 설정에서 잠금을 해제해주세요.'); ev.target.value=''; return; }
   try{
     const wb = await readWorkbookFromFile(file);
     const ws = wb.Sheets[wb.SheetNames[0]];
     const rows = XLSX.utils.sheet_to_json(ws, {defval:null});
+    pushDutyUndoSnapshot();
     let applied=0, skipped=0;
     rows.forEach(row=>{
       const sabun = String(row['사번']!=null?row['사번']:'').trim();
@@ -2830,7 +2997,7 @@ async function onDutyOvertimeUpload(ev){
 }
 async function onDutyItemUpload(ev){
   const file = ev.target.files[0]; if(!file) return;
-  if(isDutyMonthLocked(dutyState.monthLabel)){ alert('마감(잠금)된 달은 수정할 수 없어요. 설정에서 잠금을 해제해주세요.'); ev.target.value=''; return; }
+  if(isDutyMonthLocked(dutyState.monthLabel, dutyState.orgName)){ alert('마감(잠금)된 달은 수정할 수 없어요. 설정에서 잠금을 해제해주세요.'); ev.target.value=''; return; }
   try{
     const wb = await readWorkbookFromFile(file);
     const ws = wb.Sheets[wb.SheetNames[0]];
@@ -2845,6 +3012,7 @@ async function onDutyItemUpload(ev){
     });
     if(sabunIdx===-1 || valueIdx===-1){ alert('사번 열과 항목 값 열을 찾을 수 없어요. [사번,이름,항목값] 형식인지 확인해주세요.'); ev.target.value=''; return; }
     const applyField = (key)=>{
+      pushDutyUndoSnapshot();
       let applied=0, skipped=0;
       for(let r=1;r<rows.length;r++){
         const row = rows[r]; if(!row) continue;
@@ -2892,6 +3060,73 @@ function confirmDutyFieldModal(){
 document.getElementById('dutyFieldModalOverlay').addEventListener('click', (e)=>{
   if(e.target.id==='dutyFieldModalOverlay') closeDutyFieldModal();
 });
+function computeDutyValidation(){
+  const results = [];
+  dutyState.employees.forEach(e=>{
+    if(!e.attendanceSummary) return;
+    const counts = {'출근':0,'연차':0,'반차':0,'결근':0,'청휴':0,'병가':0,'무급':0,'공휴일':0,'기타':0};
+    for(let d=1; d<=(dutyState.daysInMonth||31); d++){
+      const code = e.daily[d];
+      if(!code) continue;
+      if(code==='○') counts['출근']++;
+      else if(code==='연차') counts['연차']++;
+      else if(code==='반차') counts['반차']++;
+      else if(code==='결근') counts['결근']++;
+      else if(code==='청휴') counts['청휴']++;
+      else if(code==='병가') counts['병가']++;
+      else if(code.indexOf('무급')>-1) counts['무급']++;
+      else if(code==='공휴일') counts['공휴일']++;
+      else if(code==='휴무' || code==='휴일'){ /* 주말은 요약 컬럼에 없음 */ }
+      else counts['기타']++;
+    }
+    const mismatches = [];
+    Object.keys(counts).forEach(label=>{
+      if(e.attendanceSummary[label]===undefined) return;
+      const expected = e.attendanceSummary[label];
+      const actual = counts[label];
+      if(expected !== actual){
+        const note = (label==='공휴일' && actual>expected) ? '공휴일 자동보정으로 늘어난 정상적인 차이일 수 있어요' : '';
+        mismatches.push({label, expected, actual, note});
+      }
+    });
+    if(mismatches.length) results.push({sabun:e.sabun, name:e.name, mismatches});
+  });
+  return results;
+}
+function openDutyValidationModal(){
+  if(dutyState.employees.length===0){ alert('먼저 근태관리 파일을 업로드해주세요.'); return; }
+  const hasSummaryData = dutyState.employees.some(e=>e.attendanceSummary && Object.keys(e.attendanceSummary).length>0);
+  const summaryEl = document.getElementById('dutyValidationSummary');
+  const bodyEl = document.getElementById('dutyValidationBody');
+  if(!hasSummaryData){
+    summaryEl.textContent = '이 자료에는 원본 요약 컬럼(출근/연차/반차 등) 정보가 없어서 검증할 수 없어요. 근태관리 파일을 다시 업로드하면 검증할 수 있어요.';
+    bodyEl.innerHTML = '';
+  }else{
+    const results = computeDutyValidation();
+    if(results.length===0){
+      summaryEl.innerHTML = `<span style="color:#1F8A4C;">✅ 전체 ${dutyState.employees.length}명 모두 근태관리 원본의 요약 수치와 정확히 일치해요.</span>`;
+      bodyEl.innerHTML = '';
+    }else{
+      summaryEl.innerHTML = `<span style="color:#D64545;">⚠ 전체 ${dutyState.employees.length}명 중 ${results.length}명에서 차이가 발견됐어요.</span> 공휴일 관련 차이는 자동 보정 때문일 수 있어요.`;
+      bodyEl.innerHTML = results.map(r=>{
+        const lines = r.mismatches.map(m=>
+          `<div style="font-size:12px;padding:2px 0;">${escapeHtml(m.label)}: 원본 ${m.expected} → 지금 ${m.actual}${m.note?` <span style="color:var(--text-faint);">(${escapeHtml(m.note)})</span>`:''}</div>`
+        ).join('');
+        return `<div style="border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px;">
+          <div style="font-weight:700;font-size:13px;margin-bottom:4px;">${escapeHtml(r.name||'(이름없음)')} (사번 ${escapeHtml(r.sabun)})</div>
+          ${lines}
+        </div>`;
+      }).join('');
+    }
+  }
+  document.getElementById('dutyValidationModalOverlay').classList.remove('hidden');
+}
+function closeDutyValidationModal(){
+  document.getElementById('dutyValidationModalOverlay').classList.add('hidden');
+}
+document.getElementById('dutyValidationModalOverlay').addEventListener('click', (e)=>{
+  if(e.target.id==='dutyValidationModalOverlay') closeDutyValidationModal();
+});
 function generateDutyExcel(){
   if(dutyState.employees.length===0){ alert('먼저 근태관리 파일을 업로드해주세요.'); return; }
   const header = buildDutyHeaderRow();
@@ -2908,7 +3143,8 @@ function generateDutyExcel(){
   const ws = XLSX.utils.aoa_to_sheet(aoa);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, '복무표');
-  const filename = `${(dutyState.monthLabel||'복무').replace('.','_')}_복무_KB손해보험_부천센터.xlsx`;
+  const orgForFile = (dutyState.orgName || DEFAULT_DUTY_ORG).replace(/\s+/g,'');
+  const filename = `${(dutyState.monthLabel||'복무').replace('.','_')}_복무_${orgForFile}.xlsx`;
   XLSX.writeFile(wb, filename);
 }
 
@@ -2922,8 +3158,53 @@ document.getElementById('noticeForm').addEventListener('input', debouncedAutoSav
 document.getElementById('noticeForm').addEventListener('change', autoSaveNotice);
 
 /* ============ Init ============ */
+async function migrateLegacyDutyLocalStorage(){
+  let migrated = false;
+  const keysToRemove = [];
+  try{
+    for(let i=0;i<localStorage.length;i++){
+      const key = localStorage.key(i);
+      if(key && key.startsWith('duty-month-')){
+        const monthLabel = key.slice('duty-month-'.length);
+        try{
+          const snap = JSON.parse(localStorage.getItem(key));
+          if(snap && Array.isArray(snap.employees)){
+            const org = snap.orgName || DEFAULT_DUTY_ORG;
+            snap.orgName = org;
+            dutyStore.monthly[monthLabel] = dutyStore.monthly[monthLabel] || {};
+            if(!dutyStore.monthly[monthLabel][org]){
+              dutyStore.monthly[monthLabel][org] = snap;
+              migrated = true;
+            }
+          }
+        }catch(e){}
+        keysToRemove.push(key);
+      }
+    }
+    const lockedRaw = localStorage.getItem('duty-locked-months');
+    if(lockedRaw){
+      try{
+        const lockedList = JSON.parse(lockedRaw);
+        if(Array.isArray(lockedList) && lockedList.length){
+          const keys = lockedList.map(m=>`${m}__${DEFAULT_DUTY_ORG}`);
+          const merged = new Set([...(dutyStore.lockedKeys||[]), ...keys]);
+          dutyStore.lockedKeys = Array.from(merged);
+          migrated = true;
+        }
+      }catch(e){}
+      keysToRemove.push('duty-locked-months');
+    }
+  }catch(e){}
+  if(migrated){
+    const ok = await saveData();
+    if(ok){ keysToRemove.forEach(k=>{ try{ localStorage.removeItem(k); }catch(e){} }); }
+  }
+  return migrated;
+}
+
 (async function init(){
   await loadData();
+  await migrateLegacyDutyLocalStorage();
   restoreDutyOnLoad();
   document.getElementById('loadingOverlay').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
