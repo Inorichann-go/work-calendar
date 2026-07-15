@@ -2663,7 +2663,21 @@ function renderDutyPreviewTable(){
   </div>`;
 }
 function renderDutyRefresh(){
-  if(state.view==='duty') document.getElementById('viewContainer').innerHTML = renderDuty();
+  if(state.view!=='duty') return;
+  const vc = document.getElementById('viewContainer');
+  const outerScrollTop = vc.scrollTop;
+  const outerScrollLeft = vc.scrollLeft;
+  const innerBoxBefore = vc.querySelector('.duty-table-scroll');
+  const innerScrollTop = innerBoxBefore ? innerBoxBefore.scrollTop : 0;
+  const innerScrollLeft = innerBoxBefore ? innerBoxBefore.scrollLeft : 0;
+  vc.innerHTML = renderDuty();
+  vc.scrollTop = outerScrollTop;
+  vc.scrollLeft = outerScrollLeft;
+  const innerBoxAfter = vc.querySelector('.duty-table-scroll');
+  if(innerBoxAfter){
+    innerBoxAfter.scrollTop = innerScrollTop;
+    innerBoxAfter.scrollLeft = innerScrollLeft;
+  }
 }
 function dutyMonthMatch(d, monthLabel){
   if(!d || !monthLabel) return false;
