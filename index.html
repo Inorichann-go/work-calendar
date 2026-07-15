@@ -2671,13 +2671,20 @@ function renderDutyRefresh(){
   const innerScrollTop = innerBoxBefore ? innerBoxBefore.scrollTop : 0;
   const innerScrollLeft = innerBoxBefore ? innerBoxBefore.scrollLeft : 0;
   vc.innerHTML = renderDuty();
-  vc.scrollTop = outerScrollTop;
-  vc.scrollLeft = outerScrollLeft;
-  const innerBoxAfter = vc.querySelector('.duty-table-scroll');
-  if(innerBoxAfter){
-    innerBoxAfter.scrollTop = innerScrollTop;
-    innerBoxAfter.scrollLeft = innerScrollLeft;
-  }
+  const restoreScroll = ()=>{
+    vc.scrollTop = outerScrollTop;
+    vc.scrollLeft = outerScrollLeft;
+    const innerBoxAfter = vc.querySelector('.duty-table-scroll');
+    if(innerBoxAfter){
+      innerBoxAfter.scrollTop = innerScrollTop;
+      innerBoxAfter.scrollLeft = innerScrollLeft;
+    }
+  };
+  restoreScroll();
+  requestAnimationFrame(()=>{
+    restoreScroll();
+    requestAnimationFrame(restoreScroll);
+  });
 }
 function dutyMonthMatch(d, monthLabel){
   if(!d || !monthLabel) return false;
