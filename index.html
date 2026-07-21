@@ -425,6 +425,8 @@
   .eval-badge-red{background:#FDEAEA;color:#D64545;}
   .eval-badge-gray{background:#F0F0EE;color:#6B6A66;}
   .eval-editable-cell{cursor:pointer;}
+  .eval-row-delete-btn{border:none;background:none;color:var(--text-faint);cursor:pointer;font-size:13px;padding:3px 6px;border-radius:5px;}
+  .eval-row-delete-btn:hover{color:#D64545;background:#FDEAEA;}
   .eval-editable-cell:hover{background:var(--accent-soft);}
   .duty-report-section{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:14px;}
   .duty-report-section-title{font-size:13px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:6px;}
@@ -4739,11 +4741,26 @@ document.getElementById('evalCellEditModalInput').addEventListener('keydown',(e)
   if(e.key==='Enter'){ e.preventDefault(); confirmEvalCellEditModal(); }
 });
 
+function deleteEvalEmployee(idx){
+  const sel = getEvalSelectedWeek();
+  const week = evalStore.weekly[sel];
+  if(!week) return;
+  if(isEvalWeekLocked(sel)){ alert('마감(잠금)된 주차는 수정할 수 없어요.'); return; }
+  const emp = week.employees[idx];
+  if(!emp) return;
+  if(!confirm(`${emp.name}(${emp.team}) 님을 이번 주차 목록에서 삭제할까요?`)) return;
+  week.employees.splice(idx,1);
+  saveEvalData();
+  renderEvalRefresh();
+}
 function renderEvalEmployeeTable(week, locked){
   const reducedNames = week.reducedHoursNames || [];
   const resignTotal = (week.resigned||[]).length;
   const under80Total = (week.under80List||[]).length;
-  const rows = week.employees.map((e,idx)=>{
+  const query = (evalEmployeeSearchQuery||'').trim().toLowerCase();
+  const indexed = week.employees.map((e,idx)=>({e,idx}));
+  const filtered = query ? indexed.filter(({e})=> String(e.name||'').toLowerCase().includes(query) || String(e.team||'').toLowerCase().includes(query)) : indexed;
+  const rows = filtered.map(({e,idx})=>{
     const months = dutyMonthsBetween(e.hireDate, new Date());
     const isReduced = reducedNames.includes(e.name);
     const excludedTenure = months<=3;
@@ -4754,6 +4771,7 @@ function renderEvalEmployeeTable(week, locked){
       ? `<td>${display}</td>`
       : `<td class="eval-editable-cell" onclick="openEvalCellEditModal(${idx},'${field}')" title="클릭해서 수정">${display}</td>`;
     return `<tr>
+      <td>${locked?'':`<button type="button" class="eval-row-delete-btn" onclick="deleteEvalEmployee(${idx})" title="이 사람 삭제">✕</button>`}</td>
       <td style="text-align:left;white-space:nowrap;">${escapeHtml(e.name)}${badges}</td>
       <td style="white-space:nowrap;">${escapeHtml(e.team)}</td>
       ${editCell('hireDate', dutyFmtDate(e.hireDate))}
@@ -4769,23 +4787,37 @@ function renderEvalEmployeeTable(week, locked){
   }).join('');
   return `<div class="duty-report-section">
     <div class="duty-report-section-title">
-      <span>👥 개인별 실적 (총 ${week.employees.length}명)${locked?'':' · CPD·CallTime 칸을 클릭하면 수기로 수정할 수 있어요'}</span>
+      <span>👥 개인별 실적 (${query?`검색결과 ${filtered.length}명 / `:''}총 ${week.employees.length}명)${locked?'':' · CPD·CallTime 칸을 클릭하면 수기로 수정할 수 있어요'}</span>
       <button class="btn-secondary" style="margin-left:auto;" onclick="openEvalReducedHoursModal()" ${locked?'disabled':''}>👶 육아단축자 명단 (${reducedNames.length}명)</button>
       <button class="btn-secondary" onclick="openEvalUnder80Modal()" ${locked?'disabled':''}>⚠ 80% 미만 근무자 (${under80Total}명)</button>
       <button class="btn-secondary" onclick="openEvalResignModal()" ${locked?'disabled':''}>🚪 퇴사자 명단 (${resignTotal}명)</button>
     </div>
+    <input type="text" id="evalEmployeeSearchInput" class="duty-search-input" style="margin-bottom:10px;width:100%;max-width:280px;" placeholder="🔍 이름 또는 팀 검색" value="${escapeHtml(evalEmployeeSearchQuery||'')}" oninput="onEvalEmployeeSearch(event)" oncompositionend="onEvalEmployeeSearch(event)">
     <div class="duty-table-scroll" style="max-height:500px;">
       <table class="duty-table" style="white-space:nowrap;">
         <thead><tr>
-          <th>이름</th><th>팀</th><th>입사일</th>
+          <th></th><th>이름</th><th>팀</th><th>입사일</th>
           <th>CPD IN</th><th>CPD OB</th><th>CPD Total</th>
           <th>CallTime IN</th><th>CallTime OUT</th><th>CallTime Total</th>
           <th>근속</th><th>80% 미만</th>
         </tr></thead>
-        <tbody>${rows}</tbody>
+        <tbody>${rows || `<tr><td colspan="12" style="text-align:center;color:var(--text-faint);padding:20px;">검색 결과가 없어요.</td></tr>`}</tbody>
       </table>
     </div>
   </div>`;
+}
+let evalEmployeeSearchQuery = '';
+let evalEmployeeSearchTimer = null;
+function onEvalEmployeeSearch(ev){
+  const val = document.getElementById('evalEmployeeSearchInput').value;
+  clearTimeout(evalEmployeeSearchTimer);
+  evalEmployeeSearchTimer = setTimeout(()=>{
+    evalEmployeeSearchQuery = val;
+    const vc = document.getElementById('viewContainer');
+    vc.innerHTML = renderEvalView();
+    const input = document.getElementById('evalEmployeeSearchInput');
+    if(input){ input.focus(); input.setSelectionRange(input.value.length, input.value.length); }
+  }, 250);
 }
 function generateEvalExcel(){
   const sel = getEvalSelectedWeek();
