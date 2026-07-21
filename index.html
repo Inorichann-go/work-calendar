@@ -388,6 +388,8 @@
   .duty-name-cell{text-align:left;font-weight:600;}
   .duty-holiday-cell{color:#E0392F;font-weight:700;background:#FDEAEA;}
   .duty-code-cell{max-width:38px;width:38px;min-width:38px;padding-left:2px !important;padding-right:2px !important;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .duty-remark-cell{min-width:160px;max-width:280px;}
+  td.duty-remark-cell{white-space:nowrap !important;overflow:hidden;text-overflow:ellipsis;text-align:left !important;}
   .duty-readonly-cell{background:#FAFAF8;color:var(--text-soft);}
   .duty-editable-cell{cursor:pointer;background:#fff;}
   .duty-editable-cell:hover{background:#FFFBEA;}
@@ -412,6 +414,11 @@
   .duty-stat-label{font-size:11.5px;color:var(--text-soft);font-weight:600;margin-top:4px;}
   .duty-stat-delta{margin-top:6px;}
   .duty-prev-note{font-size:11.5px;color:var(--accent-dark);background:var(--accent-soft);padding:8px 12px;border-radius:8px;margin-bottom:14px;font-weight:600;}
+  .duty-warn-box{background:#FFF7E8;border:1px solid #F5D68A;border-radius:var(--radius);padding:12px 16px;margin:14px 0;}
+  .duty-warn-box-ok{background:#E9F7EF;border-color:#B7E4C7;color:#1F8A4C;font-size:12.5px;font-weight:700;padding:10px 16px;}
+  .duty-warn-box-title{font-size:12.5px;font-weight:800;color:#B8790A;margin-bottom:8px;}
+  .duty-warn-list{margin:0;padding-left:18px;max-height:180px;overflow-y:auto;}
+  .duty-warn-list li{font-size:12px;color:#7A5A0A;line-height:1.9;}
   .duty-prev-note-empty{color:#C9762B;background:#FDF1E7;}
   .duty-delta{font-size:11px;font-weight:800;padding:2px 6px;border-radius:5px;}
   .duty-delta-up{color:#1F8A4C;background:#E9F7EF;}
@@ -837,7 +844,7 @@
     <p style="font-size:11.5px;color:var(--text-soft);margin:-8px 0 14px;" id="dutyCellEditInfo"></p>
     <div class="field">
       <label>값</label>
-      <input type="text" id="dutyCellEditInput">
+      <input type="text" id="dutyCellEditInput" onkeydown="if(event.key==='Enter'){event.preventDefault();confirmDutyCellEdit();}">
     </div>
     <div class="modal-actions" style="justify-content:flex-end;">
       <button type="button" class="btn-secondary" onclick="closeDutyCellEditModal()">취소</button>
@@ -1350,6 +1357,7 @@ function applyLoadedPayload(parsed){
   state.centers = parsed.centers || [];
   state.noticeCategories = parsed.noticeCategories || [];
   dutyStore = normalizeDutyStore(parsed.dutyData || { monthly: {}, lockedKeys: [] });
+  migrateDutyGradeNameFix();
   payAdjStore = parsed.payAdj || { monthly: {} };
   evalStore = parsed.evalData || { weekly: {}, reducedHoursNames: [] };
   /* 이전(전역) 육아단축자 명단이 남아있으면, 아직 자체 명단이 없는 주차들에 1회 승계 */
@@ -2131,14 +2139,18 @@ function renderNotices(){
   </div>`;
 }
 
+let noticeSearchTimer = null;
 function onNoticeSearch(ev){
-  if(ev && ev.isComposing) return; /* 한글 조합 중에는 리렌더링하지 않음 */
-  state.noticeSearch = document.getElementById('noticeSearchInput').value;
-  const vc = document.getElementById('viewContainer');
-  vc.innerHTML = renderNotices();
-  const input = document.getElementById('noticeSearchInput');
-  input.focus();
-  input.setSelectionRange(input.value.length, input.value.length);
+  const val = document.getElementById('noticeSearchInput').value;
+  clearTimeout(noticeSearchTimer);
+  noticeSearchTimer = setTimeout(()=>{
+    state.noticeSearch = val;
+    const vc = document.getElementById('viewContainer');
+    vc.innerHTML = renderNotices();
+    const input = document.getElementById('noticeSearchInput');
+    input.focus();
+    input.setSelectionRange(input.value.length, input.value.length);
+  }, 250);
 }
 function setNoticeCategory(cat){
   state.noticeCategory = cat;
@@ -2455,6 +2467,29 @@ const DUTY_ITEM_FIELDS = [
 /* 근무유형/직급/근무조는 전 직원 공통 고정값 (수정 불가) */
 const DUTY_FIXED_VALUES = { '근무유형':'상근', '직급':'0', '근무조':'일반외' };
 /* 호봉 값에 따라 구분/근무시간/초과·야간근무시간 기본값을 자동 세팅 (이후 수동 수정 가능) */
+/* "컨설턴트(상담)" 오기입을 "컨설턴트(단축상담)"으로 일괄 수정 (모든 연월·센터) */
+function migrateDutyGradeNameFix(){
+  const OLD_NAME = 'KB손해보험 부천센터_컨설턴트(상담)';
+  const NEW_NAME = 'KB손해보험 부천센터_컨설턴트(단축상담)';
+  let count = 0;
+  Object.values(dutyStore.monthly||{}).forEach(centers=>{
+    Object.values(centers||{}).forEach(snap=>{
+      (snap.employees||[]).forEach(e=>{
+        if(e.items && e.items['호봉']===OLD_NAME){
+          e.items['호봉'] = NEW_NAME;
+          applyDutyGradeDefaults(e);
+          count++;
+        }
+      });
+    });
+  });
+  if(count>0){
+    dutyGradeNameFixCount = count;
+    saveData();
+  }
+  return count;
+}
+let dutyGradeNameFixCount = 0;
 function applyDutyGradeDefaults(emp){
   const grade = (emp.items['호봉']||'').trim();
   if(grade.startsWith('KB손해보험 부천센터_컨설턴트(단축상담)')){
@@ -2531,13 +2566,17 @@ function toggleDutyShowOnlyTM(){
   renderDutyRefresh();
 }
 let dutySearchQuery = '';
+let dutySearchTimer = null;
 function onDutySearch(ev){
-  if(ev && ev.isComposing) return; /* 한글 조합 중에는 리렌더링하지 않음 */
-  dutySearchQuery = document.getElementById('dutySearchInput').value;
-  const vc = document.getElementById('viewContainer');
-  vc.innerHTML = renderDuty();
-  const input = document.getElementById('dutySearchInput');
-  if(input){ input.focus(); input.setSelectionRange(input.value.length, input.value.length); }
+  const val = document.getElementById('dutySearchInput').value;
+  clearTimeout(dutySearchTimer);
+  dutySearchTimer = setTimeout(()=>{
+    dutySearchQuery = val;
+    const vc = document.getElementById('viewContainer');
+    vc.innerHTML = renderDuty();
+    const input = document.getElementById('dutySearchInput');
+    if(input){ input.focus(); input.setSelectionRange(input.value.length, input.value.length); }
+  }, 250);
 }
 let dutyFieldPickerCallback = null;
 
@@ -2695,7 +2734,13 @@ function renderSalaryPreviewTable(rows, orgName){
     return `<th>${escapeHtml(h)}</th>`;
   }).join('');
   const fmt = n => (n||n===0) ? Math.round(n).toLocaleString() : '';
-  const bodyHtml = rows.map((r,idx)=>{
+  const query = (salarySearchQuery||'').trim().toLowerCase();
+  const filteredRows = query ? rows.filter(r=>
+    String(r.name||'').toLowerCase().includes(query) ||
+    String(r.sabun||'').toLowerCase().includes(query) ||
+    String(r.grade||'').toLowerCase().includes(query)
+  ) : rows;
+  const bodyHtml = filteredRows.map((r,idx)=>{
     return `<tr>
       ${isAggregate?`<td style="white-space:nowrap;">${escapeHtml(r._org||'')}</td>`:''}
       <td>${idx+1}</td>
@@ -2720,15 +2765,29 @@ function renderSalaryPreviewTable(rows, orgName){
   return `
     ${warnCount?`<div class="duty-prev-note duty-prev-note-empty">⚠ ${warnCount}명은 호봉이 급여테이블에 없어서 금액이 0으로 계산됐어요. 호봉 표기를 확인해주세요.</div>`:''}
     <div class="duty-report-section">
-      <div class="duty-report-section-title">💵 급여내역 미리보기 (총 ${rows.length}명) · 전월미지급금/소급·과오납/기타포상비는 각 컬럼 헤더의 📤 버튼으로 업로드하세요</div>
+      <div class="duty-report-section-title">💵 급여내역 미리보기 (${query?`검색결과 ${filteredRows.length}명 / `:''}총 ${rows.length}명) · 전월미지급금/소급·과오납/기타포상비는 각 컬럼 헤더의 📤 버튼으로 업로드하세요</div>
+      <input type="text" id="salarySearchInput" class="duty-search-input" style="margin-bottom:10px;width:100%;max-width:280px;" placeholder="🔍 이름·사번·호봉 검색" value="${escapeHtml(salarySearchQuery||'')}" oninput="onSalarySearch(event)" oncompositionend="onSalarySearch(event)">
       <div class="duty-table-scroll" style="max-height:600px;">
         <table class="duty-table" style="white-space:nowrap;">
           <thead><tr>${headerHtml}</tr></thead>
-          <tbody>${bodyHtml}</tbody>
+          <tbody>${bodyHtml || `<tr><td colspan="${header.length}" style="text-align:center;color:var(--text-faint);padding:20px;">검색 결과가 없어요.</td></tr>`}</tbody>
         </table>
       </div>
     </div>
   `;
+}
+let salarySearchQuery = '';
+let salarySearchTimer = null;
+function onSalarySearch(ev){
+  const val = document.getElementById('salarySearchInput').value;
+  clearTimeout(salarySearchTimer);
+  salarySearchTimer = setTimeout(()=>{
+    salarySearchQuery = val;
+    const vc = document.getElementById('viewContainer');
+    vc.innerHTML = renderSalaryView();
+    const input = document.getElementById('salarySearchInput');
+    if(input){ input.focus(); input.setSelectionRange(input.value.length, input.value.length); }
+  }, 250);
 }
 function renderSalaryView(){
   const sel = getDutyGroupSelection();
@@ -2907,6 +2966,60 @@ function buildDutyOrgSelectHtml(id, selectedName){
   const opts = all.map(n=>`<option value="${escapeHtml(n)}" ${n===selectedName?'selected':''}>${escapeHtml(n)}</option>`).join('');
   return `<select id="${id}" class="duty-org-input">${opts}</select>`;
 }
+function computeDutyWarnings(){
+  const warnings = [];
+  dutyState.employees.forEach(e=>{
+    const name = e.name || '(이름없음)';
+    const grade = (e.items['호봉']||'').trim();
+    const requiredFields = [
+      {key:'호봉', label:'호봉'}, {key:'구분', label:'구분'},
+      {key:'근무시간1', label:'근무시간1'}, {key:'근무시간2', label:'근무시간2'},
+      {key:'초과근무시간', label:'초과근무시간'}, {key:'야간근무시간', label:'야간근무시간'}
+    ];
+    requiredFields.forEach(f=>{
+      const v = e.items[f.key];
+      if(v===undefined || v===null || v===''){
+        warnings.push(`${name}: ${f.label} 칸이 비어있어요`);
+      }
+    });
+    if(!grade) return;
+    if(!findSalaryRow(grade)){
+      warnings.push(`${name}: 호봉 "${grade}"이(가) 급여테이블에 없어요`);
+    }
+    const isConsultant = grade.startsWith('KB손해보험 부천센터_컨설턴트(단축상담)');
+    const expectedGubun = isConsultant ? '4H' : '8H';
+    const gubun = e.items['구분'];
+    if(gubun && gubun!==expectedGubun){
+      warnings.push(`${name}: 호봉은 "${grade}"인데 구분이 "${gubun}"이에요 (${expectedGubun}이어야 해요)`);
+    }
+    let expectedOT = 0;
+    if(grade.startsWith('KB손해보험 부천센터_교육/QA')) expectedOT = 3;
+    else if(grade.startsWith('KB손해보험 부천센터_팀장')) expectedOT = 7;
+    else if(grade.startsWith('KB손해보험 부천센터_실장')) expectedOT = 12;
+    else if(grade.startsWith('KB손해보험 부천센터_센터장')) expectedOT = 20;
+    const otVal = Number(e.items['초과근무시간']);
+    if(e.items['초과근무시간']!=null && e.items['초과근무시간']!=='' && !isNaN(otVal) && otVal!==expectedOT){
+      warnings.push(`${name}: 호봉 기준 초과근무시간은 ${expectedOT}이어야 하는데 ${otVal}로 되어있어요`);
+    }
+    const nightVal = Number(e.items['야간근무시간']);
+    if(e.items['야간근무시간']!=null && e.items['야간근무시간']!=='' && !isNaN(nightVal) && nightVal!==0){
+      warnings.push(`${name}: 야간근무시간은 항상 0이어야 하는데 ${nightVal}로 되어있어요`);
+    }
+  });
+  return warnings;
+}
+function renderDutyWarningsBox(){
+  if(!dutyState.employees.length) return '';
+  const warnings = computeDutyWarnings();
+  if(warnings.length===0){
+    return `<div class="duty-warn-box duty-warn-box-ok">✅ 확인이 필요한 항목이 없어요.</div>`;
+  }
+  const items = warnings.map(w=>`<li>${escapeHtml(w)}</li>`).join('');
+  return `<div class="duty-warn-box">
+    <div class="duty-warn-box-title">⚠ 확인이 필요해요 (${warnings.length}건)</div>
+    <ul class="duty-warn-list">${items}</ul>
+  </div>`;
+}
 function renderDuty(){
   const hasData = dutyState.employees.length>0;
   const cur = getDutyDefaultYearMonth();
@@ -2929,6 +3042,7 @@ function renderDuty(){
       ${locked?`<span class="duty-lock-badge">🔒 마감(잠금)됨 — 조회·다운로드만 가능</span><button class="btn-secondary" onclick="quickUnlockDutyMonth()">잠금 해제</button>`:''}
       <span class="duty-month-hint">연월·센터는 복무입력/복무관리/급여내역에서 공통으로 사용돼요. 파일을 업로드하면 지금 선택된 연월·센터 기준으로 자동 저장돼요.</span>
     </div>
+    ${renderDutyWarningsBox()}
     <div class="duty-upload-grid">
       <div class="duty-upload-card">
         <div class="duty-upload-title">1. 근태관리 파일</div>
@@ -3189,7 +3303,8 @@ function renderDutyPreviewTable(){
   const header = buildDutyHeaderRow();
   const headerHtml = ['관리', ...header].map((h,i)=>{
     const isDayHeader = i>=17 && i<=47; /* 관리(0) 포함 offset, 01~31은 원본 인덱스 16~46 */
-    return `<th class="${isDayHeader?'duty-code-cell':''}">${escapeHtml(String(h).replace(/\n/g,' '))}</th>`;
+    const isRemark = String(h).replace(/\n/g,' ').trim()==='비고';
+    return `<th class="${isDayHeader?'duty-code-cell':''} ${isRemark?'duty-remark-cell':''}">${escapeHtml(String(h).replace(/\n/g,' '))}</th>`;
   }).join('');
   const locked = isDutyMonthLocked(dutyState.monthLabel, dutyState.orgName);
   const q = (dutySearchQuery||'').trim().toLowerCase();
@@ -3213,9 +3328,10 @@ function renderDutyPreviewTable(){
         const isHoliday = meta && meta.kind==='day' && val==='공휴일';
         const isName = colIdx===2;
         const isDayCol = colIdx>=16 && colIdx<=46;
-        const cls = `${isHoliday?'duty-holiday-cell':''} ${isName?'duty-name-cell':''} ${isDayCol?'duty-code-cell':''} ${editable?'duty-editable-cell':'duty-readonly-cell'}`.trim();
+        const isRemark = header[colIdx]==='비고';
+        const cls = `${isHoliday?'duty-holiday-cell':''} ${isName?'duty-name-cell':''} ${isDayCol?'duty-code-cell':''} ${isRemark?'duty-remark-cell':''} ${editable?'duty-editable-cell':'duty-readonly-cell'}`.trim();
         const displayVal = (val===null||val===undefined) ? '' : String(val);
-        const titleAttr = isDayCol && displayVal ? ` title="${escapeHtml(displayVal)}"` : '';
+        const titleAttr = (isDayCol || isRemark) && displayVal ? ` title="${escapeHtml(displayVal)}"` : '';
         if(editable){
           rowHtml += `<td class="${cls}"${titleAttr} onclick="openDutyCellEditModal(${empIdx},'${gubun}',${colIdx})">${escapeHtml(displayVal)}</td>`;
         }else{
@@ -4959,6 +5075,9 @@ async function migrateLegacyDutyLocalStorage(){
   document.getElementById('app').style.display = 'flex';
   updateStorageStatus();
   switchView('month');
+  if(dutyGradeNameFixCount>0){
+    alert(`"컨설턴트(상담)"으로 잘못 입력되어 있던 ${dutyGradeNameFixCount}건을 "컨설턴트(단축상담)"으로 자동 수정했어요.`);
+  }
 })();
 </script>
 </body>
