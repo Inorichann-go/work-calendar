@@ -121,6 +121,13 @@
   }
   .settings-dropdown-item:hover{background:#F5F4F0;}
 
+  .nav-group-wrap{display:flex;flex-direction:column;}
+  .nav-group-trigger{display:flex;align-items:center;gap:8px;}
+  .nav-group-chevron{margin-left:auto;font-size:10px;color:var(--text-faint);}
+  .nav-group-children{display:flex;flex-direction:column;}
+  .nav-group-children.hidden{display:none;}
+  .tab-sub{padding-left:34px !important;font-size:12.5px;}
+
   .today-card{
     margin-top:auto;background:#fff;border:1px solid var(--border);
     border-radius:var(--radius);padding:14px;
@@ -390,7 +397,7 @@
   .duty-actions{display:flex;gap:10px;justify-content:flex-end;}
 
   /* ---------- Duty report (복무관리) ---------- */
-  .duty-report-view{max-width:1000px;}
+  .duty-report-view{max-width:100%;}
   .duty-stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:12px;}
   .duty-stat-card{
     background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:16px 16px 16px 20px;
@@ -413,11 +420,22 @@
   .duty-bar-track{background:#F0EFEA;border-radius:6px;height:6px;overflow:hidden;margin-top:5px;min-width:80px;}
   .duty-bar-fill{height:100%;background:linear-gradient(90deg,var(--accent),#8AA6FF);border-radius:6px;}
   .duty-grade-pill{display:inline-block;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:700;margin:2px 2px 2px 0;white-space:nowrap;}
+  .eval-badge{display:inline-block;padding:2px 7px;border-radius:999px;font-size:10px;font-weight:700;margin-left:4px;}
+  .eval-badge-blue{background:var(--accent-soft);color:var(--accent-dark);}
+  .eval-badge-red{background:#FDEAEA;color:#D64545;}
+  .eval-badge-gray{background:#F0F0EE;color:#6B6A66;}
+  .eval-editable-cell{cursor:pointer;}
+  .eval-editable-cell:hover{background:var(--accent-soft);}
   .duty-report-section{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:14px;}
   .duty-report-section-title{font-size:13px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:6px;}
   .duty-report-table{width:100%;border-collapse:collapse;font-size:12.5px;}
   .duty-report-table th,.duty-report-table td{border:1px solid var(--border);padding:9px 12px;text-align:center;}
   .duty-report-table th{background:#FAFAF8;font-weight:700;color:var(--text-soft);}
+  .salary-mini-upload-btn{
+    margin-top:4px;font-size:10px;font-weight:700;color:var(--accent-dark);background:var(--accent-soft);
+    border:none;border-radius:5px;padding:2px 6px;cursor:pointer;white-space:nowrap;
+  }
+  .salary-mini-upload-btn:hover{background:#E4E9FE;}
   .duty-report-table tbody tr:hover{background:#FBFBF9;}
   .duty-namelist{font-size:12px;color:var(--text-soft);line-height:1.8;}
   .duty-report-row2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;}
@@ -572,14 +590,24 @@
     <nav class="tabs">
       <button class="tab" data-view="month" onclick="switchView('month')"><span class="dot"></span><span class="label">📅 캘린더</span></button>
       <button class="tab" data-view="notices" onclick="switchView('notices')"><span class="dot"></span><span class="label">📢 업무공지</span></button>
-      <button class="tab" data-view="duty" onclick="switchView('duty')"><span class="dot"></span><span class="label">📋 복무입력</span></button>
-      <button class="tab" data-view="dutyReport" onclick="switchView('dutyReport')"><span class="dot"></span><span class="label">📊 복무관리</span></button>
+      <div class="nav-group-wrap">
+        <button class="tab nav-group-trigger" id="dutyGroupTrigger" onclick="toggleDutyGroupMenu(event)">
+          <span class="dot"></span><span class="label">🗂️ 복무업무</span><span class="nav-group-chevron" id="dutyGroupChevron">▸</span>
+        </button>
+        <div class="nav-group-children hidden" id="dutyGroupChildren">
+          <button class="tab tab-sub" data-view="duty" onclick="switchView('duty')"><span class="dot"></span><span class="label">📋 복무입력</span></button>
+          <button class="tab tab-sub" data-view="dutyReport" onclick="switchView('dutyReport')"><span class="dot"></span><span class="label">📊 복무관리</span></button>
+          <button class="tab tab-sub" data-view="salary" onclick="switchView('salary')"><span class="dot"></span><span class="label">💵 급여내역</span></button>
+        </div>
+      </div>
+      <button class="tab" data-view="eval" onclick="switchView('eval')"><span class="dot"></span><span class="label">🏆 관리자평가</span></button>
     </nav>
     <div class="settings-menu-wrap">
       <button class="tab" id="sidebarSettingsTrigger" onclick="toggleSidebarSettingsMenu(event)"><span class="dot"></span><span class="label">⚙️ 설정</span></button>
       <div class="settings-dropdown hidden" id="sidebarSettingsMenu">
         <button class="settings-dropdown-item" onclick="openCenterModal(); closeSidebarSettingsMenu();">🏢 센터명 설정</button>
         <button class="settings-dropdown-item" onclick="openDutyLockModal(); closeSidebarSettingsMenu();">🔒 복무마감 설정</button>
+        <button class="settings-dropdown-item" onclick="openEvalLockModal(); closeSidebarSettingsMenu();">🔒 관리자평가 마감 설정</button>
       </div>
     </div>
     <div class="today-card">
@@ -834,6 +862,75 @@
   </div>
 </div>
 
+<div class="modal-overlay hidden" id="evalReducedHoursModalOverlay">
+  <div class="modal" style="width:380px;">
+    <h2>👶 육아단축자 명단</h2>
+    <p style="font-size:11.5px;color:var(--text-soft);margin:-8px 0 12px;">여기 등록된 사람은 모든 주차에서 CPD·Call Time 실적이 자동으로 2배 보정돼요.</p>
+    <div id="evalReducedHoursModalBody"></div>
+    <div class="modal-actions" style="justify-content:flex-end;">
+      <button type="button" class="btn-secondary" onclick="closeEvalReducedHoursModal()">닫기</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay hidden" id="evalResignModalOverlay">
+  <div class="modal" style="width:460px;">
+    <h2>🚪 퇴사자 명단 (이번 주차)</h2>
+    <p style="font-size:11.5px;color:var(--text-soft);margin:-8px 0 12px;">입사 2주 이하 퇴사자는 제외하고 넣어주세요.</p>
+    <div id="evalResignModalBody"></div>
+    <div class="modal-actions" style="justify-content:flex-end;">
+      <button type="button" class="btn-secondary" onclick="closeEvalResignModal()">닫기</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay hidden" id="evalCellEditModalOverlay">
+  <div class="modal" style="width:360px;">
+    <h2 id="evalCellEditModalTitle">값 수정</h2>
+    <div class="field">
+      <label id="evalCellEditModalLabel">값</label>
+      <input type="text" id="evalCellEditModalInput">
+      <p id="evalCellEditModalHint" style="font-size:11px;color:var(--text-faint);margin-top:6px;"></p>
+    </div>
+    <div class="modal-actions" style="justify-content:flex-end;">
+      <button type="button" class="btn-secondary" onclick="closeEvalCellEditModal()">취소</button>
+      <button type="button" class="btn-primary" onclick="confirmEvalCellEditModal()">반영</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay hidden" id="evalUnder80ModalOverlay">
+  <div class="modal" style="width:460px;">
+    <h2>⚠ 근무 80% 미만 근무자 (이번 주차)</h2>
+    <p style="font-size:11.5px;color:var(--text-soft);margin:-8px 0 12px;">등록된 사람은 CPD 점수 계산에서만 제외돼요 (Call Time은 포함).</p>
+    <div id="evalUnder80ModalBody"></div>
+    <div class="modal-actions" style="justify-content:flex-end;">
+      <button type="button" class="btn-secondary" onclick="closeEvalUnder80Modal()">닫기</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay hidden" id="evalCriteriaModalOverlay">
+  <div class="modal" style="width:600px;max-height:85vh;">
+    <h2>📐 평가기준</h2>
+    <div id="evalCriteriaModalBody"></div>
+    <div class="modal-actions" style="justify-content:flex-end;">
+      <button type="button" class="btn-secondary" onclick="closeEvalCriteriaModal()">닫기</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay hidden" id="salaryTableModalOverlay">
+  <div class="modal" style="width:1400px;max-width:96vw;max-height:85vh;">
+    <h2>💰 급여테이블 (단가표)</h2>
+    <p style="font-size:11.5px;color:var(--text-soft);margin:-8px 0 12px;">호봉별 고정급여·업적수당·연차수당·시간외수당 단가예요. 수정이 필요하면 알려주세요.</p>
+    <div id="salaryTableModalBody"></div>
+    <div class="modal-actions" style="justify-content:flex-end;">
+      <button type="button" class="btn-secondary" onclick="closeSalaryTableModal()">닫기</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay hidden" id="dutyValidationModalOverlay">
   <div class="modal" style="width:600px;max-height:80vh;">
     <h2>🔍 근태 검증 결과</h2>
@@ -853,6 +950,17 @@
     <div id="dutyLockModalBody"></div>
     <div class="modal-actions" style="justify-content:flex-end;">
       <button type="button" class="btn-secondary" onclick="closeDutyLockModal()">닫기</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay hidden" id="evalLockModalOverlay">
+  <div class="modal" style="width:480px;">
+    <h2>🔒 관리자평가 마감 설정</h2>
+    <p style="font-size:11.5px;color:var(--text-soft);margin:-8px 0 14px;">마감(잠금)한 주차는 업로드·수정·삭제가 모두 막히고, 조회와 엑셀 다운로드만 가능해요.</p>
+    <div id="evalLockModalBody"></div>
+    <div class="modal-actions" style="justify-content:flex-end;">
+      <button type="button" class="btn-secondary" onclick="closeEvalLockModal()">닫기</button>
     </div>
   </div>
 </div>
@@ -1116,6 +1224,8 @@ async function supabaseUpsertRow(cleanPayload){
     centers: cleanPayload.centers,
     notice_categories: cleanPayload.noticeCategories,
     duty_data: cleanPayload.dutyData,
+    pay_adj: cleanPayload.payAdj,
+    eval_data: cleanPayload.evalData,
     updated_at: new Date().toISOString()
   };
   const res = await fetch(`${SUPABASE_URL}/rest/v1/${SUPABASE_TABLE}`, {
@@ -1136,7 +1246,9 @@ function applySupabaseRow(row){
     notices: row.notices,
     centers: row.centers,
     noticeCategories: row.notice_categories,
-    dutyData: row.duty_data
+    dutyData: row.duty_data,
+    payAdj: row.pay_adj,
+    evalData: row.eval_data
   });
   syncApplyingRemote = false;
   syncLastUpdatedAt = row.updated_at;
@@ -1152,11 +1264,12 @@ function startSyncPolling(){
       if(!res.ok) return;
       const rows = await res.json();
       const remoteUpdatedAt = rows[0] && rows[0].updated_at;
-      if(remoteUpdatedAt && remoteUpdatedAt !== syncLastUpdatedAt){
+      if(remoteUpdatedAt && remoteUpdatedAt !== syncLastUpdatedAt && !evalSaveTimer){
         const row = await supabaseFetchRow();
         if(row){
           applySupabaseRow(row);
-          if(state.view==='duty') renderDutyRefresh(); else render();
+          if(state.view==='duty') renderDutyRefresh();
+          else render();
         }
       }
       hideSaveError();
@@ -1235,12 +1348,22 @@ function applyLoadedPayload(parsed){
   state.centers = parsed.centers || [];
   state.noticeCategories = parsed.noticeCategories || [];
   dutyStore = normalizeDutyStore(parsed.dutyData || { monthly: {}, lockedKeys: [] });
+  payAdjStore = parsed.payAdj || { monthly: {} };
+  evalStore = parsed.evalData || { weekly: {}, reducedHoursNames: [] };
+  /* 이전(전역) 육아단축자 명단이 남아있으면, 아직 자체 명단이 없는 주차들에 1회 승계 */
+  if(evalStore.reducedHoursNames && evalStore.reducedHoursNames.length){
+    Object.keys(evalStore.weekly||{}).sort().forEach(k=>{
+      const wk = evalStore.weekly[k];
+      if(!wk.reducedHoursNames) wk.reducedHoursNames = evalStore.reducedHoursNames.slice();
+    });
+    evalStore.reducedHoursNames = [];
+  }
 }
 async function saveData(){
   const cleanPayload = JSON.parse(JSON.stringify({
     events: state.events, notices: state.notices,
     centers: state.centers, noticeCategories: state.noticeCategories,
-    dutyData: dutyStore
+    dutyData: dutyStore, payAdj: payAdjStore, evalData: evalStore
   }));
   const payload = JSON.stringify(cleanPayload);
 
@@ -1296,6 +1419,7 @@ function exportData(){
   const payload = JSON.stringify({
     events: state.events, notices: state.notices,
     centers: state.centers, noticeCategories: state.noticeCategories,
+    dutyData: dutyStore, payAdj: payAdjStore, evalData: evalStore,
     exportedAt: new Date().toISOString()
   }, null, 2);
   const blob = new Blob([payload], {type:'application/json'});
@@ -1331,9 +1455,28 @@ function importData(ev){
 }
 
 /* ============ Navigation ============ */
+let dutyGroupExpanded = false;
+const DUTY_GROUP_VIEWS = ['duty','dutyReport','salary'];
+function toggleDutyGroupMenu(ev){
+  if(ev) ev.stopPropagation();
+  dutyGroupExpanded = !dutyGroupExpanded;
+  updateDutyGroupUI();
+}
+function updateDutyGroupUI(){
+  const isDutyView = DUTY_GROUP_VIEWS.includes(state.view);
+  const expanded = dutyGroupExpanded || isDutyView;
+  const childrenEl = document.getElementById('dutyGroupChildren');
+  const chevronEl = document.getElementById('dutyGroupChevron');
+  if(childrenEl) childrenEl.classList.toggle('hidden', !expanded);
+  if(chevronEl) chevronEl.textContent = expanded ? '▾' : '▸';
+  const triggerEl = document.getElementById('dutyGroupTrigger');
+  if(triggerEl) triggerEl.classList.toggle('active', isDutyView);
+}
 function switchView(view){
   state.view = view;
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active', t.dataset.view===view));
+  if(DUTY_GROUP_VIEWS.includes(view)) dutyGroupExpanded = true;
+  updateDutyGroupUI();
   render();
 }
 function navPrev(){ moveCursor(-1); }
@@ -1355,7 +1498,9 @@ function render(){
   if(state.view==='month') vc.innerHTML = renderMonth();
   else if(state.view==='notices') vc.innerHTML = renderNotices();
   else if(state.view==='dutyReport') vc.innerHTML = renderDutyReport();
-  else vc.innerHTML = renderDuty();
+  else if(state.view==='salary') vc.innerHTML = renderSalaryView();
+  else if(state.view==='eval') vc.innerHTML = renderEvalView();
+  else if(state.view==='duty') vc.innerHTML = renderDuty();
   updateTodayCard();
 }
 
@@ -1375,6 +1520,10 @@ function updateTitle(){
     el.textContent = '업무공지';
   }else if(state.view==='dutyReport'){
     el.textContent = '복무관리';
+  }else if(state.view==='salary'){
+    el.textContent = '급여내역';
+  }else if(state.view==='eval'){
+    el.textContent = '관리자평가';
   }else{
     el.textContent = '복무입력';
   }
@@ -2306,7 +2455,7 @@ const DUTY_FIXED_VALUES = { '근무유형':'상근', '직급':'0', '근무조':'
 /* 호봉 값에 따라 구분/근무시간/초과·야간근무시간 기본값을 자동 세팅 (이후 수동 수정 가능) */
 function applyDutyGradeDefaults(emp){
   const grade = (emp.items['호봉']||'').trim();
-  if(grade.startsWith('KB손해보험 부천센터_컨설턴트(상담)')){
+  if(grade.startsWith('KB손해보험 부천센터_컨설턴트(단축상담)')){
     emp.items['구분'] = '4H';
     emp.items['근무시간1'] = '1주 / 20시간';
     emp.items['근무시간2'] = '09:00 ~ 13:30';
@@ -2332,6 +2481,8 @@ function applyDutyGradeDefaults(emp){
 const DUTY_OT_TYPES = ['평일연장','휴일근무','평일야간','휴일연장'];
 let dutyState = { employees: [], monthLabel: '', orgName: '', daysInMonth: 31, sourceFileName: '' };
 let dutyStore = { monthly: {}, lockedKeys: [] }; /* 캘린더 데이터와 함께 Supabase에 동기화됨 */
+let payAdjStore = { monthly: {} }; /* 급여내역 수동입력(전월미지급금/소급과오납/기타포상비), 동일하게 동기화됨 */
+let evalStore = { weekly: {}, reducedHoursNames: [] }; /* 관리자평가 전용 데이터, 다른 탭과 완전히 독립적 */
 let dutyUndoStack = [];
 let dutyRedoStack = [];
 const DUTY_UNDO_LIMIT = 20;
@@ -2400,6 +2551,298 @@ async function readWorkbookFromFile(file){
   return XLSX.read(buf, {type:'array', cellDates:true});
 }
 const DEFAULT_DUTY_ORG = 'KB손해보험 부천센터';
+/* ============ Salary sheet (급여내역) ============ */
+function dutyMonthsBetween(startDate, endDate){
+  const s = (startDate instanceof Date) ? startDate : new Date(startDate);
+  const e = (endDate instanceof Date) ? endDate : new Date(endDate);
+  if(isNaN(s.getTime())||isNaN(e.getTime())) return 0;
+  let months = (e.getFullYear()-s.getFullYear())*12 + (e.getMonth()-s.getMonth());
+  if(e.getDate() < s.getDate()) months--;
+  return Math.max(0, months);
+}
+function dutyTenureMonths(emp){
+  const base = emp.transferDate || emp.hireDate;
+  if(!base) return '';
+  return dutyMonthsBetween(base, new Date());
+}
+/* 호봉별 단가표 ('급여테이블' 시트 값 그대로) */
+const SALARY_TABLE = [
+  {grade:'KB손해보험 부천센터_제휴상담(사원)', otHours:0, base:2156880, jikmu:0, jikchaek:0, geunsok:0, otAllowance:0, sikbi:100000, achieve:{S:0,A:0,B:0,C:0,D:0,E:0}, leavePay:86390, otPay:16200},
+  {grade:'KB손해보험 부천센터_제휴상담(프로)', otHours:0, base:2156880, jikmu:0, jikchaek:0, geunsok:0, otAllowance:0, sikbi:100000, achieve:{S:800000,A:700000,B:600000,C:500000,D:400000,E:0}, leavePay:86390, otPay:16200},
+  {grade:'KB손해보험 부천센터_장기사고(사원)', otHours:0, base:2156880, jikmu:0, jikchaek:0, geunsok:0, otAllowance:0, sikbi:100000, achieve:{S:0,A:0,B:0,C:0,D:0,E:0}, leavePay:86390, otPay:16200},
+  {grade:'KB손해보험 부천센터_장기사고(프로)', otHours:0, base:2156880, jikmu:0, jikchaek:0, geunsok:0, otAllowance:0, sikbi:100000, achieve:{S:800000,A:700000,B:600000,C:500000,D:400000,E:0}, leavePay:86390, otPay:16200},
+  {grade:'KB손해보험 부천센터_컨설턴트(단축상담)', otHours:0, base:2156880, jikmu:0, jikchaek:0, geunsok:0, otAllowance:0, sikbi:50000, achieve:{S:0,A:0,B:0,C:0,D:0,E:0}, leavePay:84480, otPay:15840},
+  {grade:'KB손해보험 부천센터_특수(사원)', otHours:0, base:2156880, jikmu:0, jikchaek:0, geunsok:0, otAllowance:0, sikbi:100000, achieve:{S:400000,A:350000,B:300000,C:250000,D:200000,E:0}, leavePay:86390, otPay:16200},
+  {grade:'KB손해보험 부천센터_특수(주임)', otHours:0, base:2156880, jikmu:0, jikchaek:0, geunsok:0, otAllowance:0, sikbi:100000, achieve:{S:550000,A:500000,B:450000,C:400000,D:300000,E:0}, leavePay:86390, otPay:16200},
+  {grade:'KB손해보험 부천센터_특수(프로)', otHours:0, base:2156880, jikmu:0, jikchaek:0, geunsok:0, otAllowance:0, sikbi:100000, achieve:{S:850000,A:750000,B:650000,C:550000,D:400000,E:0}, leavePay:86390, otPay:16200},
+  {grade:'KB손해보험 부천센터_보유계약(사원)', otHours:0, base:2156880, jikmu:0, jikchaek:0, geunsok:0, otAllowance:0, sikbi:100000, achieve:{S:150000,A:120000,B:100000,C:70000,D:50000,E:0}, leavePay:86390, otPay:16200},
+  {grade:'KB손해보험 부천센터_보유계약(주임)', otHours:0, base:2156880, jikmu:0, jikchaek:0, geunsok:0, otAllowance:0, sikbi:100000, achieve:{S:250000,A:220000,B:200000,C:170000,D:150000,E:0}, leavePay:86390, otPay:16200},
+  {grade:'KB손해보험 부천센터_보유계약(프로)', otHours:0, base:2156880, jikmu:0, jikchaek:0, geunsok:0, otAllowance:0, sikbi:100000, achieve:{S:400000,A:350000,B:320000,C:300000,D:250000,E:0}, leavePay:86390, otPay:16200},
+  {grade:'KB손해보험 부천센터_실효(사원)', otHours:0, base:866880, jikmu:0, jikchaek:0, geunsok:0, otAllowance:0, sikbi:50000, achieve:{S:200000,A:150000,B:100000,C:80000,D:50000,E:0}, leavePay:87330, otPay:16380},
+  {grade:'KB손해보험 부천센터_실효(주임)', otHours:0, base:866880, jikmu:0, jikchaek:0, geunsok:0, otAllowance:0, sikbi:50000, achieve:{S:350000,A:300000,B:250000,C:200000,D:150000,E:0}, leavePay:87330, otPay:16380},
+  {grade:'KB손해보험 부천센터_교육/QA(일반)', otHours:3, base:2156880, jikmu:100000, jikchaek:0, geunsok:0, otAllowance:50750, sikbi:100000, achieve:{S:300000,A:250000,B:200000,C:150000,D:100000,E:0}, leavePay:90216, otPay:16915},
+  {grade:'KB손해보험 부천센터_교육/QA(주임)', otHours:3, base:2156880, jikmu:100000, jikchaek:0, geunsok:30000, otAllowance:51400, sikbi:100000, achieve:{S:380000,A:310000,B:240000,C:170000,D:100000,E:0}, leavePay:91364, otPay:17131},
+  {grade:'KB손해보험 부천센터_교육/QA(선임)', otHours:3, base:2156880, jikmu:130000, jikchaek:0, geunsok:70000, otAllowance:52900, sikbi:100000, achieve:{S:500000,A:400000,B:300000,C:200000,D:100000,E:0}, leavePay:94043, otPay:17633},
+  {grade:'KB손해보험 부천센터_교육/QA(프로)', otHours:3, base:2156880, jikmu:200000, jikchaek:0, geunsok:100000, otAllowance:55060, sikbi:100000, achieve:{S:620000,A:490000,B:360000,C:230000,D:100000,E:0}, leavePay:97871, otPay:18351},
+  {grade:'KB손해보험 부천센터_팀장(주임)', otHours:7, base:2156880, jikmu:0, jikchaek:100000, geunsok:30000, otAllowance:119920, sikbi:100000, achieve:{S:380000,A:310000,B:240000,C:170000,D:100000,E:0}, leavePay:91364, otPay:17131},
+  {grade:'KB손해보험 부천센터_팀장(선임)', otHours:7, base:2156880, jikmu:0, jikchaek:200000, geunsok:70000, otAllowance:126950, sikbi:100000, achieve:{S:500000,A:400000,B:300000,C:200000,D:100000,E:0}, leavePay:96723, otPay:18136},
+  {grade:'KB손해보험 부천센터_팀장(프로)', otHours:7, base:2156880, jikmu:0, jikchaek:250000, geunsok:100000, otAllowance:130970, sikbi:100000, achieve:{S:660000,A:520000,B:380000,C:240000,D:100000,E:0}, leavePay:99785, otPay:18710},
+  {grade:'KB손해보험 부천센터_실장', otHours:12, base:2156880, jikmu:0, jikchaek:600000, geunsok:150000, otAllowance:280550, sikbi:100000, achieve:{S:700000,A:550000,B:400000,C:250000,D:100000,E:0}, leavePay:115096, otPay:21580},
+  {grade:'KB손해보험 부천센터_센터장', otHours:20, base:2156880, jikmu:0, jikchaek:1150000, geunsok:320000, otAllowance:534960, sikbi:100000, achieve:{S:1150000,A:1110000,B:1050000,C:1000000,D:800000,E:0}, leavePay:142656, otPay:26748}
+];
+function findSalaryRow(grade){
+  return SALARY_TABLE.find(r=>r.grade===(grade||'').trim()) || null;
+}
+function totalDutyOvertimeHours(e){
+  return DUTY_OT_TYPES.reduce((sum,g)=> sum + sumOtDaily(e,g), 0);
+}
+function getPayAdjMonthOrg(monthLabel, orgName){
+  const m = payAdjStore.monthly[monthLabel];
+  return (m && m[orgName]) || {};
+}
+function setPayAdjustment(monthLabel, orgName, sabun, field, value){
+  payAdjStore.monthly[monthLabel] = payAdjStore.monthly[monthLabel] || {};
+  payAdjStore.monthly[monthLabel][orgName] = payAdjStore.monthly[monthLabel][orgName] || {};
+  payAdjStore.monthly[monthLabel][orgName][sabun] = payAdjStore.monthly[monthLabel][orgName][sabun] || {prevUnpaid:0, retroactive:0, bonus:0};
+  payAdjStore.monthly[monthLabel][orgName][sabun][field] = value;
+}
+const SALARY_UNPAID_CATEGORIES = ['결근','가족돌봄','보건','병가','휴직'];
+function computeSalaryRows(monthLabel, orgName){
+  const snap = loadDutyMonthSnapshot(monthLabel, orgName);
+  if(!snap || !snap.employees || !snap.employees.length) return {rows:[], daysInMonth:31};
+  const employees = snap.employees;
+  const daysInMonth = snap.daysInMonth || 31;
+  const prelim = employees.map(e=>{
+    const daily = e.daily || {};
+    const grade = (e.items && e.items['호봉']) || '';
+    let filled=0, unpaidCore=0, muGeupHyuga=0, muGeupJoTway=0;
+    for(let d=1; d<=daysInMonth; d++){
+      const code = daily[d];
+      if(code===undefined||code===null||code==='') continue;
+      filled++;
+      if(SALARY_UNPAID_CATEGORIES.includes(code)) unpaidCore++;
+      else if(code==='무급휴가') muGeupHyuga++;
+      else if(code==='무급조퇴') muGeupJoTway++;
+    }
+    const blankCount = daysInMonth - filled;
+    const isSilhyo = grade.includes('실효');
+    const unpaidBase = unpaidCore + muGeupHyuga + muGeupJoTway/2;
+    const BB = isSilhyo ? unpaidBase : (unpaidBase + blankCount);
+    const BC = filled - unpaidBase;
+    return {e, grade, BA:filled, BB, BC};
+  });
+  const maxBC = Math.max(0, ...prelim.map(p=>p.BC));
+  const payAdj = getPayAdjMonthOrg(monthLabel, orgName);
+  const rows = prelim.map(p=>{
+    const e = p.e;
+    const salaryRow = findSalaryRow(p.grade);
+    const BD = salaryRow ? salaryRow.base : 0;
+    const BE = maxBC>0 ? -BD/maxBC*p.BB : 0;
+    const BF = BD+BE;
+    const BG = salaryRow ? salaryRow.jikmu : 0;
+    const BH = salaryRow ? salaryRow.jikchaek : 0;
+    const BI = salaryRow ? salaryRow.geunsok : 0;
+    const BJ = salaryRow ? salaryRow.sikbi : 0;
+    const BK = salaryRow ? salaryRow.otHours : 0;
+    const BL = salaryRow ? salaryRow.otAllowance : 0;
+    const BM = (e.items && e.items['근무평가등급']) || '';
+    const BN = (salaryRow && salaryRow.achieve[BM]!==undefined) ? salaryRow.achieve[BM] : 0;
+    const BO = numOrNull(e.items && e.items['성과급_변동']) || 0;
+    const BP = totalDutyOvertimeHours(e);
+    const BQ = salaryRow ? BP*salaryRow.otPay : 0;
+    const BR = numOrNull(e.items && e.items['연차정산']) || 0;
+    const BS = salaryRow ? BR*salaryRow.leavePay : 0;
+    const adj = payAdj[e.sabun] || {prevUnpaid:0,retroactive:0,bonus:0};
+    const BT = adj.prevUnpaid||0, BU = adj.retroactive||0, BV = adj.bonus||0;
+    const BW = BF+BG+BH+BI+BJ+BL+BN+BO+BQ+BS+BT+BU+BV;
+    return {
+      sabun:e.sabun, name:e.name, grade:p.grade, daily:e.daily,
+      hireDate:e.hireDate, transferDate:e.transferDate, leaveDate:e.leaveDate,
+      tenure: dutyTenureMonths(e),
+      BA:p.BA, BB:Math.round(p.BB*10)/10, BC:Math.round(p.BC*10)/10,
+      BD,BE:Math.round(BE),BF:Math.round(BF),BG,BH,BI,BJ,BK,BL,BM,BN,BO,BP,BQ,BR,BS,BT,BU,BV,BW:Math.round(BW),
+      hasSalaryRow: !!salaryRow
+    };
+  });
+  return {rows, daysInMonth};
+}
+function buildSalaryHeaderRow(){
+  const base = ['No','이름','사번','호봉','입사일','전보일','퇴사일','근속(개월)'];
+  const trailing = ['기본급','기본급차감','월기본급','직무수당','직책수당','근속수당','급식비','고정OT(시간)','초과근무수당',
+    '등급','업적수당','성과급_변동','시간외근무(시간)','시간외수당','잔여연차','연차수당',
+    '전월미지급금','소급·과오납','기타포상비','합계'];
+  return [...base, ...trailing];
+}
+function displayGradeShort(grade, orgName){
+  if(!grade) return '';
+  const prefix = (orgName||'') + '_';
+  return grade.startsWith(prefix) ? grade.slice(prefix.length) : grade;
+}
+function renderSalaryPreviewTable(rows, orgName){
+  const isAggregate = orgName===null;
+  const header = isAggregate ? ['센터', ...buildSalaryHeaderRow()] : buildSalaryHeaderRow();
+  const uploadColHtml = (fieldKey, label)=>`<th>
+    <div>${escapeHtml(label)}</div>
+    <input type="file" id="salaryUpload_${fieldKey}" accept=".xlsx,.xls" style="display:none;" onchange="onSalaryFieldUpload(event,'${fieldKey}')">
+    <button type="button" class="salary-mini-upload-btn" onclick="document.getElementById('salaryUpload_${fieldKey}').click()" title="${escapeHtml(label)} 엑셀 업로드">📤 업로드</button>
+  </th>`;
+  const headerHtml = header.map(h=>{
+    if(h==='전월미지급금') return uploadColHtml('prevUnpaid', h);
+    if(h==='소급·과오납') return uploadColHtml('retroactive', h);
+    if(h==='기타포상비') return uploadColHtml('bonus', h);
+    return `<th>${escapeHtml(h)}</th>`;
+  }).join('');
+  const fmt = n => (n||n===0) ? Math.round(n).toLocaleString() : '';
+  const bodyHtml = rows.map((r,idx)=>{
+    return `<tr>
+      ${isAggregate?`<td style="white-space:nowrap;">${escapeHtml(r._org||'')}</td>`:''}
+      <td>${idx+1}</td>
+      <td class="duty-name-cell" style="white-space:nowrap;">${escapeHtml(r.name||'')}</td>
+      <td>${escapeHtml(r.sabun)}</td>
+      <td style="text-align:left;white-space:nowrap;">${escapeHtml(displayGradeShort(r.grade, isAggregate?r._org:orgName))}${r.hasSalaryRow?'':' <span style="color:#D64545;">⚠</span>'}</td>
+      <td style="white-space:nowrap;">${dutyFmtDate(r.hireDate)}</td>
+      <td style="white-space:nowrap;">${dutyFmtDate(r.transferDate)}</td>
+      <td style="white-space:nowrap;">${dutyFmtDate(r.leaveDate)}</td>
+      <td>${r.tenure}</td>
+      <td>${fmt(r.BD)}</td><td>${fmt(r.BE)}</td><td>${fmt(r.BF)}</td>
+      <td>${fmt(r.BG)}</td><td>${fmt(r.BH)}</td><td>${fmt(r.BI)}</td><td>${fmt(r.BJ)}</td>
+      <td>${r.BK}</td><td>${fmt(r.BL)}</td>
+      <td>${escapeHtml(r.BM||'')}</td><td>${fmt(r.BN)}</td><td>${fmt(r.BO)}</td>
+      <td>${r.BP}</td><td>${fmt(r.BQ)}</td>
+      <td>${fmt(r.BR)}</td><td>${fmt(r.BS)}</td>
+      <td>${fmt(r.BT)}</td><td>${fmt(r.BU)}</td><td>${fmt(r.BV)}</td>
+      <td style="font-weight:700;">${fmt(r.BW)}</td>
+    </tr>`;
+  }).join('');
+  const warnCount = rows.filter(r=>!r.hasSalaryRow).length;
+  return `
+    ${warnCount?`<div class="duty-prev-note duty-prev-note-empty">⚠ ${warnCount}명은 호봉이 급여테이블에 없어서 금액이 0으로 계산됐어요. 호봉 표기를 확인해주세요.</div>`:''}
+    <div class="duty-report-section">
+      <div class="duty-report-section-title">💵 급여내역 미리보기 (총 ${rows.length}명) · 전월미지급금/소급·과오납/기타포상비는 각 컬럼 헤더의 📤 버튼으로 업로드하세요</div>
+      <div class="duty-table-scroll" style="max-height:600px;">
+        <table class="duty-table" style="white-space:nowrap;">
+          <thead><tr>${headerHtml}</tr></thead>
+          <tbody>${bodyHtml}</tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+function renderSalaryView(){
+  const sel = getDutyGroupSelection();
+  const parts = sel.monthLabel.split('.').map(Number);
+  const {rows} = dutyGroupAllCenters ? computeSalaryRowsAllCenters(sel.monthLabel) : computeSalaryRows(sel.monthLabel, sel.orgName);
+  let html = `<div class="duty-report-view">
+    <div class="duty-month-bar">
+      <span class="duty-month-label">📅 조회 연월</span>
+      ${buildDutyMonthSelectorHtml('dutyGroup', parts[0], parts[1])}
+      <span class="duty-month-label">🏢 센터</span>
+      ${buildDutyOrgSelectHtml('dutyGroupOrgInput', sel.orgName)}
+      <label style="display:flex;align-items:center;gap:5px;font-size:12px;font-weight:600;color:var(--text-soft);">
+        <input type="checkbox" id="dutyGroupAllCenters" onchange="onDutyGroupSelectionChange()" ${dutyGroupAllCenters?'checked':''}> 전체 센터 합산
+      </label>
+      <button class="btn-secondary" onclick="onDutyGroupSelectionChange()">조회</button>
+      <button class="btn-secondary" onclick="openSalaryTableModal()">💰 급여테이블 보기</button>
+      <span class="duty-month-hint">연월·센터는 복무입력/복무관리/급여내역에서 공통으로 사용돼요. 금액은 급여테이블 기준으로 자동 계산돼요.</span>
+    </div>`;
+  html += renderDutyProgressSummary(sel.monthLabel);
+  if(!rows.length){
+    html += `<div class="empty-state" style="padding:60px 0;">${escapeHtml(sel.monthLabel)} · ${dutyGroupAllCenters?'전체 센터':escapeHtml(sel.orgName)}에 저장된 복무입력 데이터가 없어요. 먼저 복무입력 탭에서 근태관리 파일을 올려주세요.</div>`;
+  }else{
+    html += renderSalaryPreviewTable(rows, dutyGroupAllCenters ? null : sel.orgName);
+    html += `<div class="duty-actions">
+      <button class="btn-primary" onclick="generateSalaryExcel()">📥 급여내역 엑셀 다운로드</button>
+    </div>`;
+  }
+  html += `</div>`;
+  return html;
+}
+const SALARY_ADJ_FIELDS = [
+  {key:'prevUnpaid', header:'전월미지급금'},
+  {key:'retroactive', header:'소급·과오납'},
+  {key:'bonus', header:'기타포상비'}
+];
+async function onSalaryFieldUpload(ev, fieldKey){
+  const file = ev.target.files[0]; if(!file) return;
+  try{
+    const wb = await readWorkbookFromFile(file);
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:null});
+    const header = rows[0] || [];
+    let sabunIdx=-1, valueIdx=-1;
+    header.forEach((h,idx)=>{
+      const norm = normalizeHeader(h);
+      if(norm==='사번'){ sabunIdx=idx; return; }
+      if(norm==='이름'||norm==='성명') return;
+      if(valueIdx===-1) valueIdx=idx;
+    });
+    if(sabunIdx===-1 || valueIdx===-1){ alert('사번 열과 값 열을 찾을 수 없어요. [사번,이름,값] 형식인지 확인해주세요.'); ev.target.value=''; return; }
+    const sel = getDutyGroupSelection();
+    let applied=0, skipped=0;
+    for(let r=1;r<rows.length;r++){
+      const row = rows[r]; if(!row) continue;
+      const sabun = String(row[sabunIdx]!=null?row[sabunIdx]:'').trim();
+      if(!sabun) continue;
+      const val = numOrNull(row[valueIdx]) || 0;
+      setPayAdjustment(sel.monthLabel, sel.orgName, sabun, fieldKey, val);
+      applied++;
+    }
+    const label = SALARY_ADJ_FIELDS.find(f=>f.key===fieldKey).header;
+    saveData();
+    if(state.view==='salary') document.getElementById('viewContainer').innerHTML = renderSalaryView();
+    alert(`"${label}" ${applied}건 반영됐어요.`);
+  }catch(err){
+    console.error(err);
+    alert('파일을 읽는 중 문제가 발생했어요.');
+  }
+  ev.target.value='';
+}
+function openSalaryTableModal(){
+  const body = document.getElementById('salaryTableModalBody');
+  const rows = SALARY_TABLE.map(r=>`<tr>
+    <td style="text-align:left;white-space:nowrap;">${escapeHtml(r.grade)}</td>
+    <td>${r.otHours}</td><td>${r.base.toLocaleString()}</td><td>${r.jikmu.toLocaleString()}</td>
+    <td>${r.jikchaek.toLocaleString()}</td><td>${r.geunsok.toLocaleString()}</td><td>${r.otAllowance.toLocaleString()}</td>
+    <td>${r.sikbi.toLocaleString()}</td>
+    <td>${r.achieve.S.toLocaleString()}</td><td>${r.achieve.A.toLocaleString()}</td><td>${r.achieve.B.toLocaleString()}</td>
+    <td>${r.achieve.C.toLocaleString()}</td><td>${r.achieve.D.toLocaleString()}</td><td>${r.achieve.E.toLocaleString()}</td>
+    <td>${r.leavePay.toLocaleString()}</td><td>${r.otPay.toLocaleString()}</td>
+  </tr>`).join('');
+  body.innerHTML = `<div style="overflow-x:auto;">
+    <table class="duty-report-table" style="white-space:nowrap;font-size:11.5px;">
+      <thead><tr>
+        <th>호봉</th><th>초과근무<br>시간</th><th>기본급</th><th>직무수당</th><th>직책수당</th><th>근속수당</th><th>초과근무수당</th><th>급식비</th>
+        <th>S</th><th>A</th><th>B</th><th>C</th><th>D</th><th>E</th><th>연차수당</th><th>시간외수당</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </div>`;
+  document.getElementById('salaryTableModalOverlay').classList.remove('hidden');
+}
+function closeSalaryTableModal(){
+  document.getElementById('salaryTableModalOverlay').classList.add('hidden');
+}
+document.getElementById('salaryTableModalOverlay').addEventListener('click', (e)=>{
+  if(e.target.id==='salaryTableModalOverlay') closeSalaryTableModal();
+});
+function generateSalaryExcel(){
+  const sel = getDutyGroupSelection();
+  const {rows} = dutyGroupAllCenters ? computeSalaryRowsAllCenters(sel.monthLabel) : computeSalaryRows(sel.monthLabel, sel.orgName);
+  if(!rows.length){ alert('다운로드할 데이터가 없어요.'); return; }
+  const header = dutyGroupAllCenters ? ['센터', ...buildSalaryHeaderRow()] : buildSalaryHeaderRow();
+  const aoa = [header];
+  rows.forEach((r,idx)=>{
+    const row = dutyGroupAllCenters ? [r._org||''] : [];
+    row.push(idx+1, r.name, r.sabun, r.grade, dutyFmtDate(r.hireDate), dutyFmtDate(r.transferDate), dutyFmtDate(r.leaveDate), r.tenure);
+    row.push(r.BD,r.BE,r.BF,r.BG,r.BH,r.BI,r.BJ,r.BK,r.BL,r.BM,r.BN,r.BO,r.BP,r.BQ,r.BR,r.BS,r.BT,r.BU,r.BV,r.BW);
+    aoa.push(row);
+  });
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, '급여내역');
+  const orgForFile = dutyGroupAllCenters ? '전체센터' : sel.orgName.replace(/\s+/g,'');
+  XLSX.writeFile(wb, `${sel.monthLabel.replace('.','_')}_급여내역_${orgForFile}.xlsx`);
+}
 /* 이전 버전(센터 구분 없던 구조)의 dutyStore를 연월+센터 구조로 정규화 */
 function normalizeDutyStore(raw){
   const result = { monthly: {}, lockedKeys: [] };
@@ -2476,13 +2919,13 @@ function renderDuty(){
   let html = `<div class="duty-view">
     <div class="duty-month-bar">
       <span class="duty-month-label">📅 작업 대상 연월</span>
-      ${buildDutyMonthSelectorHtml('dutyWork', cur.year, cur.month)}
+      ${buildDutyMonthSelectorHtml('dutyGroup', cur.year, cur.month)}
       <span class="duty-month-label">🏢 센터</span>
-      ${buildDutyOrgSelectHtml('dutyOrgInput', currentOrg)}
-      <button class="btn-secondary" onclick="onDutyWorkMonthChange()">이 연월/센터로 전환</button>
+      ${buildDutyOrgSelectHtml('dutyGroupOrgInput', currentOrg)}
+      <button class="btn-secondary" onclick="onDutyGroupSelectionChange()">이 연월/센터로 전환</button>
       <button class="btn-secondary" onclick="openDutyAddEmployeeModal()" ${locked?'disabled':''}>+ 직원 추가</button>
       ${locked?`<span class="duty-lock-badge">🔒 마감(잠금)됨 — 조회·다운로드만 가능</span><button class="btn-secondary" onclick="quickUnlockDutyMonth()">잠금 해제</button>`:''}
-      <span class="duty-month-hint">연월+센터 조합으로 각각 따로 저장돼요. 파일을 업로드하면 지금 선택된 연월·센터 기준으로 자동 저장돼요. 마감(잠금)은 왼쪽 하단 ⚙️ 설정에서 관리해요.</span>
+      <span class="duty-month-hint">연월·센터는 복무입력/복무관리/급여내역에서 공통으로 사용돼요. 파일을 업로드하면 지금 선택된 연월·센터 기준으로 자동 저장돼요.</span>
     </div>
     <div class="duty-upload-grid">
       <div class="duty-upload-card">
@@ -2503,7 +2946,7 @@ function renderDuty(){
       </div>
       <div class="duty-upload-card">
         <div class="duty-upload-title">3. 호봉 일괄 업로드</div>
-        <div class="duty-upload-desc">[사번, 이름, 호봉] 형식. 호봉값이 "KB손해보험 부천센터_컨설턴트(상담)"이면 구분·근무시간이 자동으로 4H/1주 20시간으로, 그 외에는 8H/1주 40시간으로 설정돼요 (이후 직접 수정 가능).</div>
+        <div class="duty-upload-desc">[사번, 이름, 호봉] 형식. 호봉값이 "KB손해보험 부천센터_컨설턴트(단축상담)"이면 구분·근무시간이 자동으로 4H/1주 20시간으로, 그 외에는 8H/1주 40시간으로 설정돼요 (이후 직접 수정 가능).</div>
         <input type="file" accept=".xlsx,.xls" onchange="onDutyBasicBulkUpload(event)" ${dis}>
       </div>
       <div class="duty-upload-card">
@@ -2669,8 +3112,12 @@ function confirmDutyCellEdit(){
   if(!dutyCellEditCtx) return;
   const {empIdx, gubun, meta} = dutyCellEditCtx;
   const emp = dutyState.employees[empIdx]; if(!emp){ closeDutyCellEditModal(); return; }
-  pushDutyUndoSnapshot();
   const val = document.getElementById('dutyCellEditInput').value.trim();
+  if(meta.kind==='item' && meta.key==='호봉' && val!=='' && !findSalaryRow(val)){
+    alert(`"${val}"은(는) 급여테이블에 없는 호봉이에요. 정확한 호봉명을 입력해주세요.`);
+    return;
+  }
+  pushDutyUndoSnapshot();
   if(meta.kind==='name') emp.name = val;
   else if(meta.kind==='day'){ if(gubun==='TM근태') emp.daily[meta.key] = val; }
   else if(meta.kind==='otday'){
@@ -2697,7 +3144,7 @@ function openDutyAddEmployeeModal(){
     dutyState.monthLabel = `${cur.year}.${String(cur.month).padStart(2,'0')}`;
   }
   if(!dutyState.orgName){
-    const orgEl = document.getElementById('dutyOrgInput');
+    const orgEl = document.getElementById('dutyGroupOrgInput');
     dutyState.orgName = (orgEl && orgEl.value) || DEFAULT_DUTY_ORG;
   }
   if(isDutyMonthLocked(dutyState.monthLabel, dutyState.orgName)){ alert('마감(잠금)된 달은 수정할 수 없어요. 설정에서 잠금을 해제해주세요.'); return; }
@@ -2716,7 +3163,7 @@ function confirmDutyAddEmployee(){
   if(dutyState.employees.find(e=>e.sabun===sabun)){ alert('이미 목록에 있는 사번이에요.'); return; }
   pushDutyUndoSnapshot();
   dutyState.employees.push({
-    sabun, name, team:'', hireDate:null, leaveDate:null,
+    sabun, name, team:'', hireDate:null, transferDate:null, leaveDate:null,
     daily:{}, ot:{}, otDaily:{}, items:{}
   });
   saveDutyMonthSnapshot();
@@ -2955,22 +3402,78 @@ function listDutySavedMonths(){
 function listDutyCentersForMonth(monthLabel){
   return Object.keys((dutyStore.monthly||{})[monthLabel] || {}).sort();
 }
-function onDutyWorkMonthChange(){
-  const y = Number(document.getElementById('dutyWorkYear').value);
-  const m = Number(document.getElementById('dutyWorkMonth').value);
+function getAllCenterSnapshotsForMonth(monthLabel){
+  const centers = dutyStore.monthly[monthLabel] || {};
+  return Object.keys(centers).sort()
+    .map(org=>({orgName:org, snap:centers[org]}))
+    .filter(x=>x.snap && x.snap.employees && x.snap.employees.length);
+}
+function buildMergedSnapshotForMonth(monthLabel){
+  const list = getAllCenterSnapshotsForMonth(monthLabel);
+  const employees = [];
+  list.forEach(({snap})=> employees.push(...snap.employees));
+  return { employees, monthLabel, daysInMonth: list.length ? list[0].snap.daysInMonth : 31 };
+}
+function computeSalaryRowsAllCenters(monthLabel){
+  const list = getAllCenterSnapshotsForMonth(monthLabel);
+  let allRows = [];
+  list.forEach(({orgName})=>{
+    const {rows} = computeSalaryRows(monthLabel, orgName);
+    rows.forEach(r=>{ r._org = orgName; });
+    allRows = allRows.concat(rows);
+  });
+  return { rows: allRows };
+}
+function renderDutyProgressSummary(monthLabel){
+  const allCenters = listAllDutyCenters();
+  if(allCenters.length===0) return '';
+  const rows = allCenters.map(org=>{
+    const snap = loadDutyMonthSnapshot(monthLabel, org);
+    const count = snap && snap.employees ? snap.employees.length : 0;
+    const locked = isDutyMonthLocked(monthLabel, org);
+    const status = count>0 ? `<span style="color:#1F8A4C;font-weight:700;">✅ 입력됨 (${count}명)</span>` : `<span style="color:var(--text-faint);">⬜ 미입력</span>`;
+    return `<tr>
+      <td style="text-align:left;font-weight:600;white-space:nowrap;">${escapeHtml(org)}</td>
+      <td>${status}</td>
+      <td>${locked?'🔒 마감':'🔓 진행중'}</td>
+    </tr>`;
+  }).join('');
+  return `<div class="duty-report-section">
+    <div class="duty-report-section-title">📋 ${escapeHtml(monthLabel)} 센터별 진행 현황</div>
+    <table class="duty-report-table"><thead><tr><th>센터</th><th>입력 상태</th><th>마감 상태</th></tr></thead><tbody>${rows}</tbody></table>
+  </div>`;
+}
+let dutyGroupSelection = { monthLabel: '', orgName: '' };
+let dutyGroupAllCenters = false;
+function getDutyGroupSelection(){
+  if(dutyGroupSelection.monthLabel) return dutyGroupSelection;
+  if(dutyState.monthLabel) return { monthLabel: dutyState.monthLabel, orgName: dutyState.orgName || DEFAULT_DUTY_ORG };
+  const cur = getDutyDefaultYearMonth();
+  return { monthLabel: `${cur.year}.${String(cur.month).padStart(2,'0')}`, orgName: DEFAULT_DUTY_ORG };
+}
+function onDutyGroupSelectionChange(){
+  const y = Number(document.getElementById('dutyGroupYear').value);
+  const m = Number(document.getElementById('dutyGroupMonth').value);
   const newLabel = `${y}.${String(m).padStart(2,'0')}`;
-  const newOrg = (document.getElementById('dutyOrgInput').value || '').trim() || DEFAULT_DUTY_ORG;
-  if(newLabel === dutyState.monthLabel && newOrg === (dutyState.orgName||DEFAULT_DUTY_ORG)) return;
-  if(dutyState.employees.length) saveDutyMonthSnapshot();
-  const snap = loadDutyMonthSnapshot(newLabel, newOrg);
-  if(snap){
-    dutyState = JSON.parse(JSON.stringify(snap));
-  }else{
-    dutyState = { employees: [], monthLabel: newLabel, orgName: newOrg, daysInMonth: 31, sourceFileName: '' };
+  const newOrg = (document.getElementById('dutyGroupOrgInput').value || '').trim() || DEFAULT_DUTY_ORG;
+  const allCb = document.getElementById('dutyGroupAllCenters');
+  dutyGroupAllCenters = allCb ? allCb.checked : false;
+  dutyGroupSelection = { monthLabel: newLabel, orgName: newOrg };
+  dutyReportMemoEditing = false;
+  if(state.view==='duty'){
+    if(newLabel!==dutyState.monthLabel || newOrg!==(dutyState.orgName||DEFAULT_DUTY_ORG)){
+      if(dutyState.employees.length) saveDutyMonthSnapshot();
+      const snap = loadDutyMonthSnapshot(newLabel, newOrg);
+      dutyState = snap ? JSON.parse(JSON.stringify(snap)) : { employees: [], monthLabel: newLabel, orgName: newOrg, daysInMonth: 31, sourceFileName: '' };
+      dutySearchQuery = '';
+      clearDutyUndoHistory();
+    }
+    renderDutyRefresh();
+  }else if(state.view==='dutyReport'){
+    document.getElementById('viewContainer').innerHTML = renderDutyReport();
+  }else if(state.view==='salary'){
+    document.getElementById('viewContainer').innerHTML = renderSalaryView();
   }
-  dutySearchQuery = '';
-  clearDutyUndoHistory();
-  renderDutyRefresh();
 }
 function importItemsFromMonth(){
   const curOrg = dutyState.orgName || DEFAULT_DUTY_ORG;
@@ -3017,9 +3520,15 @@ async function onDutyAttendanceUpload(ev){
     const mm = sheetName.match(/(\d{4})\D*?(\d{1,2})월/);
     const cur = getDutyDefaultYearMonth();
     const monthLabel = mm ? `${mm[1]}.${String(mm[2]).padStart(2,'0')}` : `${cur.year}.${String(cur.month).padStart(2,'0')}`;
-    const orgInputEl = document.getElementById('dutyOrgInput');
+    const orgInputEl = document.getElementById('dutyGroupOrgInput');
     const orgName = (orgInputEl && orgInputEl.value.trim()) || dutyState.orgName || DEFAULT_DUTY_ORG;
-    const idxName=1, idxSabun=2, idxTeam=3, idxHire=4, idxLeave=5;
+    const findCol = (label)=> header.findIndex(h=>String(h||'').trim()===label);
+    const idxName = findCol('이름')>=0 ? findCol('이름') : 1;
+    const idxSabun = findCol('사번')>=0 ? findCol('사번') : 2;
+    const idxTeam = findCol('팀')>=0 ? findCol('팀') : 3;
+    const idxHire = findCol('입사일')>=0 ? findCol('입사일') : 4;
+    const idxTransfer = findCol('전보일');
+    const idxLeave = findCol('퇴사일')>=0 ? findCol('퇴사일') : (idxTransfer>=0 ? idxTransfer+1 : 5);
     const employees = [];
     for(let r=1;r<rows.length;r++){
       const row = rows[r]; if(!row || row[idxSabun]===null || row[idxSabun]===undefined || row[idxSabun]==='') continue;
@@ -3036,7 +3545,7 @@ async function onDutyAttendanceUpload(ev){
           attendanceSummary[label] = (v===null||v===undefined||v==='') ? 0 : Number(v);
         }
       });
-      employees.push({sabun, name:row[idxName]||'', team:row[idxTeam]||'', hireDate:row[idxHire]||null, leaveDate:row[idxLeave]||null, daily, ot:{}, otDaily:{}, items:{}, attendanceSummary});
+      employees.push({sabun, name:row[idxName]||'', team:row[idxTeam]||'', hireDate:row[idxHire]||null, transferDate:(idxTransfer>=0?row[idxTransfer]:null)||null, leaveDate:row[idxLeave]||null, daily, ot:{}, otDaily:{}, items:{}, attendanceSummary});
     }
     applyDutyHolidayOverride(employees, monthLabel, dayCols.length);
     /* 같은 연월·센터에 이미 입력해둔 항목/연장근무가 있으면 유지 (명단·근태만 새로 갱신) */
@@ -3080,18 +3589,25 @@ async function onDutyBasicBulkUpload(ev){
     if(sabunIdx===-1){ alert('사번 열을 찾을 수 없어요.'); ev.target.value=''; return; }
     if(gradeIdx===-1){ alert('호봉 열을 찾을 수 없어요. [사번, 이름, 호봉] 형식인지 확인해주세요.'); ev.target.value=''; return; }
     pushDutyUndoSnapshot();
-    let applied=0, skipped=0;
+    let applied=0, skipped=0, invalidGrade=0;
+    const invalidGradeNames = new Set();
     for(let r=1;r<rows.length;r++){
       const row = rows[r]; if(!row) continue;
       const sabun = String(row[sabunIdx]!=null?row[sabunIdx]:'').trim();
       if(!sabun) continue;
       const emp = dutyState.employees.find(x=>x.sabun===sabun);
       if(!emp){ skipped++; continue; }
-      emp.items['호봉'] = row[gradeIdx];
+      const gradeVal = String(row[gradeIdx]!=null?row[gradeIdx]:'').trim();
+      if(!findSalaryRow(gradeVal)){ invalidGrade++; invalidGradeNames.add(gradeVal); continue; }
+      emp.items['호봉'] = gradeVal;
       applyDutyGradeDefaults(emp);
       applied++;
     }
-    alert(`호봉 일괄 반영: ${applied}명${skipped?` · ${skipped}명 제외(사번 불일치)`:''} (구분·근무시간은 호봉에 따라 자동 설정됨)`);
+    let msg = `호봉 일괄 반영: ${applied}명`;
+    if(skipped) msg += ` · ${skipped}명 제외(사번 불일치)`;
+    if(invalidGrade) msg += ` · ${invalidGrade}명 제외(급여테이블에 없는 호봉: ${Array.from(invalidGradeNames).join(', ')})`;
+    msg += ' (구분·근무시간은 호봉에 따라 자동 설정됨)';
+    alert(msg);
     saveDutyMonthSnapshot();
     renderDutyRefresh();
   }catch(err){
@@ -3190,11 +3706,12 @@ async function onDutyItemUpload(ev){
   }
   ev.target.value='';
 }
-function openDutyFieldPicker(headerName, callback){
+function openDutyFieldPicker(headerName, callback, fieldList){
+  fieldList = fieldList || DUTY_ITEM_FIELDS;
   dutyFieldPickerCallback = callback;
   document.getElementById('dutyFieldModalHeaderName').textContent = headerName;
   const sel = document.getElementById('dutyFieldModalSelect');
-  sel.innerHTML = DUTY_ITEM_FIELDS.map(f=>`<option value="${f.key}">${escapeHtml(f.header.replace(/\n/g,' '))}</option>`).join('');
+  sel.innerHTML = fieldList.map(f=>`<option value="${f.key}">${escapeHtml((f.header||'').replace(/\n/g,' '))}</option>`).join('');
   document.getElementById('dutyFieldModalOverlay').classList.remove('hidden');
 }
 function closeDutyFieldModal(){
@@ -3278,25 +3795,10 @@ document.getElementById('dutyValidationModalOverlay').addEventListener('click', 
   if(e.target.id==='dutyValidationModalOverlay') closeDutyValidationModal();
 });
 /* ============ Duty report (복무관리) ============ */
-let dutyReportSelection = { monthLabel: '', orgName: '' };
 function numOrNull(v){
   if(v===undefined||v===null||v==='') return null;
   const n = Number(v);
   return isNaN(n) ? null : n;
-}
-function getDutyReportSelection(){
-  if(dutyReportSelection.monthLabel) return dutyReportSelection;
-  if(dutyState.monthLabel) return { monthLabel: dutyState.monthLabel, orgName: dutyState.orgName || DEFAULT_DUTY_ORG };
-  const cur = getDutyDefaultYearMonth();
-  return { monthLabel: `${cur.year}.${String(cur.month).padStart(2,'0')}`, orgName: DEFAULT_DUTY_ORG };
-}
-function onDutyReportSelectionChange(){
-  const y = Number(document.getElementById('dutyReportYear').value);
-  const m = Number(document.getElementById('dutyReportMonth').value);
-  const org = (document.getElementById('dutyReportOrgInput').value || '').trim() || DEFAULT_DUTY_ORG;
-  dutyReportSelection = { monthLabel: `${y}.${String(m).padStart(2,'0')}`, orgName: org };
-  dutyReportMemoEditing = false;
-  if(state.view==='dutyReport') document.getElementById('viewContainer').innerHTML = renderDutyReport();
 }
 function computeDutyStats(snap){
   const employees = snap.employees || [];
@@ -3457,7 +3959,7 @@ function cancelDutyReportMemoEdit(){
   if(state.view==='dutyReport') document.getElementById('viewContainer').innerHTML = renderDutyReport();
 }
 function saveDutyReportMemo(){
-  const sel = getDutyReportSelection();
+  const sel = getDutyGroupSelection();
   const textarea = document.getElementById('dutyReportMemo');
   if(!textarea) return;
   const val = textarea.value;
@@ -3477,44 +3979,50 @@ function getDutyPrevMonthLabel(monthLabel){
   return `${y}.${String(m).padStart(2,'0')}`;
 }
 function renderDutyReport(){
-  const sel = getDutyReportSelection();
+  const sel = getDutyGroupSelection();
   const parts = sel.monthLabel.split('.').map(Number);
-  const snap = loadDutyMonthSnapshot(sel.monthLabel, sel.orgName);
+  const snap = dutyGroupAllCenters ? buildMergedSnapshotForMonth(sel.monthLabel) : loadDutyMonthSnapshot(sel.monthLabel, sel.orgName);
   const prevLabel = getDutyPrevMonthLabel(sel.monthLabel);
-  const prevSnap = loadDutyMonthSnapshot(prevLabel, sel.orgName);
+  const prevSnap = dutyGroupAllCenters ? buildMergedSnapshotForMonth(prevLabel) : loadDutyMonthSnapshot(prevLabel, sel.orgName);
   const prevStats = (prevSnap && prevSnap.employees && prevSnap.employees.length) ? computeDutyStats(prevSnap) : null;
   let html = `<div class="duty-report-view">
     <div class="duty-month-bar">
       <span class="duty-month-label">📅 조회 연월</span>
-      ${buildDutyMonthSelectorHtml('dutyReport', parts[0], parts[1])}
+      ${buildDutyMonthSelectorHtml('dutyGroup', parts[0], parts[1])}
       <span class="duty-month-label">🏢 센터</span>
-      ${buildDutyOrgSelectHtml('dutyReportOrgInput', sel.orgName)}
-      <button class="btn-secondary" onclick="onDutyReportSelectionChange()">조회</button>
-      <span class="duty-month-hint">복무입력 탭에 저장된 연월·센터 데이터를 골라서 통계를 볼 수 있어요. (전월 ${escapeHtml(prevLabel)} 대비 증감도 함께 표시돼요)</span>
+      ${buildDutyOrgSelectHtml('dutyGroupOrgInput', sel.orgName)}
+      <label style="display:flex;align-items:center;gap:5px;font-size:12px;font-weight:600;color:var(--text-soft);">
+        <input type="checkbox" id="dutyGroupAllCenters" onchange="onDutyGroupSelectionChange()" ${dutyGroupAllCenters?'checked':''}> 전체 센터 합산
+      </label>
+      <button class="btn-secondary" onclick="onDutyGroupSelectionChange()">조회</button>
+      <span class="duty-month-hint">연월·센터는 복무입력/복무관리/급여내역에서 공통으로 사용돼요. (전월 ${escapeHtml(prevLabel)} 대비 증감도 함께 표시돼요)</span>
     </div>`;
+  html += renderDutyProgressSummary(sel.monthLabel);
   if(!snap || !snap.employees || snap.employees.length===0){
-    html += `<div class="empty-state" style="padding:60px 0;">${escapeHtml(sel.monthLabel)} · ${escapeHtml(sel.orgName)}에 저장된 복무입력 데이터가 없어요.</div>`;
+    html += `<div class="empty-state" style="padding:60px 0;">${escapeHtml(sel.monthLabel)} · ${dutyGroupAllCenters?'전체 센터':escapeHtml(sel.orgName)}에 저장된 복무입력 데이터가 없어요.</div>`;
   }else{
     html += renderDutyStatsHtml(computeDutyStats(snap), prevStats, prevLabel);
   }
-  const memoVal = (snap && snap.memo) || '';
-  if(dutyReportMemoEditing){
-    html += `<div class="duty-report-section">
-      <div class="duty-report-section-title"><span>📝 메모</span></div>
-      <textarea id="dutyReportMemo" class="duty-report-memo" placeholder="이 달 특이사항이나 메모를 자유롭게 적어두세요">${escapeHtml(memoVal)}</textarea>
-      <div class="duty-report-memo-actions">
-        <button class="btn-secondary" onclick="cancelDutyReportMemoEdit()">취소</button>
-        <button class="btn-primary" onclick="saveDutyReportMemo()">저장</button>
-      </div>
-    </div>`;
-  }else{
-    html += `<div class="duty-report-section">
-      <div class="duty-report-section-title">
-        <span>📝 메모</span>
-        <button class="btn-secondary" style="margin-left:auto;" onclick="startDutyReportMemoEdit()">✏️ 수정</button>
-      </div>
-      <div class="duty-report-memo-view">${memoVal ? escapeHtml(memoVal).replace(/\n/g,'<br>') : '<span style="color:var(--text-faint);">아직 메모가 없어요. "수정" 버튼을 눌러 작성해보세요.</span>'}</div>
-    </div>`;
+  if(!dutyGroupAllCenters){
+    const memoVal = (snap && snap.memo) || '';
+    if(dutyReportMemoEditing){
+      html += `<div class="duty-report-section">
+        <div class="duty-report-section-title"><span>📝 메모</span></div>
+        <textarea id="dutyReportMemo" class="duty-report-memo" placeholder="이 달 특이사항이나 메모를 자유롭게 적어두세요">${escapeHtml(memoVal)}</textarea>
+        <div class="duty-report-memo-actions">
+          <button class="btn-secondary" onclick="cancelDutyReportMemoEdit()">취소</button>
+          <button class="btn-primary" onclick="saveDutyReportMemo()">저장</button>
+        </div>
+      </div>`;
+    }else{
+      html += `<div class="duty-report-section">
+        <div class="duty-report-section-title">
+          <span>📝 메모</span>
+          <button class="btn-secondary" style="margin-left:auto;" onclick="startDutyReportMemoEdit()">✏️ 수정</button>
+        </div>
+        <div class="duty-report-memo-view">${memoVal ? escapeHtml(memoVal).replace(/\n/g,'<br>') : '<span style="color:var(--text-faint);">아직 메모가 없어요. "수정" 버튼을 눌러 작성해보세요.</span>'}</div>
+      </div>`;
+    }
   }
   html += `</div>`;
   return html;
@@ -3539,6 +4047,804 @@ function generateDutyExcel(){
   const orgForFile = (dutyState.orgName || DEFAULT_DUTY_ORG).replace(/\s+/g,'');
   const filename = `${(dutyState.monthLabel||'복무').replace('.','_')}_복무_${orgForFile}.xlsx`;
   XLSX.writeFile(wb, filename);
+}
+
+/* ============ 관리자평가 (독립 기능, 다른 탭과 데이터 연동 없음) ============ */
+const EVAL_TEAMS = [
+  '제휴상담 1팀','제휴상담 2팀','제휴상담 3팀',
+  '장기사고 1팀','장기사고 2팀','장기사고 3팀','장기사고 4팀','장기사고 5팀','장기사고 6팀'
+];
+const EVAL_CRITERIA = {
+  cpdWeight: 30, cpdTarget: {'제휴상담':90, '장기사고':120},
+  top2Weight: 20, top2Target: 97,
+  npsWeight: 30, npsTarget: 88,
+  ctWeight: 20, ctTargetSeconds: 4.5*3600,
+  resignPenaltyPerPerson: -3,
+  scoreToIncentive: [
+    {min:100, amt:350000},{min:99, amt:320000},{min:98, amt:290000},{min:97, amt:260000},
+    {min:96, amt:230000},{min:95, amt:200000},{min:94, amt:170000},{min:93, amt:140000},
+    {min:92, amt:110000},{min:91, amt:80000},{min:90, amt:50000}
+  ],
+  outboundTiers: [
+    {key:'5', label:'5% 이상 (차감없음)', penalty:0},
+    {key:'4', label:'4%', penalty:-5},
+    {key:'3', label:'3%', penalty:-10},
+    {key:'below3', label:'3% 미만', penalty:-15}
+  ]
+};
+function evalTeamCategory(team){
+  if((team||'').startsWith('제휴상담')) return '제휴상담';
+  if((team||'').startsWith('장기사고')) return '장기사고';
+  return null;
+}
+function normalizeEvalTeamName(shortName){
+  if(!shortName) return null;
+  const s = String(shortName).trim();
+  let m = s.match(/^제휴(\d)팀$/);
+  if(m) return `제휴상담 ${m[1]}팀`;
+  m = s.match(/^사고(\d)팀$/);
+  if(m) return `장기사고 ${m[1]}팀`;
+  if(s==='실효OB') return null;
+  return null;
+}
+function evalDurationToSeconds(val){
+  if(val===null||val===undefined||val==='') return 0;
+  if(val instanceof Date){
+    const epoch = Date.UTC(1899,11,30);
+    return Math.max(0,(val.getTime()-epoch)/1000);
+  }
+  if(typeof val==='number') return val*86400;
+  return 0;
+}
+/* 엑셀 일련값(날짜/시간 공용)을 브라우저 타임존과 무관하게 UTC 기준으로 정확히 변환 */
+function evalExcelSerialToDate(serial){
+  if(typeof serial!=='number' || isNaN(serial)) return null;
+  return new Date(Date.UTC(1899,11,30) + Math.round(serial*86400000));
+}
+function evalOutboundPenalty(ratePercent){
+  if(ratePercent===null||ratePercent===undefined||isNaN(ratePercent)) return 0;
+  if(ratePercent>=5) return 0;
+  if(ratePercent>=4) return -5;
+  if(ratePercent>=3) return -10;
+  return -15;
+}
+function evalScoreToIncentive(total){
+  for(const t of EVAL_CRITERIA.scoreToIncentive){ if(total>=t.min) return t.amt; }
+  return 0;
+}
+function evalFmtSeconds(sec){
+  sec = Math.round(sec||0);
+  const h = Math.floor(sec/3600), m = Math.floor((sec%3600)/60), s = sec%60;
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+let evalSelectedWeek = '';
+function getEvalSelectedWeek(){
+  if(evalSelectedWeek && evalStore.weekly[evalSelectedWeek]) return evalSelectedWeek;
+  const keys = Object.keys(evalStore.weekly).sort();
+  if(keys.length) return keys[keys.length-1];
+  return dutyFmtDate(new Date());
+}
+let evalSaveTimer = null;
+function saveEvalData(){
+  clearTimeout(evalSaveTimer);
+  evalSaveTimer = setTimeout(()=>{ saveData(); }, 600);
+}
+function renderEvalRefresh(){
+  if(state.view==='eval') document.getElementById('viewContainer').innerHTML = renderEvalView();
+}
+
+/* ---- 종합콜현황 업로드 ---- */
+async function onEvalCallDataUpload(ev){
+  const file = ev.target.files[0]; if(!file) return;
+  try{
+    /* cellDates:true는 브라우저 타임존에 따라 콜타임 같은 소요시간 셀을 잘못 변환하는 문제가 있어,
+       여기서는 원본 숫자(엑셀 일련값)를 그대로 받아서 직접 UTC 기준으로 변환한다 */
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, {type:'array'});
+    const sheetName = wb.SheetNames.find(n=>n.includes('종합현황')) || wb.SheetNames[0];
+    const ws = wb.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:null});
+
+    let refDate = null;
+    for(let r=0; r<Math.min(rows.length,10); r++){
+      const row = rows[r]||[];
+      for(let c=0; c<row.length; c++){
+        if(row[c] && String(row[c]).includes('실적기준일')){
+          for(let c2=c+1; c2<row.length; c2++){
+            if(typeof row[c2]==='number'){ refDate = evalExcelSerialToDate(row[c2]); break; }
+          }
+        }
+      }
+      if(refDate) break;
+    }
+    if(!refDate) refDate = new Date();
+    const dateKey = dutyFmtDate(refDate);
+    if(isEvalWeekLocked(dateKey)){
+      alert(`${dateKey} 주차는 마감(잠금)되어 있어서 다시 업로드할 수 없어요. 설정에서 잠금을 해제해주세요.`);
+      ev.target.value=''; return;
+    }
+
+    /* 'CPD' 헤더 셀 위치를 찾아서, 나머지 컬럼(이름/팀/사번/입사일/IN/OB인센/OB전산/Total 등)을 그 위치 기준 상대값으로 계산.
+       (시트마다 A열이 비어있는 등 실제 데이터 시작 컬럼이 달라질 수 있어 절대 위치 대신 상대 위치로 찾음) */
+    let cpdCol = -1;
+    for(let r=0; r<Math.min(rows.length,15) && cpdCol<0; r++){
+      const row = rows[r]||[];
+      for(let c=0; c<row.length; c++){
+        if(String(row[c]||'').trim()==='CPD'){ cpdCol = c; break; }
+      }
+    }
+    if(cpdCol<0){
+      alert('종합콜현황 파일에서 "CPD" 헤더를 찾지 못했어요. 파일 형식을 확인해주세요.');
+      ev.target.value=''; return;
+    }
+    const colName = cpdCol-7, colSabun = cpdCol-6, colTeam = cpdCol-5, colHire = cpdCol-4;
+    const colCpdIn = cpdCol, colCpdOb = cpdCol+1, colCpdTotal = cpdCol+3;
+    const colCtIn = cpdCol+4, colCtOut = cpdCol+5, colCtTotal = cpdCol+6;
+
+    const employees = [];
+    for(let r=0; r<rows.length; r++){
+      const row = rows[r]||[];
+      const nameRaw = row[colName], teamRaw = row[colTeam];
+      if(!nameRaw || !teamRaw) continue;
+      const teamNorm = normalizeEvalTeamName(teamRaw);
+      if(!teamNorm) continue;
+      const cpdTotal = numOrNull(row[colCpdTotal]);
+      if(cpdTotal===null) continue;
+      const hireRaw = row[colHire];
+      const hireDate = typeof hireRaw==='number' ? evalExcelSerialToDate(hireRaw) : (hireRaw||null);
+      employees.push({
+        name: String(nameRaw).trim(), team: teamNorm, hireDate,
+        cpdIn: numOrNull(row[colCpdIn])||0, cpdOb: numOrNull(row[colCpdOb])||0, cpdTotal: cpdTotal,
+        ctIn: (numOrNull(row[colCtIn])||0)*86400,
+        ctOut: (numOrNull(row[colCtOut])||0)*86400,
+        ctTotal: (numOrNull(row[colCtTotal])||0)*86400,
+        under80: false
+      });
+    }
+    if(employees.length===0){ alert('개인별 실적 데이터를 찾지 못했어요. 종합콜현황 파일 형식을 확인해주세요.'); ev.target.value=''; return; }
+    const prior = evalStore.weekly[dateKey];
+    let carriedReducedNames = [];
+    if(prior && prior.reducedHoursNames){
+      carriedReducedNames = prior.reducedHoursNames;
+    }else{
+      const priorKeys = Object.keys(evalStore.weekly).filter(k=>k<dateKey).sort();
+      if(priorKeys.length){
+        const latestPrior = evalStore.weekly[priorKeys[priorKeys.length-1]];
+        carriedReducedNames = (latestPrior && latestPrior.reducedHoursNames) || [];
+      }
+    }
+    evalStore.weekly[dateKey] = {
+      dateKey, sourceFileName: file.name, employees,
+      teamMetrics: (prior && prior.teamMetrics) || {},
+      resigned: (prior && prior.resigned) || [],
+      under80List: (prior && prior.under80List) || [],
+      reducedHoursNames: carriedReducedNames.slice()
+    };
+    evalSelectedWeek = dateKey;
+    saveEvalData();
+    renderEvalRefresh();
+    alert(`${employees.length}명 실적 반영 완료 (기준일: ${dateKey})`);
+  }catch(err){
+    console.error(err);
+    alert('파일을 읽는 중 문제가 발생했어요. 종합콜현황 파일이 맞는지 확인해주세요.');
+  }
+  ev.target.value='';
+}
+function onEvalWeekChange(){
+  evalSelectedWeek = document.getElementById('evalWeekSelect').value;
+  renderEvalRefresh();
+}
+
+/* ---- 육아단축자 명단 (주차별로 관리, 새 주차 생성시 직전 주차에서 자동 승계) ---- */
+function openEvalReducedHoursModal(){
+  const sel = getEvalSelectedWeek();
+  const week = evalStore.weekly[sel];
+  if(!week){ alert('먼저 종합콜현황 파일을 업로드해주세요.'); return; }
+  if(isEvalWeekLocked(sel)){ alert('마감(잠금)된 주차는 수정할 수 없어요.'); return; }
+  renderEvalReducedHoursModalBody();
+  document.getElementById('evalReducedHoursModalOverlay').classList.remove('hidden');
+}
+function closeEvalReducedHoursModal(){
+  document.getElementById('evalReducedHoursModalOverlay').classList.add('hidden');
+}
+function renderEvalReducedHoursModalBody(){
+  const body = document.getElementById('evalReducedHoursModalBody');
+  const week = evalStore.weekly[getEvalSelectedWeek()];
+  const names = (week && week.reducedHoursNames) || [];
+  const rows = names.map((n,idx)=>`<li class="center-row">
+    <span style="flex:1;font-size:13px;font-weight:600;">${escapeHtml(n)}</span>
+    <button type="button" class="btn-secondary" style="padding:5px 10px;font-size:11.5px;" onclick="removeEvalReducedHoursName(${idx})">삭제</button>
+  </li>`).join('') || '<li class="empty-state" style="padding:10px 0;">등록된 육아단축자가 없어요.</li>';
+  body.innerHTML = `
+    <ul class="center-list" style="margin-bottom:12px;max-height:400px;">${rows}</ul>
+    <div style="display:flex;gap:6px;">
+      <input type="text" id="evalReducedHoursNameInput" placeholder="이름 입력 후 Enter" style="flex:1;border:1px solid var(--border-strong);border-radius:var(--radius-sm);padding:8px 10px;font-size:13px;font-family:inherit;" onkeydown="if(event.key==='Enter'){event.preventDefault();addEvalReducedHoursName();}">
+      <button type="button" class="btn-primary" onclick="addEvalReducedHoursName()">추가</button>
+    </div>
+  `;
+  const inp = document.getElementById('evalReducedHoursNameInput');
+  if(inp) inp.focus();
+}
+function addEvalReducedHoursName(){
+  const input = document.getElementById('evalReducedHoursNameInput');
+  const name = input.value.trim();
+  if(!name) return;
+  const week = evalStore.weekly[getEvalSelectedWeek()];
+  if(!week) return;
+  week.reducedHoursNames = week.reducedHoursNames || [];
+  if(!week.reducedHoursNames.includes(name)) week.reducedHoursNames.push(name);
+  input.value='';
+  saveEvalData();
+  renderEvalReducedHoursModalBody();
+  renderEvalRefresh();
+}
+function removeEvalReducedHoursName(idx){
+  const week = evalStore.weekly[getEvalSelectedWeek()];
+  if(!week) return;
+  week.reducedHoursNames.splice(idx,1);
+  saveEvalData();
+  renderEvalReducedHoursModalBody();
+  renderEvalRefresh();
+}
+document.getElementById('evalReducedHoursModalOverlay').addEventListener('click',(e)=>{
+  if(e.target.id==='evalReducedHoursModalOverlay') closeEvalReducedHoursModal();
+});
+
+/* ---- 근무 80% 미만 근무자 명단 (이번 주차) ---- */
+function isEvalUnder80(week, name, team){
+  return (week.under80List||[]).some(u=>u.name===name && u.team===team);
+}
+function openEvalUnder80Modal(){
+  const sel = getEvalSelectedWeek();
+  const week = evalStore.weekly[sel];
+  if(!week){ alert('먼저 종합콜현황 파일을 업로드해주세요.'); return; }
+  if(isEvalWeekLocked(sel)){ alert('마감(잠금)된 주차는 수정할 수 없어요.'); return; }
+  renderEvalUnder80ModalBody();
+  document.getElementById('evalUnder80ModalOverlay').classList.remove('hidden');
+}
+function closeEvalUnder80Modal(){
+  document.getElementById('evalUnder80ModalOverlay').classList.add('hidden');
+}
+function renderEvalUnder80ModalBody(){
+  const week = evalStore.weekly[getEvalSelectedWeek()];
+  const list = (week && week.under80List) || [];
+  const teamOpts = EVAL_TEAMS.map(t=>`<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
+  const rows = list.map((r,idx)=>`<li class="center-row">
+    <span style="flex:1;font-size:13px;">${escapeHtml(r.name)} · ${escapeHtml(r.team)}</span>
+    <button type="button" class="btn-secondary" style="padding:5px 10px;font-size:11.5px;" onclick="removeEvalUnder80(${idx})">삭제</button>
+  </li>`).join('') || '<li class="empty-state" style="padding:10px 0;">등록된 사람이 없어요.</li>';
+  document.getElementById('evalUnder80ModalBody').innerHTML = `
+    <ul class="center-list" style="margin-bottom:12px;max-height:400px;">${rows}</ul>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;">
+      <input type="text" id="evalUnder80NameInput" placeholder="이름" style="flex:1;min-width:100px;border:1px solid var(--border-strong);border-radius:var(--radius-sm);padding:8px 10px;font-size:13px;font-family:inherit;" onkeydown="if(event.key==='Enter'){event.preventDefault();addEvalUnder80();}">
+      <select id="evalUnder80TeamInput" style="border:1px solid var(--border-strong);border-radius:var(--radius-sm);padding:8px 10px;font-size:13px;font-family:inherit;">${teamOpts}</select>
+      <button type="button" class="btn-primary" onclick="addEvalUnder80()">추가</button>
+    </div>
+  `;
+  const inp80 = document.getElementById('evalUnder80NameInput');
+  if(inp80) inp80.focus();
+}
+function addEvalUnder80(){
+  const name = document.getElementById('evalUnder80NameInput').value.trim();
+  const team = document.getElementById('evalUnder80TeamInput').value;
+  if(!name){ alert('이름을 입력해주세요.'); return; }
+  const week = evalStore.weekly[getEvalSelectedWeek()];
+  week.under80List = week.under80List || [];
+  if(week.under80List.some(u=>u.name===name && u.team===team)){ alert('이미 등록되어 있어요.'); return; }
+  week.under80List.push({name, team});
+  saveEvalData();
+  renderEvalUnder80ModalBody();
+  renderEvalRefresh();
+}
+function removeEvalUnder80(idx){
+  const week = evalStore.weekly[getEvalSelectedWeek()];
+  week.under80List.splice(idx,1);
+  saveEvalData();
+  renderEvalUnder80ModalBody();
+  renderEvalRefresh();
+}
+document.getElementById('evalUnder80ModalOverlay').addEventListener('click',(e)=>{
+  if(e.target.id==='evalUnder80ModalOverlay') closeEvalUnder80Modal();
+});
+
+/* ---- 팀별 지표(TOP2/NPS/발신율/민원건수) 입력 ---- */
+function updateEvalTeamMetric(team, field, value){
+  const sel = getEvalSelectedWeek();
+  const week = evalStore.weekly[sel];
+  if(!week) return;
+  if(isEvalWeekLocked(sel)){ alert('마감(잠금)된 주차는 수정할 수 없어요.'); renderEvalRefresh(); return; }
+  week.teamMetrics = week.teamMetrics || {};
+  week.teamMetrics[team] = week.teamMetrics[team] || {};
+  const n = value===''? null : Number(value);
+  week.teamMetrics[team][field] = (n===null||isNaN(n)) ? null : n;
+  saveEvalData();
+}
+
+/* ---- 퇴사자 명단 ---- */
+function openEvalResignModal(){
+  const sel = getEvalSelectedWeek();
+  const week = evalStore.weekly[sel];
+  if(!week){ alert('먼저 종합콜현황 파일을 업로드해주세요.'); return; }
+  if(isEvalWeekLocked(sel)){ alert('마감(잠금)된 주차는 수정할 수 없어요.'); return; }
+  renderEvalResignModalBody();
+  document.getElementById('evalResignModalOverlay').classList.remove('hidden');
+}
+function closeEvalResignModal(){
+  document.getElementById('evalResignModalOverlay').classList.add('hidden');
+}
+function renderEvalResignModalBody(){
+  const week = evalStore.weekly[getEvalSelectedWeek()];
+  const list = (week && week.resigned) || [];
+  const teamOpts = EVAL_TEAMS.map(t=>`<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
+  const rows = list.map((r,idx)=>`<li class="center-row">
+    <span style="flex:1;font-size:13px;">${escapeHtml(r.name)} · ${escapeHtml(r.team)} · ${escapeHtml(r.date||'')}</span>
+    <button type="button" class="btn-secondary" style="padding:5px 10px;font-size:11.5px;" onclick="removeEvalResign(${idx})">삭제</button>
+  </li>`).join('') || '<li class="empty-state" style="padding:10px 0;">등록된 퇴사자가 없어요.</li>';
+  document.getElementById('evalResignModalBody').innerHTML = `
+    <ul class="center-list" style="margin-bottom:12px;max-height:400px;">${rows}</ul>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;">
+      <input type="text" id="evalResignNameInput" placeholder="이름" style="flex:1;min-width:100px;border:1px solid var(--border-strong);border-radius:var(--radius-sm);padding:8px 10px;font-size:13px;font-family:inherit;" onkeydown="if(event.key==='Enter'){event.preventDefault();addEvalResign();}">
+      <select id="evalResignTeamInput" style="border:1px solid var(--border-strong);border-radius:var(--radius-sm);padding:8px 10px;font-size:13px;font-family:inherit;">${teamOpts}</select>
+      <input type="date" id="evalResignDateInput" style="border:1px solid var(--border-strong);border-radius:var(--radius-sm);padding:8px 10px;font-size:13px;font-family:inherit;" onkeydown="if(event.key==='Enter'){event.preventDefault();addEvalResign();}">
+      <button type="button" class="btn-primary" onclick="addEvalResign()">추가</button>
+    </div>
+  `;
+  const inpResign = document.getElementById('evalResignNameInput');
+  if(inpResign) inpResign.focus();
+}
+function addEvalResign(){
+  const name = document.getElementById('evalResignNameInput').value.trim();
+  const team = document.getElementById('evalResignTeamInput').value;
+  const date = document.getElementById('evalResignDateInput').value;
+  if(!name){ alert('이름을 입력해주세요.'); return; }
+  const week = evalStore.weekly[getEvalSelectedWeek()];
+  week.resigned = week.resigned || [];
+  week.resigned.push({name, team, date});
+  saveEvalData();
+  renderEvalResignModalBody();
+  renderEvalRefresh();
+}
+function removeEvalResign(idx){
+  const week = evalStore.weekly[getEvalSelectedWeek()];
+  week.resigned.splice(idx,1);
+  saveEvalData();
+  renderEvalResignModalBody();
+  renderEvalRefresh();
+}
+document.getElementById('evalResignModalOverlay').addEventListener('click',(e)=>{
+  if(e.target.id==='evalResignModalOverlay') closeEvalResignModal();
+});
+
+/* ---- 평가기준 보기 ---- */
+function openEvalCriteriaModal(){
+  const body = document.getElementById('evalCriteriaModalBody');
+  const incentiveRows = EVAL_CRITERIA.scoreToIncentive.map(t=>`<tr><td>${t.min}점 이상</td><td>${t.amt.toLocaleString()}원</td></tr>`).join('');
+  body.innerHTML = `
+    <table class="duty-report-table" style="margin-bottom:16px;">
+      <thead><tr><th>구분</th><th>배점</th><th>기준실적</th></tr></thead>
+      <tbody>
+        <tr><td style="text-align:left;">CPD (제휴상담)</td><td>${EVAL_CRITERIA.cpdWeight}점</td><td>${EVAL_CRITERIA.cpdTarget['제휴상담']}</td></tr>
+        <tr><td style="text-align:left;">CPD (장기사고)</td><td>${EVAL_CRITERIA.cpdWeight}점</td><td>${EVAL_CRITERIA.cpdTarget['장기사고']}</td></tr>
+        <tr><td style="text-align:left;">TOP2</td><td>${EVAL_CRITERIA.top2Weight}점</td><td>${EVAL_CRITERIA.top2Target}%</td></tr>
+        <tr><td style="text-align:left;">NPS</td><td>${EVAL_CRITERIA.npsWeight}점</td><td>${EVAL_CRITERIA.npsTarget}</td></tr>
+        <tr><td style="text-align:left;">Call Time</td><td>${EVAL_CRITERIA.ctWeight}점</td><td>${evalFmtSeconds(EVAL_CRITERIA.ctTargetSeconds)}</td></tr>
+        <tr><td style="text-align:left;">민원차감</td><td colspan="2">1건당 -1점</td></tr>
+        <tr><td style="text-align:left;">퇴직인원</td><td colspan="2">1명당 ${EVAL_CRITERIA.resignPenaltyPerPerson}점</td></tr>
+      </tbody>
+    </table>
+    <div style="font-size:12.5px;font-weight:700;margin-bottom:8px;">발신율 페널티 (TOP2는 절반, NPS는 전액 반영)</div>
+    <table class="duty-report-table" style="margin-bottom:16px;">
+      <thead><tr><th>발신율</th><th>차감점수</th></tr></thead>
+      <tbody>${EVAL_CRITERIA.outboundTiers.map(t=>`<tr><td>${escapeHtml(t.label)}</td><td>${t.penalty}점</td></tr>`).join('')}</tbody>
+    </table>
+    <div style="font-size:12.5px;font-weight:700;margin-bottom:8px;">총점 → 인센티브</div>
+    <table class="duty-report-table"><thead><tr><th>총점</th><th>인센티브</th></tr></thead><tbody>${incentiveRows}</tbody></table>
+  `;
+  document.getElementById('evalCriteriaModalOverlay').classList.remove('hidden');
+}
+function closeEvalCriteriaModal(){
+  document.getElementById('evalCriteriaModalOverlay').classList.add('hidden');
+}
+document.getElementById('evalCriteriaModalOverlay').addEventListener('click',(e)=>{
+  if(e.target.id==='evalCriteriaModalOverlay') closeEvalCriteriaModal();
+});
+
+/* ---- 점수 계산 ---- */
+function computeEvalSummary(dateKey){
+  const week = evalStore.weekly[dateKey];
+  if(!week) return [];
+  const reducedNames = week.reducedHoursNames || [];
+  const withTenure = week.employees.map(e=>({
+    ...e,
+    months: dutyMonthsBetween(e.hireDate, new Date()),
+    isReduced: reducedNames.includes(e.name)
+  }));
+  const eligible = withTenure.filter(e=> e.months>3);
+  const results = EVAL_TEAMS.map(team=>{
+    const teamList = eligible.filter(e=>e.team===team);
+    const cpdList = teamList.filter(e=>!isEvalUnder80(week, e.name, e.team));
+    const cpdVals = cpdList.map(e=> e.isReduced ? e.cpdTotal*2 : e.cpdTotal).filter(v=>v>0);
+    const cpdAvg = cpdVals.length ? cpdVals.reduce((a,b)=>a+b,0)/cpdVals.length : 0;
+    const cat = evalTeamCategory(team);
+    const cpdTarget = EVAL_CRITERIA.cpdTarget[cat] || 90;
+    const cpdScore = Math.min(EVAL_CRITERIA.cpdWeight, cpdAvg/cpdTarget*EVAL_CRITERIA.cpdWeight);
+
+    const ctVals = teamList.map(e=> e.isReduced ? e.ctTotal*2 : e.ctTotal).filter(v=>v>0);
+    const ctAvg = ctVals.length ? ctVals.reduce((a,b)=>a+b,0)/ctVals.length : 0;
+    const ctScore = Math.min(EVAL_CRITERIA.ctWeight, ctAvg/EVAL_CRITERIA.ctTargetSeconds*EVAL_CRITERIA.ctWeight);
+
+    const tm = (week.teamMetrics && week.teamMetrics[team]) || {};
+    const top2 = tm.top2!=null ? tm.top2 : 0;
+    const nps = tm.nps!=null ? tm.nps : 0;
+    const complaints = tm.complaints!=null ? tm.complaints : 0;
+    const outboundRate = tm.outboundRate;
+    const outboundPenalty = evalOutboundPenalty(outboundRate);
+
+    let top2Score = Math.min(EVAL_CRITERIA.top2Weight, top2/EVAL_CRITERIA.top2Target*EVAL_CRITERIA.top2Weight) + outboundPenalty/2;
+    if(top2Score<0) top2Score=0;
+    let npsScore = Math.min(EVAL_CRITERIA.npsWeight, nps/EVAL_CRITERIA.npsTarget*EVAL_CRITERIA.npsWeight) + outboundPenalty;
+    if(npsScore<0) npsScore=0;
+
+    const complaintPenalty = -complaints;
+    const resignCount = (week.resigned||[]).filter(r=>r.team===team).length;
+    const resignPenalty = resignCount * EVAL_CRITERIA.resignPenaltyPerPerson;
+
+    const total = cpdScore+top2Score+npsScore+ctScore+resignPenalty+complaintPenalty;
+    const incentive = evalScoreToIncentive(total);
+    return { team, headcount:teamList.length, cpdAvg,cpdScore, top2,top2Score, nps,npsScore, ctAvg,ctScore,
+      complaints, complaintPenalty, resignCount, resignPenalty, outboundRate: outboundRate!=null?outboundRate:'', outboundPenalty, total, incentive };
+  });
+  return results;
+}
+
+/* ---- 렌더링 ---- */
+function renderEvalView(){
+  const weekKeys = Object.keys(evalStore.weekly).sort();
+  const sel = getEvalSelectedWeek();
+  const week = evalStore.weekly[sel];
+  const weekOpts = weekKeys.map(k=>`<option value="${k}" ${k===sel?'selected':''}>${k}</option>`).join('');
+  const locked = week ? isEvalWeekLocked(sel) : false;
+  let html = `<div class="duty-report-view">
+    <div class="duty-month-bar">
+      <span class="duty-month-label">📅 기준일(주차)</span>
+      <select id="evalWeekSelect" class="duty-month-select" onchange="onEvalWeekChange()">${weekOpts || '<option value="">데이터 없음</option>'}</select>
+      <button class="btn-secondary" onclick="document.getElementById('evalCallDataInput').click()" ${locked?'disabled':''}>📤 종합콜현황 업로드</button>
+      <input type="file" id="evalCallDataInput" accept=".xlsx,.xls" style="display:none;" onchange="onEvalCallDataUpload(event)">
+      <button class="btn-secondary" onclick="openEvalCriteriaModal()">📐 평가기준 보기</button>
+      ${week?`<button class="btn-danger-text" onclick="deleteEvalWeek()" ${locked?'disabled':''}>🗑️ 이 주차 삭제</button>`:''}
+      ${locked?`<span class="duty-lock-badge">🔒 마감(잠금)됨 — 조회·다운로드만 가능</span>`:''}
+      ${week?`<button class="btn-primary" style="margin-left:auto;" onclick="generateEvalExcel()">📥 결과 엑셀 다운로드</button>`:''}
+      <span class="duty-month-hint">이 탭은 다른 탭들과 완전히 독립적으로 동작해요. 매주 종합콜현황 파일을 새로 업로드하면 그 기준일로 자동 저장돼요.</span>
+    </div>`;
+  if(!week){
+    html += `<div class="empty-state" style="padding:60px 0;">종합콜현황 파일을 업로드하면 시작할 수 있어요.</div></div>`;
+    return html;
+  }
+  html += renderEvalSummaryDashboard(sel);
+  html += renderEvalTeamMetricInputs(week, locked);
+  html += renderEvalEmployeeTable(week, locked);
+  html += `</div>`;
+  return html;
+}
+function deleteEvalWeek(){
+  const sel = getEvalSelectedWeek();
+  if(!evalStore.weekly[sel]) return;
+  if(isEvalWeekLocked(sel)){ alert('마감(잠금)된 주차는 삭제할 수 없어요. 설정에서 잠금을 해제해주세요.'); return; }
+  if(!confirm(`${sel} 주차 데이터를 삭제할까요?\n이 작업은 되돌릴 수 없어요.`)) return;
+  delete evalStore.weekly[sel];
+  evalSelectedWeek = '';
+  saveEvalData();
+  renderEvalRefresh();
+}
+/* ---- 관리자평가 마감(잠금) ---- */
+function isEvalWeekLocked(dateKey){
+  return (evalStore.lockedWeeks||[]).includes(dateKey);
+}
+function setEvalWeekLocked(dateKey, locked){
+  evalStore.lockedWeeks = evalStore.lockedWeeks || [];
+  if(locked){ if(!evalStore.lockedWeeks.includes(dateKey)) evalStore.lockedWeeks.push(dateKey); }
+  else{ evalStore.lockedWeeks = evalStore.lockedWeeks.filter(k=>k!==dateKey); }
+  saveEvalData();
+}
+function toggleEvalWeekLockFromModal(dateKey){
+  setEvalWeekLocked(dateKey, !isEvalWeekLocked(dateKey));
+  renderEvalLockModalBody();
+  renderEvalRefresh();
+}
+function openEvalLockModal(){
+  renderEvalLockModalBody();
+  document.getElementById('evalLockModalOverlay').classList.remove('hidden');
+}
+function closeEvalLockModal(){
+  document.getElementById('evalLockModalOverlay').classList.add('hidden');
+}
+function renderEvalLockModalBody(){
+  const weekKeys = Object.keys(evalStore.weekly||{}).sort();
+  const locked = evalStore.lockedWeeks || [];
+  const body = document.getElementById('evalLockModalBody');
+  const rows = weekKeys.map(k=>{
+    const isLocked = locked.includes(k);
+    return `<li class="center-row">
+      <span style="flex:1;font-size:13px;font-weight:600;">${escapeHtml(k)}</span>
+      <span style="font-size:11px;font-weight:700;margin-right:8px;color:${isLocked?'#D64545':'#1F8A4C'};">${isLocked?'🔒 마감됨':'🔓 해제됨'}</span>
+      <button type="button" class="btn-secondary" style="padding:6px 10px;font-size:11.5px;" onclick="toggleEvalWeekLockFromModal('${k}')">${isLocked?'잠금 해제':'마감(잠금)'}</button>
+    </li>`;
+  }).join('') || '<li class="empty-state" style="padding:10px 0;">저장된 관리자평가 데이터가 없어요.</li>';
+  body.innerHTML = `<ul class="center-list" style="margin-bottom:0;">${rows}</ul>`;
+}
+document.getElementById('evalLockModalOverlay').addEventListener('click', (e)=>{
+  if(e.target.id==='evalLockModalOverlay') closeEvalLockModal();
+});
+function evalMetricInputId(team, field){
+  return `evalMetric_${team.replace(/\s+/g,'_')}_${field}`;
+}
+function onEvalMetricKeydown(ev, team, field){
+  if(ev.key!=='Enter') return;
+  ev.preventDefault();
+  updateEvalTeamMetric(team, field, ev.target.value);
+  const idx = EVAL_TEAMS.indexOf(team);
+  if(idx>=0 && idx<EVAL_TEAMS.length-1){
+    const nextEl = document.getElementById(evalMetricInputId(EVAL_TEAMS[idx+1], field));
+    if(nextEl){ nextEl.focus(); if(nextEl.select) nextEl.select(); }
+  }
+}
+function renderEvalTeamMetricInputs(week, locked){
+  const tm = week.teamMetrics || {};
+  const dis = locked ? 'disabled' : '';
+  const rows = EVAL_TEAMS.map(team=>{
+    const m = tm[team] || {};
+    return `<tr>
+      <td style="text-align:left;font-weight:600;white-space:nowrap;">${escapeHtml(team)}</td>
+      <td><input type="number" step="0.01" id="${evalMetricInputId(team,'top2')}" value="${m.top2!=null?m.top2:''}" style="width:70px;" placeholder="예: 97" onchange="updateEvalTeamMetric('${team}','top2',this.value)" onkeydown="onEvalMetricKeydown(event,'${team}','top2')" ${dis}></td>
+      <td><input type="number" step="0.01" id="${evalMetricInputId(team,'nps')}" value="${m.nps!=null?m.nps:''}" style="width:70px;" onchange="updateEvalTeamMetric('${team}','nps',this.value)" onkeydown="onEvalMetricKeydown(event,'${team}','nps')" ${dis}></td>
+      <td><input type="number" step="0.1" id="${evalMetricInputId(team,'outboundRate')}" value="${m.outboundRate!=null?m.outboundRate:''}" style="width:70px;" placeholder="예: 4.5" onchange="updateEvalTeamMetric('${team}','outboundRate',this.value)" onkeydown="onEvalMetricKeydown(event,'${team}','outboundRate')" ${dis}></td>
+      <td><input type="number" id="${evalMetricInputId(team,'complaints')}" value="${m.complaints!=null?m.complaints:''}" style="width:60px;" onchange="updateEvalTeamMetric('${team}','complaints',this.value)" onkeydown="onEvalMetricKeydown(event,'${team}','complaints')" ${dis}></td>
+    </tr>`;
+  }).join('');
+  return `<div class="duty-report-section">
+    <div class="duty-report-section-title">✏️ 팀별 지표 입력 (TOP2 · NPS · 발신율 · 민원건수) · 값 입력 후 Enter 누르면 다음 팀으로 이동</div>
+    <div style="overflow-x:auto;">
+      <table class="duty-report-table">
+        <thead><tr><th>팀</th><th>TOP2 (%)</th><th>NPS</th><th>발신율 (%)</th><th>민원건수</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  </div>`;
+}
+function renderEvalSummaryDashboard(dateKey){
+  const results = computeEvalSummary(dateKey);
+  const totalIncentive = results.reduce((a,r)=>a+r.incentive,0);
+  const rows = results.map(r=>`<tr>
+    <td style="text-align:left;font-weight:600;white-space:nowrap;">${escapeHtml(r.team)}</td>
+    <td>${r.headcount}명</td>
+    <td>${r.cpdAvg.toFixed(1)}<br><span style="color:var(--text-faint);">${r.cpdScore.toFixed(1)}점</span></td>
+    <td>${r.top2}<br><span style="color:var(--text-faint);">${r.top2Score.toFixed(1)}점${r.outboundPenalty?` (발신 ${r.outboundPenalty/2})`:''}</span></td>
+    <td>${r.nps}<br><span style="color:var(--text-faint);">${r.npsScore.toFixed(1)}점${r.outboundPenalty?` (발신 ${r.outboundPenalty})`:''}</span></td>
+    <td>${evalFmtSeconds(r.ctAvg)}<br><span style="color:var(--text-faint);">${r.ctScore.toFixed(1)}점</span></td>
+    <td>${r.complaintPenalty}점</td>
+    <td>${r.resignCount}명 (${r.resignPenalty}점)</td>
+    <td style="font-weight:800;">${r.total.toFixed(1)}점</td>
+    <td style="font-weight:800;color:#1F8A4C;">${r.incentive.toLocaleString()}원</td>
+  </tr>`).join('');
+  return `
+    <div class="duty-stat-grid">
+      <div class="duty-stat-card accent-blue"><div class="duty-stat-number">${results.length}개팀</div><div class="duty-stat-label">평가 대상 팀</div></div>
+      <div class="duty-stat-card accent-green"><div class="duty-stat-number">${totalIncentive.toLocaleString()}원</div><div class="duty-stat-label">전체 인센티브 합계</div></div>
+    </div>
+    <div class="duty-report-section">
+      <div class="duty-report-section-title">🏆 팀별 평가 결과</div>
+      <div style="overflow-x:auto;">
+        <table class="duty-report-table" style="white-space:nowrap;">
+          <thead><tr><th>팀</th><th>인원</th><th>CPD</th><th>TOP2</th><th>NPS</th><th>Call Time</th><th>민원차감</th><th>퇴직차감</th><th>총점</th><th>인센티브</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+/* ---- 개인별 실적 수기 수정 ---- */
+function evalParseTimeToSeconds(str){
+  const parts = String(str).trim().split(':').map(Number);
+  if(parts.length===0 || parts.some(isNaN)) return null;
+  if(parts.length===3) return parts[0]*3600+parts[1]*60+parts[2];
+  if(parts.length===2) return parts[0]*60+parts[1];
+  if(parts.length===1) return parts[0];
+  return null;
+}
+const EVAL_CELL_FIELDS = {
+  hireDate: {label:'입사일', type:'date'},
+  cpdIn: {label:'CPD IN', type:'number'},
+  cpdOb: {label:'CPD OB', type:'number'},
+  cpdTotal: {label:'CPD Total', type:'number'},
+  ctIn: {label:'CallTime IN', type:'time'},
+  ctOut: {label:'CallTime OUT', type:'time'},
+  ctTotal: {label:'CallTime Total', type:'time'}
+};
+let evalCellEditCtx = null;
+function openEvalCellEditModal(empIdx, field){
+  const sel = getEvalSelectedWeek();
+  const week = evalStore.weekly[sel];
+  if(!week) return;
+  if(isEvalWeekLocked(sel)){ alert('마감(잠금)된 주차는 수정할 수 없어요.'); return; }
+  const emp = week.employees[empIdx];
+  const meta = EVAL_CELL_FIELDS[field];
+  if(!emp || !meta) return;
+  evalCellEditCtx = {empIdx, field};
+  document.getElementById('evalCellEditModalTitle').textContent = `${emp.name} · ${meta.label} 수정`;
+  document.getElementById('evalCellEditModalLabel').textContent = meta.label;
+  const input = document.getElementById('evalCellEditModalInput');
+  input.type = meta.type==='date' ? 'date' : 'text';
+  if(meta.type==='date') input.value = dutyFmtDate(emp[field]);
+  else if(meta.type==='time') input.value = evalFmtSeconds(emp[field]);
+  else input.value = emp[field];
+  document.getElementById('evalCellEditModalHint').textContent =
+    meta.type==='time' ? 'HH:MM:SS 형식으로 입력해주세요 (예: 02:09:28)' :
+    meta.type==='date' ? '' : '숫자로 입력해주세요';
+  document.getElementById('evalCellEditModalOverlay').classList.remove('hidden');
+  setTimeout(()=>{ input.focus(); if(input.select) input.select(); }, 50);
+}
+function closeEvalCellEditModal(){
+  document.getElementById('evalCellEditModalOverlay').classList.add('hidden');
+  document.getElementById('evalCellEditModalInput').type = 'text';
+  evalCellEditCtx = null;
+}
+function confirmEvalCellEditModal(){
+  if(!evalCellEditCtx) return;
+  const {empIdx, field} = evalCellEditCtx;
+  const week = evalStore.weekly[getEvalSelectedWeek()];
+  const emp = week && week.employees[empIdx];
+  const meta = EVAL_CELL_FIELDS[field];
+  if(!emp || !meta){ closeEvalCellEditModal(); return; }
+  const raw = document.getElementById('evalCellEditModalInput').value.trim();
+  let val;
+  if(meta.type==='time'){
+    val = evalParseTimeToSeconds(raw);
+    if(val===null){ alert('시간 형식이 올바르지 않아요. HH:MM:SS로 입력해주세요.'); return; }
+  }else if(meta.type==='date'){
+    if(!raw){ alert('날짜를 입력해주세요.'); return; }
+    const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if(!m){ alert('날짜 형식이 올바르지 않아요.'); return; }
+    val = new Date(Date.UTC(Number(m[1]), Number(m[2])-1, Number(m[3])));
+  }else{
+    val = Number(raw);
+    if(isNaN(val)){ alert('숫자를 입력해주세요.'); return; }
+  }
+  emp[field] = val;
+  saveEvalData();
+  closeEvalCellEditModal();
+  renderEvalRefresh();
+}
+document.getElementById('evalCellEditModalOverlay').addEventListener('click',(e)=>{
+  if(e.target.id==='evalCellEditModalOverlay') closeEvalCellEditModal();
+});
+document.getElementById('evalCellEditModalInput').addEventListener('keydown',(e)=>{
+  if(e.key==='Enter'){ e.preventDefault(); confirmEvalCellEditModal(); }
+});
+
+function renderEvalEmployeeTable(week, locked){
+  const reducedNames = week.reducedHoursNames || [];
+  const resignTotal = (week.resigned||[]).length;
+  const under80Total = (week.under80List||[]).length;
+  const rows = week.employees.map((e,idx)=>{
+    const months = dutyMonthsBetween(e.hireDate, new Date());
+    const isReduced = reducedNames.includes(e.name);
+    const excludedTenure = months<=3;
+    const isUnder80 = isEvalUnder80(week, e.name, e.team);
+    const isResigned = (week.resigned||[]).some(r=>r.name===e.name && r.team===e.team);
+    const badges = `${isReduced?' <span class="eval-badge eval-badge-blue">육단</span>':''}${isResigned?' <span class="eval-badge eval-badge-gray">퇴사</span>':''}`;
+    const editCell = (field, display) => locked
+      ? `<td>${display}</td>`
+      : `<td class="eval-editable-cell" onclick="openEvalCellEditModal(${idx},'${field}')" title="클릭해서 수정">${display}</td>`;
+    return `<tr>
+      <td style="text-align:left;white-space:nowrap;">${escapeHtml(e.name)}${badges}</td>
+      <td style="white-space:nowrap;">${escapeHtml(e.team)}</td>
+      ${editCell('hireDate', dutyFmtDate(e.hireDate))}
+      ${editCell('cpdIn', e.cpdIn.toFixed(1))}
+      ${editCell('cpdOb', e.cpdOb.toFixed(1))}
+      ${editCell('cpdTotal', `<b>${e.cpdTotal.toFixed(1)}</b>`)}
+      ${editCell('ctIn', evalFmtSeconds(e.ctIn))}
+      ${editCell('ctOut', evalFmtSeconds(e.ctOut))}
+      ${editCell('ctTotal', `<b>${evalFmtSeconds(e.ctTotal)}</b>`)}
+      <td>${months}개월${excludedTenure?' <span style="color:#D64545;">(제외)</span>':''}</td>
+      <td>${isUnder80?'<span class="eval-badge eval-badge-red">✓</span>':''}</td>
+    </tr>`;
+  }).join('');
+  return `<div class="duty-report-section">
+    <div class="duty-report-section-title">
+      <span>👥 개인별 실적 (총 ${week.employees.length}명)${locked?'':' · CPD·CallTime 칸을 클릭하면 수기로 수정할 수 있어요'}</span>
+      <button class="btn-secondary" style="margin-left:auto;" onclick="openEvalReducedHoursModal()" ${locked?'disabled':''}>👶 육아단축자 명단 (${reducedNames.length}명)</button>
+      <button class="btn-secondary" onclick="openEvalUnder80Modal()" ${locked?'disabled':''}>⚠ 80% 미만 근무자 (${under80Total}명)</button>
+      <button class="btn-secondary" onclick="openEvalResignModal()" ${locked?'disabled':''}>🚪 퇴사자 명단 (${resignTotal}명)</button>
+    </div>
+    <div class="duty-table-scroll" style="max-height:500px;">
+      <table class="duty-table" style="white-space:nowrap;">
+        <thead><tr>
+          <th>이름</th><th>팀</th><th>입사일</th>
+          <th>CPD IN</th><th>CPD OB</th><th>CPD Total</th>
+          <th>CallTime IN</th><th>CallTime OUT</th><th>CallTime Total</th>
+          <th>근속</th><th>80% 미만</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  </div>`;
+}
+function generateEvalExcel(){
+  const sel = getEvalSelectedWeek();
+  const week = evalStore.weekly[sel];
+  if(!week){ alert('다운로드할 데이터가 없어요.'); return; }
+  const results = computeEvalSummary(sel);
+  const totalIncentive = results.reduce((a,r)=>a+r.incentive,0);
+  const wb = XLSX.utils.book_new();
+
+  /* 1. 팀별 평가 결과 (보고서 형식) */
+  const summaryHeader = ['팀','인원','CPD실적','CPD점수','TOP2','TOP2점수','NPS','NPS점수','CallTime실적','CallTime점수','민원차감','퇴직인원','퇴직차감','총점','인센티브'];
+  const summaryAoa = [
+    [`관리자평가 결과 보고서`],
+    [`기준일(주차): ${sel}`],
+    [`전체 인센티브 합계: ${totalIncentive.toLocaleString()}원`],
+    [],
+    summaryHeader
+  ];
+  results.forEach(r=>{
+    summaryAoa.push([r.team, r.headcount, Number(r.cpdAvg.toFixed(1)), Number(r.cpdScore.toFixed(2)), r.top2, Number(r.top2Score.toFixed(2)),
+      r.nps, Number(r.npsScore.toFixed(2)), evalFmtSeconds(r.ctAvg), Number(r.ctScore.toFixed(2)), r.complaintPenalty,
+      r.resignCount, r.resignPenalty, Number(r.total.toFixed(2)), r.incentive]);
+  });
+  const wsSummary = XLSX.utils.aoa_to_sheet(summaryAoa);
+  wsSummary['!merges'] = [
+    {s:{r:0,c:0}, e:{r:0,c:summaryHeader.length-1}},
+    {s:{r:1,c:0}, e:{r:1,c:summaryHeader.length-1}},
+    {s:{r:2,c:0}, e:{r:2,c:summaryHeader.length-1}}
+  ];
+  wsSummary['!cols'] = summaryHeader.map(()=>({wch:12}));
+  XLSX.utils.book_append_sheet(wb, wsSummary, '팀별평가결과');
+
+  /* 2. 팀별 지표 입력 */
+  const metricHeader = ['팀','TOP2 (%)','NPS','발신율 (%)','발신율 페널티','민원건수','퇴사자 수'];
+  const metricAoa = [
+    [`관리자평가 팀별 지표 입력`],
+    [`기준일(주차): ${sel}`],
+    [],
+    metricHeader
+  ];
+  EVAL_TEAMS.forEach(team=>{
+    const m = (week.teamMetrics && week.teamMetrics[team]) || {};
+    const resignCount = (week.resigned||[]).filter(r=>r.team===team).length;
+    metricAoa.push([team, m.top2!=null?m.top2:'', m.nps!=null?m.nps:'', m.outboundRate!=null?m.outboundRate:'',
+      m.outboundRate!=null?evalOutboundPenalty(m.outboundRate):'', m.complaints!=null?m.complaints:'', resignCount]);
+  });
+  const wsMetric = XLSX.utils.aoa_to_sheet(metricAoa);
+  wsMetric['!merges'] = [
+    {s:{r:0,c:0}, e:{r:0,c:metricHeader.length-1}},
+    {s:{r:1,c:0}, e:{r:1,c:metricHeader.length-1}}
+  ];
+  wsMetric['!cols'] = metricHeader.map(()=>({wch:14}));
+  XLSX.utils.book_append_sheet(wb, wsMetric, '팀별지표입력');
+
+  /* 3. 개인별 실적 */
+  const empHeader = ['이름','팀','입사일','CPD IN','CPD OB','CPD Total','CallTime IN','CallTime OUT','CallTime Total','근속(개월)','80%미만','육아단축'];
+  const empAoa = [
+    [`관리자평가 개인별 실적`],
+    [`기준일(주차): ${sel} · 총 ${week.employees.length}명`],
+    [],
+    empHeader
+  ];
+  const reducedNames = week.reducedHoursNames || [];
+  week.employees.forEach(e=>{
+    empAoa.push([e.name, e.team, dutyFmtDate(e.hireDate), Number(e.cpdIn.toFixed(1)), Number(e.cpdOb.toFixed(1)), Number(e.cpdTotal.toFixed(1)),
+      evalFmtSeconds(e.ctIn), evalFmtSeconds(e.ctOut), evalFmtSeconds(e.ctTotal),
+      dutyMonthsBetween(e.hireDate,new Date()), isEvalUnder80(week,e.name,e.team)?'O':'', reducedNames.includes(e.name)?'O':'']);
+  });
+  const wsEmp = XLSX.utils.aoa_to_sheet(empAoa);
+  wsEmp['!merges'] = [
+    {s:{r:0,c:0}, e:{r:0,c:empHeader.length-1}},
+    {s:{r:1,c:0}, e:{r:1,c:empHeader.length-1}}
+  ];
+  wsEmp['!cols'] = empHeader.map(()=>({wch:13}));
+  XLSX.utils.book_append_sheet(wb, wsEmp, '개인별실적');
+
+  XLSX.writeFile(wb, `${sel}_관리자평가_보고서.xlsx`);
 }
 
 /* ============ Autosave wiring ============ */
