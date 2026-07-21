@@ -4611,30 +4611,48 @@ function renderEvalTeamMetricInputs(week, locked){
     </div>
   </div>`;
 }
+function getEvalPrevWeekKey(dateKey){
+  const priorKeys = Object.keys(evalStore.weekly||{}).filter(k=>k<dateKey).sort();
+  return priorKeys.length ? priorKeys[priorKeys.length-1] : null;
+}
 function renderEvalSummaryDashboard(dateKey){
   const results = computeEvalSummary(dateKey);
   const totalIncentive = results.reduce((a,r)=>a+r.incentive,0);
-  const rows = results.map(r=>`<tr>
+  const prevKey = getEvalPrevWeekKey(dateKey);
+  const prevResults = prevKey ? computeEvalSummary(prevKey) : null;
+  const prevByTeam = {};
+  if(prevResults) prevResults.forEach(r=>{ prevByTeam[r.team] = r; });
+  const gap = (cur, prevVal) => (prevResults ? `<br>${dutyDeltaHtml(cur-prevVal)}` : '');
+  const rows = results.map(r=>{
+    const p = prevByTeam[r.team];
+    return `<tr>
     <td style="text-align:left;font-weight:600;white-space:nowrap;">${escapeHtml(r.team)}</td>
     <td>${r.headcount}명</td>
-    <td>${r.cpdAvg.toFixed(1)}<br><span style="color:var(--text-faint);">${r.cpdScore.toFixed(1)}점</span></td>
-    <td>${r.top2}<br><span style="color:var(--text-faint);">${r.top2Score.toFixed(1)}점${r.outboundPenalty?` (발신 ${r.outboundPenalty/2})`:''}</span></td>
-    <td>${r.nps}<br><span style="color:var(--text-faint);">${r.npsScore.toFixed(1)}점${r.outboundPenalty?` (발신 ${r.outboundPenalty})`:''}</span></td>
-    <td>${evalFmtSeconds(r.ctAvg)}<br><span style="color:var(--text-faint);">${r.ctScore.toFixed(1)}점</span></td>
+    <td>${r.cpdAvg.toFixed(1)}<br><span style="color:var(--text-faint);">${r.cpdScore.toFixed(1)}점</span>${p?gap(r.cpdAvg,p.cpdAvg):''}</td>
+    <td>${r.top2}<br><span style="color:var(--text-faint);">${r.top2Score.toFixed(1)}점${r.outboundPenalty?` (발신 ${r.outboundPenalty/2})`:''}</span>${p?gap(r.top2,p.top2):''}</td>
+    <td>${r.nps}<br><span style="color:var(--text-faint);">${r.npsScore.toFixed(1)}점${r.outboundPenalty?` (발신 ${r.outboundPenalty})`:''}</span>${p?gap(r.nps,p.nps):''}</td>
+    <td>${evalFmtSeconds(r.ctAvg)}<br><span style="color:var(--text-faint);">${r.ctScore.toFixed(1)}점</span>${p?gap(r.ctAvg,p.ctAvg):''}</td>
     <td>${r.complaintPenalty}점</td>
     <td>${r.resignCount}명 (${r.resignPenalty}점)</td>
-    <td style="font-weight:800;">${r.total.toFixed(1)}점</td>
-    <td style="font-weight:800;color:#1F8A4C;">${r.incentive.toLocaleString()}원</td>
-  </tr>`).join('');
+    <td style="font-weight:800;">${r.total.toFixed(1)}점${p?gap(r.total,p.total):''}</td>
+    <td style="font-weight:800;color:#1F8A4C;">${r.incentive.toLocaleString()}원${p?gap(r.incentive,p.incentive):''}</td>
+  </tr>`;
+  }).join('');
   return `
     <div class="duty-stat-grid">
       <div class="duty-stat-card accent-blue"><div class="duty-stat-number">${results.length}개팀</div><div class="duty-stat-label">평가 대상 팀</div></div>
       <div class="duty-stat-card accent-green"><div class="duty-stat-number">${totalIncentive.toLocaleString()}원</div><div class="duty-stat-label">전체 인센티브 합계</div></div>
     </div>
+    ${prevResults?`<div class="duty-prev-note">📊 전주(${escapeHtml(prevKey)}) 대비 증감을 함께 표시하고 있어요.</div>`:''}
     <div class="duty-report-section">
       <div class="duty-report-section-title">🏆 팀별 평가 결과</div>
       <div style="overflow-x:auto;">
-        <table class="duty-report-table" style="white-space:nowrap;">
+        <table class="duty-report-table" style="white-space:nowrap;table-layout:fixed;">
+          <colgroup>
+            <col style="width:120px;"><col style="width:70px;">
+            <col style="width:110px;"><col style="width:110px;"><col style="width:110px;"><col style="width:110px;">
+            <col style="width:110px;"><col style="width:110px;"><col style="width:110px;"><col style="width:110px;">
+          </colgroup>
           <thead><tr><th>팀</th><th>인원</th><th>CPD</th><th>TOP2</th><th>NPS</th><th>Call Time</th><th>민원차감</th><th>퇴직차감</th><th>총점</th><th>인센티브</th></tr></thead>
           <tbody>${rows}</tbody>
         </table>
