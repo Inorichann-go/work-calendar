@@ -345,7 +345,7 @@
   .recurring-item-del:hover{color:var(--danger);}
 
   /* ---------- Notices view ---------- */
-  .notices-view{max-width:920px;}
+  .notices-view{max-width:100%;}
 
   /* ---------- Duty work (복무입력/복무관리) ---------- */
   .duty-view{max-width:100%;}
@@ -511,7 +511,8 @@
     padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;
   }
   .notice-edit-btn:hover{background:#E4E9FE;}
-  .notice-file-tag{font-size:11px;color:var(--accent-dark);font-weight:600;margin-top:8px;display:inline-flex;align-items:center;gap:4px;}
+  .notice-file-tag{font-size:11px;color:var(--accent-dark);font-weight:600;margin-top:8px;display:inline-flex;align-items:center;gap:4px;text-decoration:none;cursor:pointer;}
+  .notice-file-tag:hover{text-decoration:underline;}
   .file-chip{
     display:inline-flex;align-items:center;gap:8px;background:#F5F4F0;border:1px solid var(--border);
     border-radius:var(--radius-sm);padding:6px 10px;font-size:12.5px;
@@ -2153,7 +2154,7 @@ function renderNotices(){
       <div class="notice-title" onclick="toggleNoticeExpand('${n.id}')">${escapeHtml(n.title)}</div>
       ${expanded ? `
         <div class="notice-detail-content">${hasContent ? n.content : '<span style="color:var(--text-faint);">내용 없음</span>'}</div>
-        ${n.fileName?`<div class="notice-file-tag">📎 ${escapeHtml(n.fileName)}</div>`:''}
+        ${n.fileName?`<a class="notice-file-tag" href="${n.fileData}" download="${escapeHtml(n.fileName)}" onclick="event.stopPropagation();" title="클릭하면 다운로드돼요">📎 ${escapeHtml(n.fileName)} ⬇</a>`:''}
         <div class="notice-card-actions">
           <button type="button" class="notice-edit-btn" onclick="event.stopPropagation();openEditNotice('${n.id}')">✏️ 수정</button>
         </div>
