@@ -5135,78 +5135,57 @@ function generateEvalExcel(){
   const sel = getEvalSelectedWeek();
   const week = evalStore.weekly[sel];
   if(!week){ alert('다운로드할 데이터가 없어요.'); return; }
-  const results = computeEvalSummary(sel);
-  const totalIncentive = results.reduce((a,r)=>a+r.incentive,0);
-  const wb = XLSX.utils.book_new();
-
-  /* 1. 팀별 평가 결과 (보고서 형식) */
-  const summaryHeader = ['팀','인원','CPD실적','CPD점수','TOP2','TOP2점수','NPS','NPS점수','CallTime실적','CallTime점수','민원차감','퇴직인원','퇴직차감','총점','인센티브'];
-  const summaryAoa = [
-    [`관리자평가 결과 보고서`],
-    [`기준일(주차): ${sel}`],
-    [`전체 인센티브 합계: ${totalIncentive.toLocaleString()}원`],
-    [],
-    summaryHeader
-  ];
-  results.forEach(r=>{
-    summaryAoa.push([r.team, r.headcount, Number(r.cpdAvg.toFixed(1)), Number(r.cpdScore.toFixed(2)), r.top2, Number(r.top2Score.toFixed(2)),
-      r.nps, Number(r.npsScore.toFixed(2)), evalFmtSeconds(r.ctAvg), Number(r.ctScore.toFixed(2)), r.complaintPenalty,
-      r.resignCount, r.resignPenalty, Number(r.total.toFixed(2)), r.incentive]);
-  });
-  const wsSummary = XLSX.utils.aoa_to_sheet(summaryAoa);
-  wsSummary['!merges'] = [
-    {s:{r:0,c:0}, e:{r:0,c:summaryHeader.length-1}},
-    {s:{r:1,c:0}, e:{r:1,c:summaryHeader.length-1}},
-    {s:{r:2,c:0}, e:{r:2,c:summaryHeader.length-1}}
-  ];
-  wsSummary['!cols'] = summaryHeader.map(()=>({wch:12}));
-  XLSX.utils.book_append_sheet(wb, wsSummary, '팀별평가결과');
-
-  /* 2. 팀별 지표 입력 */
-  const metricHeader = ['팀','TOP2 (%)','NPS','발신율 (%)','발신율 페널티','민원건수','퇴사자 수'];
-  const metricAoa = [
-    [`관리자평가 팀별 지표 입력`],
-    [`기준일(주차): ${sel}`],
-    [],
-    metricHeader
-  ];
-  EVAL_TEAMS.forEach(team=>{
-    const m = (week.teamMetrics && week.teamMetrics[team]) || {};
-    const resignCount = (week.resigned||[]).filter(r=>r.team===team).length;
-    metricAoa.push([team, m.top2!=null?m.top2:'', m.nps!=null?m.nps:'', m.outboundRate!=null?m.outboundRate:'',
-      m.outboundRate!=null?evalOutboundPenalty(m.outboundRate):'', m.complaints!=null?m.complaints:'', resignCount]);
-  });
-  const wsMetric = XLSX.utils.aoa_to_sheet(metricAoa);
-  wsMetric['!merges'] = [
-    {s:{r:0,c:0}, e:{r:0,c:metricHeader.length-1}},
-    {s:{r:1,c:0}, e:{r:1,c:metricHeader.length-1}}
-  ];
-  wsMetric['!cols'] = metricHeader.map(()=>({wch:14}));
-  XLSX.utils.book_append_sheet(wb, wsMetric, '팀별지표입력');
-
-  /* 3. 개인별 실적 */
-  const empHeader = ['이름','팀','입사일','CPD IN','CPD OB','CPD Total','CallTime IN','CallTime OUT','CallTime Total','근속(개월)','80%미만','육아단축'];
-  const empAoa = [
-    [`관리자평가 개인별 실적`],
-    [`기준일(주차): ${sel} · 총 ${week.employees.length}명`],
-    [],
-    empHeader
-  ];
   const reducedNames = week.reducedHoursNames || [];
-  week.employees.forEach(e=>{
-    empAoa.push([e.name, e.team, dutyFmtDate(e.hireDate), Number(e.cpdIn.toFixed(1)), Number(e.cpdOb.toFixed(1)), Number(e.cpdTotal.toFixed(1)),
-      evalFmtSeconds(e.ctIn), evalFmtSeconds(e.ctOut), evalFmtSeconds(e.ctTotal),
-      dutyMonthsBetween(e.hireDate,new Date()), isEvalUnder80(week,e.name,e.team)?'O':'', reducedNames.includes(e.name)?'O':'']);
-  });
-  const wsEmp = XLSX.utils.aoa_to_sheet(empAoa);
-  wsEmp['!merges'] = [
-    {s:{r:0,c:0}, e:{r:0,c:empHeader.length-1}},
-    {s:{r:1,c:0}, e:{r:1,c:empHeader.length-1}}
-  ];
-  wsEmp['!cols'] = empHeader.map(()=>({wch:13}));
-  XLSX.utils.book_append_sheet(wb, wsEmp, '개인별실적');
+  const resigned = week.resigned || [];
 
-  XLSX.writeFile(wb, `${sel}_관리자평가_보고서.xlsx`);
+  /* A~K: 개인별 실적 / M~R: 팀별 지표 / S~U: 퇴사자 (열 순서 고정, 서로 다른 길이의 목록을 같은 시트에 나란히 배치) */
+  const header = [
+    '이름','팀','입사일','육단','근속','IN','OUT','Total','IN','OUT','Total','',
+    '팀','TOP2','NPS','발신','민원차감','',
+    '퇴사자','팀','퇴직일'
+  ];
+  const COL_COUNT = header.length;
+  const maxLen = Math.max(week.employees.length, EVAL_TEAMS.length, resigned.length, 1);
+  const aoa = [header];
+  for(let i=0; i<maxLen; i++){
+    const row = new Array(COL_COUNT).fill('');
+    if(i < week.employees.length){
+      const e = week.employees[i];
+      row[0] = e.name;
+      row[1] = e.team;
+      row[2] = e.hireDate instanceof Date ? e.hireDate : (e.hireDate||'');
+      row[3] = reducedNames.includes(e.name) ? 'O' : '';
+      row[4] = dutyMonthsBetween(e.hireDate, new Date());
+      row[5] = Number(e.cpdIn.toFixed(1));
+      row[6] = Number(e.cpdOb.toFixed(1));
+      row[7] = Number(e.cpdTotal.toFixed(1));
+      row[8] = evalFmtSeconds(e.ctIn);
+      row[9] = evalFmtSeconds(e.ctOut);
+      row[10] = evalFmtSeconds(e.ctTotal);
+    }
+    if(i < EVAL_TEAMS.length){
+      const team = EVAL_TEAMS[i];
+      const tm = (week.teamMetrics && week.teamMetrics[team]) || {};
+      row[12] = team;
+      row[13] = tm.top2!=null ? Number((tm.top2/100).toFixed(4)) : '';
+      row[14] = tm.nps!=null ? tm.nps : '';
+      row[15] = tm.outboundRate!=null ? Number((tm.outboundRate/100).toFixed(4)) : '';
+      row[16] = tm.complaints!=null ? tm.complaints : '';
+      row[17] = tm.outboundRate!=null ? evalOutboundPenalty(tm.outboundRate) : '';
+    }
+    if(i < resigned.length){
+      const r = resigned[i];
+      row[18] = r.name || '';
+      row[19] = r.team || '';
+      row[20] = r.date || '';
+    }
+    aoa.push(row);
+  }
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = header.map(h=> h===''?{wch:3}:{wch:11});
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
+  XLSX.writeFile(wb, `${sel}_관리자평가.xlsx`);
 }
 
 /* ============ Autosave wiring ============ */
