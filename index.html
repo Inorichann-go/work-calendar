@@ -5171,7 +5171,7 @@ function generateEvalExcel(){
       row[14] = tm.nps!=null ? tm.nps : '';
       row[15] = tm.outboundRate!=null ? Number((tm.outboundRate/100).toFixed(4)) : '';
       row[16] = tm.complaints!=null ? tm.complaints : '';
-      row[17] = tm.outboundRate!=null ? evalOutboundPenalty(tm.outboundRate) : '';
+      /* R열은 공란으로 둠 */
     }
     if(i < resigned.length){
       const r = resigned[i];
