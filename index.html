@@ -4218,6 +4218,19 @@ function dutyDeltaHtml(diff, opts){
   const valStr = (opts.round!==false) ? Math.round(val).toLocaleString() : val.toLocaleString();
   return `<span class="duty-delta ${cls}">${arrow} ${valStr}${suffix}</span>`;
 }
+/* 관리자평가 전주대비 증감 - 소수점 첫째자리까지 표시 */
+function evalDeltaHtml(diff, opts){
+  opts = opts || {};
+  const suffix = opts.suffix || '';
+  const invertColor = !!opts.invert;
+  if(Math.abs(diff)<0.05 || !isFinite(diff)) return `<span class="duty-delta duty-delta-flat">± 0${suffix}</span>`;
+  const isUp = diff>0;
+  const goodColor = invertColor ? !isUp : isUp;
+  const cls = goodColor ? 'duty-delta-up' : 'duty-delta-down';
+  const arrow = isUp ? '▲' : '▼';
+  const valStr = Math.abs(diff).toFixed(1);
+  return `<span class="duty-delta ${cls}">${arrow} ${valStr}${suffix}</span>`;
+}
 const DUTY_GRADE_PALETTE = [
   {bg:'#E9F7EF',fg:'#1F8A4C'}, {bg:'#EAF1FF',fg:'#3D6BE0'}, {bg:'#FDF1E7',fg:'#C9762B'},
   {bg:'#FDEAEA',fg:'#D64545'}, {bg:'#F5EBFC',fg:'#8434C4'}, {bg:'#F0F0EE',fg:'#6B6A66'}
@@ -4528,10 +4541,22 @@ async function onEvalCallDataUpload(ev){
         carriedReducedNames = (latestPrior && latestPrior.reducedHoursNames) || [];
       }
     }
+    /* 퇴사자 명단: 같은 달(YYYY-MM)끼리만 승계, 달이 바뀌면 초기화 */
+    let carriedResigned = [];
+    if(prior && prior.resigned){
+      carriedResigned = prior.resigned;
+    }else{
+      const priorKeys = Object.keys(evalStore.weekly).filter(k=>k<dateKey).sort();
+      if(priorKeys.length){
+        const latestPrior = evalStore.weekly[priorKeys[priorKeys.length-1]];
+        const sameMonth = latestPrior && latestPrior.dateKey && latestPrior.dateKey.slice(0,7)===dateKey.slice(0,7);
+        if(sameMonth) carriedResigned = (latestPrior.resigned || []);
+      }
+    }
     evalStore.weekly[dateKey] = {
       dateKey, sourceFileName: file.name, employees,
       teamMetrics: (prior && prior.teamMetrics) || {},
-      resigned: (prior && prior.resigned) || [],
+      resigned: carriedResigned.slice(),
       under80List: (prior && prior.under80List) || [],
       reducedHoursNames: carriedReducedNames.slice()
     };
@@ -4823,7 +4848,7 @@ function renderEvalView(){
     <div class="duty-month-bar">
       <span class="duty-month-label">📅 기준일(주차)</span>
       <select id="evalWeekSelect" class="duty-month-select" onchange="onEvalWeekChange()">${weekOpts || '<option value="">데이터 없음</option>'}</select>
-      <button class="btn-secondary" onclick="document.getElementById('evalCallDataInput').click()" ${locked?'disabled':''}>📤 종합콜현황 업로드</button>
+      <button class="btn-secondary" onclick="document.getElementById('evalCallDataInput').click()">📤 종합콜현황 업로드</button>
       <input type="file" id="evalCallDataInput" accept=".xlsx,.xls" style="display:none;" onchange="onEvalCallDataUpload(event)">
       <button class="btn-secondary" onclick="openEvalCriteriaModal()">📐 평가기준 보기</button>
       ${week?`<button class="btn-danger-text" onclick="deleteEvalWeek()" ${locked?'disabled':''}>🗑️ 이 주차 삭제</button>`:''}
@@ -4937,7 +4962,7 @@ function renderEvalSummaryDashboard(dateKey){
   const prevResults = prevKey ? computeEvalSummary(prevKey) : null;
   const prevByTeam = {};
   if(prevResults) prevResults.forEach(r=>{ prevByTeam[r.team] = r; });
-  const gap = (cur, prevVal) => (prevResults ? `<br>${dutyDeltaHtml(cur-prevVal)}` : '');
+  const gap = (cur, prevVal) => (prevResults ? `<br>${evalDeltaHtml(cur-prevVal)}` : '');
   const rows = results.map(r=>{
     const p = prevByTeam[r.team];
     return `<tr>
@@ -5152,17 +5177,19 @@ function generateEvalExcel(){
     const row = new Array(COL_COUNT).fill('');
     if(i < week.employees.length){
       const e = week.employees[i];
+      const isReduced = reducedNames.includes(e.name);
+      const mul = isReduced ? 2 : 1;
       row[0] = e.name;
       row[1] = e.team;
-      row[2] = e.hireDate instanceof Date ? e.hireDate : (e.hireDate||'');
-      row[3] = reducedNames.includes(e.name) ? 'O' : '';
+      row[2] = dutyFmtDate(e.hireDate);
+      row[3] = isReduced ? 'O' : '';
       row[4] = dutyMonthsBetween(e.hireDate, new Date());
-      row[5] = Number(e.cpdIn.toFixed(1));
-      row[6] = Number(e.cpdOb.toFixed(1));
-      row[7] = Number(e.cpdTotal.toFixed(1));
-      row[8] = evalFmtSeconds(e.ctIn);
-      row[9] = evalFmtSeconds(e.ctOut);
-      row[10] = evalFmtSeconds(e.ctTotal);
+      row[5] = Number((e.cpdIn*mul).toFixed(1));
+      row[6] = Number((e.cpdOb*mul).toFixed(1));
+      row[7] = Number((e.cpdTotal*mul).toFixed(1));
+      row[8] = evalFmtSeconds(e.ctIn*mul);
+      row[9] = evalFmtSeconds(e.ctOut*mul);
+      row[10] = evalFmtSeconds(e.ctTotal*mul);
     }
     if(i < EVAL_TEAMS.length){
       const team = EVAL_TEAMS[i];
@@ -5172,7 +5199,7 @@ function generateEvalExcel(){
       row[14] = tm.nps!=null ? tm.nps : '';
       row[15] = tm.outboundRate!=null ? Number((tm.outboundRate/100).toFixed(4)) : '';
       row[16] = tm.complaints!=null ? tm.complaints : '';
-      /* R열은 공란으로 둠 */
+      row[17] = tm.outboundRate!=null ? evalOutboundPenalty(tm.outboundRate) : '';
     }
     if(i < resigned.length){
       const r = resigned[i];
