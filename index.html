@@ -544,7 +544,6 @@
   body.view-mode .att-cell { pointer-events: none !important; cursor: default !important; }
 
   body.view-mode .admin-only { display: none !important; }
-  body.view-mode #settings-wrap { display: none !important; }
   body.view-mode #mode-switch-btn { display: none !important; }
   
   
@@ -588,12 +587,9 @@
       공지사항
     </button>
     <span id="save-status" style="font-size:11px;color:var(--text3);"></span>
-    <button id="auth-toggle-btn" onclick="toggleAuthMode()" style="background:none;border:1px solid var(--border);border-radius:6px;padding:5px 10px;cursor:pointer;font-size:12px;display:flex;align-items:center;gap:5px;" title="권한 전환">
-      <svg id="auth-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-      <span id="auth-label">읽기</span>
-    </button>
+    <span id="mode-badge" style="font-size:11px;padding:3px 8px;border-radius:4px;font-weight:600;display:inline;"></span>
     <!-- 설정 드롭다운 -->
-    <div style="position:relative;display:none;" id="settings-wrap">
+    <div style="position:relative;" id="settings-wrap">
       <button id="btn-settings" class="btn" onclick="toggleSettingsMenu()" style="font-size:12px;padding:6px 10px;">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       </button>
@@ -670,6 +666,23 @@
         <div class="kpi-val orange">50.6</div>
         <div class="kpi-label">평균 근속 (개월)</div>
         <div class="kpi-sub">재직자 기준</div>
+      </div>
+    </div>
+    <!-- 오늘/이번달 특이사항 -->
+    <div id="summary-events-wrap" style="margin-bottom:20px;">
+      <div style="display:flex;align-items:center;gap:0;margin-bottom:10px;">
+        <div style="font-size:13px;font-weight:700;color:var(--text);margin-right:12px;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          특이사항
+        </div>
+        <div id="sevt-tab-today" onclick="switchSummaryEvtTab('today')"
+          style="padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer;border-radius:20px;background:var(--accent);color:#fff;margin-right:6px;">오늘</div>
+        <div id="sevt-tab-month" onclick="switchSummaryEvtTab('month')"
+          style="padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer;border-radius:20px;background:var(--surface3);color:var(--text3);">이번달</div>
+      </div>
+      <div class="card" style="padding:14px 16px;">
+        <div id="sevt-today"></div>
+        <div id="sevt-month" style="display:none;"></div>
       </div>
     </div>
     <div class="dash-section">
@@ -3139,7 +3152,7 @@ let _localStorageAvailable = false;
 function showTab(i) {
   document.querySelectorAll('.tab').forEach((t,j) => t.classList.toggle('active', j===i));
   document.querySelectorAll('.panel').forEach((p,j) => p.classList.toggle('active', j===i));
-  if (i===0) { initSummaryDashControls(); renderSummaryDash(); }
+  if (i===0) renderSummaryDash();
   if (i===1) renderSummary();
   if (i===2) renderAttTable();
   if (i===3) { initHireResignControls(); showSubTab('emplist'); }
@@ -3154,7 +3167,6 @@ function initSummaryDashControls() {
   const ysel = document.getElementById('sum-base-year');
   const msel = document.getElementById('sum-base-month');
   const now = new Date();
-  if (ysel.options.length === 0) {
   for (let y = 2023; y <= 2028; y++) {
     const o = document.createElement('option');
     o.value = y; o.textContent = y+'년';
@@ -3167,15 +3179,11 @@ function initSummaryDashControls() {
     if (m === now.getMonth()+1) o.selected = true;
     msel.appendChild(o);
   }
-  }
 }
 
 function renderSummaryDash() {
-  const now = new Date();
-  const ysel = document.getElementById('sum-base-year');
-  const msel = document.getElementById('sum-base-month');
-  const year  = (ysel && ysel.value && parseInt(ysel.value) > 0) ? parseInt(ysel.value) : now.getFullYear();
-  const month = (msel && msel.value && parseInt(msel.value) > 0) ? parseInt(msel.value) : now.getMonth()+1;
+  const year  = parseInt(document.getElementById('sum-base-year').value)  || new Date().getFullYear();
+  const month = parseInt(document.getElementById('sum-base-month').value) || new Date().getMonth()+1;
 
   const ym1 = `${year}-${String(month).padStart(2,'0')}-01`;
   const ym2Last = new Date(year, month, 0).getDate();
@@ -7084,7 +7092,6 @@ function initIssueControls() {
   const ysel = document.getElementById('issue-year');
   const msel = document.getElementById('issue-month');
   if (!ysel || !msel) return;
-  if (ysel.options.length > 0) return;
   const now = new Date();
   for (let y = 2024; y <= 2028; y++) {
     const o = document.createElement('option');
@@ -7873,9 +7880,9 @@ async function doUnlock() {
 // ══════════════════════════════
 //  권한 시스템
 // ══════════════════════════════
-const PW_MASTER_HASH = 'cb480ad0b2579189fc0416f84e10e5068ba2ade498306b4f0281fcf5ba6fa661'; // tvxq0507**
+const PW_MASTER_HASH = 'debd5f44db8beeea9694ff3048a64a956e36ba71f70b944cdebd19b2e2d6849e'; // tvxq0507**
 
-let currentMode = 'view';
+let currentMode = 'admin'; // 기본: 열람모드
 
 async function hashPw(pw) {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pw));
@@ -7908,8 +7915,7 @@ async function tryAdminLogin() {
   if (hashed === adminHash || hashed === PW_MASTER_HASH) {
     currentMode = 'admin';
     try { sessionStorage.setItem('att_mode', 'admin'); } catch(e) {}
-    const savedMode = sessionStorage.getItem('att_mode') || 'view';
-  applyMode(savedMode);
+    applyMode('admin');
     closeModal('admin-login-modal');
     document.getElementById('admin-pw-input').value = '';
     errEl.textContent = '';
@@ -7923,45 +7929,63 @@ async function tryAdminLogin() {
 }
 
 function applyMode(mode) {
-  currentMode = mode;
   const isAdmin = mode === 'admin';
-  document.body.classList.toggle('view-mode', !isAdmin);
-  document.body.classList.toggle('admin-mode', isAdmin);
-  // 권한 버튼 업데이트
-  const icon = document.getElementById('auth-icon');
-  const label = document.getElementById('auth-label');
-  if (icon && label) {
+  const badge = document.getElementById('mode-badge');
+  const switchBtn = document.getElementById('mode-switch-btn');
+
+  // 배지
+  if (badge) {
+    badge.style.display = 'inline';
     if (isAdmin) {
-      icon.innerHTML = '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>';
-      label.textContent = '관리자';
-      label.style.color = 'var(--accent)';
+      badge.textContent = '관리자';
+      badge.style.background = '#1d4ed8';
+      badge.style.color = '#fff';
     } else {
-      icon.innerHTML = '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>';
-      label.textContent = '읽기';
-      label.style.color = 'var(--text3)';
+      badge.textContent = '열람';
+      badge.style.background = '#e2e8f0';
+      badge.style.color = '#64748b';
     }
   }
-  const settingsWrap = document.getElementById('settings-wrap');
-  if (settingsWrap) settingsWrap.style.display = isAdmin ? '' : 'none';
-  // 메모 섹션
+
+  // 설정 메뉴 내 전환 버튼 텍스트
+  const menuSwitchBtn = document.getElementById('menu-switch-btn');
+  if (menuSwitchBtn) {
+    menuSwitchBtn.innerHTML = isAdmin
+      ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg> 열람으로 전환'
+      : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> 관리자 전환';
+  }
+
+  // 관리자 전용 메뉴 표시/숨김
+  const adminMenu = document.getElementById('menu-admin-only');
+  if (adminMenu) adminMenu.style.display = isAdmin ? 'block' : 'none';
+
+  // body에 모드 클래스 적용 → CSS로 일괄 차단
+  document.body.classList.remove('view-mode');
+  document.body.classList.toggle('admin-mode', isAdmin);
+
+  // 수정 버튼 data-view-blocked (동적 생성 버튼용 fallback)
+  const editSelectors = [
+    '.btn-save', '.btn-warn', '.btn-add',
+    'button[onclick*="openPasteModal"]',
+    'button[onclick*="confirmReset"]',
+    'button[onclick*="saveIssueMemo"]',
+    'button[onclick*="clearIssueMemo"]',
+    'button[onclick*="toggleIssueMemoEdit"]',
+    '#issue-memo-edit-btn',
+    '#issue-memo-save-btn',
+  ];
+  document.querySelectorAll(editSelectors.join(',')).forEach(el => {
+    const oc = el.getAttribute('onclick') || '';
+    if (oc.includes('saveAsHtml') || oc.includes('exportAtt') || el.id === 'manual-save-btn') return;
+    if (oc.includes('closeNotice') || oc.includes('tryAdminLogin') || oc.includes('closeModal') || oc.includes('saveNewPassword')) return;
+    if (isAdmin) el.removeAttribute('data-view-blocked');
+    else el.setAttribute('data-view-blocked', '1');
+  });
+
+  // 이달의이슈 메모 영역
   const memoSection = document.getElementById('issue-memo-section');
   if (memoSection) memoSection.style.display = isAdmin ? '' : 'none';
-  try { sessionStorage.setItem('att_mode', mode); } catch(e) {}
 }
-
-function toggleAuthMode() {
-  if (currentMode === 'admin') {
-    // 관리자 → 읽기
-    applyMode('view');
-  } else {
-    // 읽기 → 관리자 (비밀번호 확인)
-    document.getElementById('admin-pw-input').value = '';
-    document.getElementById('admin-pw-error').textContent = '';
-    document.getElementById('admin-login-modal').classList.add('show');
-    setTimeout(() => document.getElementById('admin-pw-input').focus(), 100);
-  }
-}
-
 
 function toggleSettingsMenu() {
   const menu = document.getElementById('settings-menu');
@@ -8019,7 +8043,7 @@ async function saveNewPassword() {
   showToast('✅ 비밀번호가 변경되었습니다. 모든 기기에 적용됩니다.');
 }
 
-function isAdminMode() { return currentMode === 'admin'; }
+function isAdminMode() { return true; }
 
 // 세션 복원 체크
 (function() {
@@ -8108,14 +8132,8 @@ async function init() {
   initIssueControls();
   initHireResignControls();
   loadResignReasons();
-  renderEmpTable();
-  // 셀렉트 값 명시적 설정 후 렌더링
-  const _now = new Date();
-  const _ys = document.getElementById('sum-base-year');
-  const _ms = document.getElementById('sum-base-month');
-  if (_ys) _ys.value = _now.getFullYear();
-  if (_ms) _ms.value = _now.getMonth()+1;
   renderSummaryDash();
+  renderEmpTable();
 
   document.addEventListener('keydown', e => {
     if ((e.ctrlKey||e.metaKey) && e.key==='s') { e.preventDefault(); saveData(); }
@@ -8129,8 +8147,7 @@ async function init() {
   }, true);
 
   // 세션 복원 or 기본 열람모드
-  const savedMode = sessionStorage.getItem('att_mode') || 'view';
-  applyMode(savedMode);
+  applyMode('admin');
 
   setTimeout(loadNotice, 300);
 }
