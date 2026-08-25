@@ -6,24 +6,43 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root{
-    --bg:#ffffff;
-    --sidebar-bg:#FAFAF8;
-    --border:#E8E7E3;
-    --border-strong:#DEDDD8;
-    --text:#2F2E2B;
-    --text-soft:#8B8A85;
-    --text-faint:#C7C6C1;
-    --accent:#4C6EF5;
-    --accent-soft:#EEF1FE;
-    --accent-dark:#3D5CE0;
-    --danger:#EB5757;
+    --bg:#15161a;
+    --bg-card:#1c1e23;
+    --bg-card-2:#22242a;
+    --sidebar-bg:#111214;
+    --border:#2b2d33;
+    --border-strong:#383a42;
+    --text:#e8e8ea;
+    --text-soft:#9497a1;
+    --text-faint:#5c5f6a;
+    --accent:#6b8afd;
+    --accent-soft:#232b47;
+    --accent-dark:#84a0ff;
+    --danger:#f27272;
+    --danger-soft:#3a2427;
+    --success:#5fd68f;
+    --success-soft:#1d3327;
+    --warning:#e0b34e;
+    --warning-soft:#3a301c;
     --radius-sm:6px;
     --radius:10px;
     --radius-lg:14px;
-    --shadow:0 8px 24px rgba(41,40,36,0.10);
-    --shadow-sm:0 2px 8px rgba(41,40,36,0.06);
+    --shadow:0 8px 24px rgba(0,0,0,0.35);
+    --shadow-sm:0 2px 8px rgba(0,0,0,0.25);
   }
+  ::-webkit-scrollbar{ width:10px; height:10px; }
+  ::-webkit-scrollbar-track{ background:transparent; }
+  ::-webkit-scrollbar-thumb{ background:#34363d; border-radius:6px; border:2px solid var(--bg); }
+  ::-webkit-scrollbar-thumb:hover{ background:#42454e; }
+  * { scrollbar-color:#34363d transparent; scrollbar-width:thin; }
   *{box-sizing:border-box;}
+  input, select, textarea{
+    background:var(--bg-card); color:var(--text);
+    border-color:var(--border-strong);
+    font-family:inherit;
+  }
+  input::placeholder, textarea::placeholder{ color:var(--text-faint); }
+  input[type="checkbox"], input[type="radio"]{ accent-color:var(--accent); background:none; }
   html,body{margin:0;padding:0;height:100%;}
   body{
     font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic","Segoe UI",Roboto,sans-serif;
@@ -56,47 +75,48 @@
     transition:background .15s;
   }
   .btn-add:hover{background:var(--accent-dark);}
-  .btn-add-secondary{background:#fff;color:var(--text);border:1px solid var(--border-strong);}
-  .btn-add-secondary:hover{background:#F5F4F0;}
-  .btn-add-recurring{background:#F5EBFC;color:#8434C4;border:1px solid #E4CCF5;}
-  .btn-add-recurring:hover{background:#EEDDFA;}
+  .btn-add-secondary{background:var(--bg-card);color:var(--text);border:1px solid var(--border-strong);}
+  .btn-add-secondary:hover{background:var(--bg-card-2);}
+  .btn-add-recurring{background:#2b2038;color:#c9a0f5;border:1px solid #4a3a63;}
+  .btn-add-recurring:hover{background:#2b2038;}
   .add-menu-wrap{position:relative;}
   .add-menu-caret{font-size:10px;opacity:.8;margin-left:-2px;}
   .add-menu-dropdown{
     position:absolute;top:calc(100% + 6px);right:0;min-width:170px;
-    background:#fff;border:1px solid var(--border);border-radius:var(--radius-sm);
+    background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-sm);
     box-shadow:var(--shadow);overflow:hidden;z-index:40;
   }
   .add-menu-dropdown.hidden{display:none;}
   .add-menu-item{
     display:flex;align-items:center;gap:8px;width:100%;text-align:left;
     padding:10px 14px;font-size:13px;font-weight:600;color:var(--text);
-    background:#fff;border:none;cursor:pointer;
+    background:var(--bg-card);border:none;cursor:pointer;
   }
-  .add-menu-item:hover{background:#F5F4F0;}
+  .add-menu-item:hover{background:var(--bg-card-2);}
   .task-search-wrap{position:relative;}
   .task-search-input{
     width:170px;border:1px solid var(--border-strong);border-radius:var(--radius-sm);
     padding:8px 12px;font-size:12.5px;font-family:inherit;transition:width .15s;
+    background:var(--bg-card);color:var(--text);
   }
   .task-search-input:focus{outline:none;border-color:var(--accent);width:250px;}
   .task-search-results{
     position:absolute;top:calc(100% + 6px);left:0;width:320px;max-height:380px;overflow:auto;
-    background:#fff;border:1px solid var(--border);border-radius:var(--radius-sm);box-shadow:var(--shadow);z-index:50;
+    background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-sm);box-shadow:var(--shadow);z-index:50;
   }
   .task-search-results.hidden{display:none;}
   .task-search-item{padding:10px 12px;border-bottom:1px solid var(--border);cursor:pointer;}
   .task-search-item:last-child{border-bottom:none;}
-  .task-search-item:hover{background:#F5F4F0;}
+  .task-search-item:hover{background:var(--bg-card-2);}
   .task-search-item-title{font-size:13px;font-weight:700;color:var(--text);margin-bottom:3px;}
   .task-search-item-meta{font-size:11px;color:var(--text-soft);display:flex;gap:5px;align-items:center;flex-wrap:wrap;}
   .task-search-empty{padding:16px;text-align:center;font-size:12px;color:var(--text-faint);}
   .gear-btn{
     width:34px;height:34px;border-radius:var(--radius-sm);border:1px solid var(--border-strong);
-    background:#fff;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;
+    background:var(--bg-card);cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;
     transition:background .12s;
   }
-  .gear-btn:hover{background:#F5F4F0;}
+  .gear-btn:hover{background:var(--bg-card-2);}
   .tabs{display:flex;flex-direction:column;gap:2px;}
   .tab{
     display:flex;align-items:center;gap:9px;
@@ -105,21 +125,25 @@
     font-size:13.5px;color:var(--text-soft);cursor:pointer;font-weight:500;
     transition:background .12s,color .12s;
   }
-  .tab:hover{background:#F0EFEA;color:var(--text);}
+  .tab:hover{background:var(--bg-card-2);color:var(--text);}
   .tab.active{background:var(--accent-soft);color:var(--accent-dark);font-weight:700;}
   .tab .dot{width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.55;}
+  .tab-icon{width:16px;height:16px;flex:none;display:inline-flex;color:currentColor;opacity:.85;}
+  .tab-icon svg{width:100%;height:100%;}
+  .tab.active .tab-icon{opacity:1;}
+  .nav-group-trigger .tab-icon{opacity:.85;}
   .settings-menu-wrap{position:relative;}
   .settings-dropdown{
     position:absolute;top:calc(100% + 4px);left:0;right:0;
-    background:#fff;border:1px solid var(--border);border-radius:var(--radius-sm);
+    background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-sm);
     box-shadow:var(--shadow-sm);overflow:hidden;z-index:40;
   }
   .settings-dropdown.hidden{display:none;}
   .settings-dropdown-item{
     display:block;width:100%;text-align:left;padding:10px 12px;font-size:12.5px;font-weight:600;
-    color:var(--text);background:#fff;border:none;cursor:pointer;
+    color:var(--text);background:var(--bg-card);border:none;cursor:pointer;
   }
-  .settings-dropdown-item:hover{background:#F5F4F0;}
+  .settings-dropdown-item:hover{background:var(--bg-card-2);}
 
   .nav-group-wrap{display:flex;flex-direction:column;}
   .nav-group-trigger{display:flex;align-items:center;gap:8px;}
@@ -129,7 +153,7 @@
   .tab-sub{padding-left:34px !important;font-size:12.5px;}
 
   .today-card{
-    margin-top:auto;background:#fff;border:1px solid var(--border);
+    margin-top:auto;background:var(--bg-card);border:1px solid var(--border);
     border-radius:var(--radius);padding:14px;
     display:flex;flex-direction:column;align-items:center;gap:8px;
   }
@@ -141,7 +165,7 @@
     position:relative;
   }
   .today-ring-inner{
-    width:50px;height:50px;border-radius:50%;background:#fff;
+    width:50px;height:50px;border-radius:50%;background:var(--bg-card);
     display:flex;align-items:center;justify-content:center;
     font-size:12px;font-weight:700;color:var(--text);
   }
@@ -160,10 +184,10 @@
   .save-error-banner.show{opacity:1;transform:translateX(-50%) translateY(0);pointer-events:auto;}
   .sync-status-box{
     font-size:12px;font-weight:600;padding:10px 12px;border-radius:var(--radius-sm);margin-bottom:14px;
-    background:#F0F0EE;color:var(--text-soft);
+    background:var(--bg-card-2);color:var(--text-soft);
   }
-  .sync-status-box.connected{background:#E9F7EF;color:#1F8A4C;}
-  .sync-status-box.error{background:#FDEAEA;color:#D64545;}
+  .sync-status-box.connected{background:var(--success-soft);color:#6fe0a0;}
+  .sync-status-box.error{background:var(--danger-soft);color:#ff8f8f;}
 
   /* ---------- Main ---------- */
   .content{flex:1;display:flex;flex-direction:column;min-width:0;}
@@ -173,17 +197,17 @@
   }
   .nav-controls{display:flex;align-items:center;gap:10px;}
   .nav-btn{
-    border:1px solid var(--border-strong);background:#fff;color:var(--text-soft);
+    border:1px solid var(--border-strong);background:var(--bg-card);color:var(--text-soft);
     width:28px;height:28px;border-radius:var(--radius-sm);cursor:pointer;
     display:flex;align-items:center;justify-content:center;font-size:14px;
     transition:background .12s;
   }
-  .nav-btn:hover{background:#F5F4F0;}
+  .nav-btn:hover{background:var(--bg-card-2);}
   .today-btn{
-    border:1px solid var(--border-strong);background:#fff;color:var(--text);
+    border:1px solid var(--border-strong);background:var(--bg-card);color:var(--text);
     padding:0 12px;height:28px;border-radius:var(--radius-sm);cursor:pointer;font-size:12.5px;font-weight:600;
   }
-  .today-btn:hover{background:#F5F4F0;}
+  .today-btn:hover{background:var(--bg-card-2);}
   #viewTitle{font-size:18px;font-weight:700;margin:0 4px;letter-spacing:-.2px;}
 
   .legend{display:flex;gap:10px;align-items:center;}
@@ -200,26 +224,29 @@
     gap:1px;
   }
   .weekday-head{
-    background:#FAFAF8;padding:9px 10px;font-size:11.5px;font-weight:700;
+    background:var(--bg-card-2);padding:9px 10px;font-size:11.5px;font-weight:700;
     color:var(--text-soft);text-align:left;
   }
-  .weekday-head.sun-head{color:#E0392F;}
-  .weekday-head.sat-head{color:#2F6FE0;}
+  .weekday-head.sun-head{color:var(--danger);}
+  .weekday-head.sat-head{color:#8ab0ff;}
   .day-cell{
-    background:#fff;height:172px;padding:7px 7px 10px;position:relative;cursor:pointer;
+    background:var(--bg-card);height:172px;padding:7px 7px 10px;position:relative;cursor:pointer;
     display:flex;flex-direction:column;transition:background .12s;overflow:hidden;
   }
-  .day-cell:hover{background:#FBFBF9;z-index:5;}
-  .day-cell.dim{background:#FCFCFB;}
+  .day-cell:hover{background:var(--bg-card-2);z-index:5;}
+  .day-cell.dim{background:var(--bg-card-2);}
   .day-cell.dim .day-num{color:var(--text-faint);}
   .day-num{font-size:12.5px;font-weight:600;color:var(--text);margin-bottom:3px;width:20px;height:20px;display:flex;align-items:center;justify-content:center;border-radius:50%;flex:none;}
   .day-num.today-num{background:var(--accent);color:#fff;}
-  .day-num.saturday{color:#2F6FE0;}
-  .day-num.sunday{color:#E0392F;}
-  .day-num.holiday{color:#E0392F;}
+  .day-num.saturday{color:#8ab0ff;}
+  .day-num.sunday{color:var(--danger);}
+  .day-num.holiday{color:var(--danger);}
   .day-num.holiday.today-num{background:#E0392F;color:#fff;}
-  .holiday-label{font-size:10px;font-weight:700;color:#E0392F;margin:-2px 0 4px;line-height:1.2;flex:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  .chips{display:flex;flex-direction:column;gap:3px;flex:1;min-height:0;min-width:0;overflow:hidden;}
+  .holiday-label{font-size:10px;font-weight:700;color:var(--danger);margin:-2px 0 4px;line-height:1.2;flex:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .chips{display:flex;flex-direction:column;gap:3px;flex:1;min-height:0;min-width:0;overflow-y:auto;overflow-x:hidden;}
+  .chips::-webkit-scrollbar{width:4px;}
+  .chips::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:3px;border:none;}
+  .chips{scrollbar-width:thin;scrollbar-color:var(--border-strong) transparent;}
   .chip{
     font-size:11px;padding:3px 6px;border-radius:5px;white-space:nowrap;
     overflow:hidden;text-overflow:ellipsis;cursor:pointer;font-weight:600;
@@ -250,8 +277,8 @@
   }
   .chip.chip-schedule .chip-title{font-weight:700;}
   .chip-pin{flex:none;font-size:10px;opacity:.85;}
-  .chip-more{font-size:10.5px;color:var(--text-soft);padding:2px 6px;cursor:pointer;font-weight:600;}
-  .day-progress{position:absolute;left:7px;right:7px;bottom:5px;height:3px;background:#EFEEEA;border-radius:2px;overflow:hidden;}
+  .chip-more{font-size:10.5px;color:var(--text-faint);padding:2px 6px;font-weight:600;flex:none;text-align:center;}
+  .day-progress{position:absolute;left:7px;right:7px;bottom:5px;height:3px;background:var(--bg-card-2);border-radius:2px;overflow:hidden;}
   .day-progress-bar{height:100%;background:var(--accent);border-radius:2px;}
   .global-tooltip{
     position:fixed;display:none;z-index:1000;pointer-events:none;
@@ -264,7 +291,7 @@
 
   /* ---------- Week / Day agenda ---------- */
   .week-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:10px;align-items:start;}
-  .week-day-col{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:10px;min-height:220px;display:flex;flex-direction:column;gap:8px;}
+  .week-day-col{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:10px;min-height:220px;display:flex;flex-direction:column;gap:8px;}
   .week-day-col.today{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent);}
   .week-day-head{display:flex;flex-direction:column;align-items:center;gap:2px;padding-bottom:8px;border-bottom:1px solid var(--border);}
   .week-day-weekday{font-size:11px;color:var(--text-soft);font-weight:700;}
@@ -274,7 +301,7 @@
     border:1px dashed var(--border-strong);background:none;color:var(--text-faint);
     border-radius:var(--radius-sm);padding:6px;font-size:11px;cursor:pointer;font-weight:600;
   }
-  .week-add-btn:hover{background:#FAFAF8;color:var(--text-soft);}
+  .week-add-btn:hover{background:var(--bg-card-2);color:var(--text-soft);}
   .agenda-chip{
     border-radius:var(--radius-sm);padding:6px 8px;cursor:pointer;font-size:12px;font-weight:600;
   }
@@ -285,7 +312,7 @@
   .day-view-title{font-size:15px;font-weight:700;color:var(--text-soft);}
   .day-events-list{display:flex;flex-direction:column;gap:8px;}
   .day-event-card{
-    background:#fff;border:1px solid var(--border);border-left:4px solid var(--c);
+    background:var(--bg-card);border:1px solid var(--border);border-left:4px solid var(--c);
     border-radius:var(--radius-sm);padding:12px 14px;cursor:pointer;transition:box-shadow .12s;
   }
   .day-event-card:hover{box-shadow:var(--shadow-sm);}
@@ -294,14 +321,14 @@
   .day-event-memo{font-size:12px;color:var(--text-soft);margin-top:4px;line-height:1.4;}
   .empty-state{color:var(--text-faint);font-size:13px;padding:30px 0;text-align:center;}
 
-  .center-badge{font-size:10px;font-weight:700;color:#6B6A66;background:#F0F0EE;padding:2px 7px;border-radius:5px;white-space:nowrap;}
+  .center-badge{font-size:10px;font-weight:700;color:var(--text-soft);background:var(--bg-card-2);padding:2px 7px;border-radius:5px;white-space:nowrap;}
   .center-badge-mini{font-size:9px;font-weight:700;color:inherit;opacity:.7;background:rgba(0,0,0,0.08);padding:1px 4px;border-radius:3px;margin-right:3px;flex:none;}
   .center-list{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:10px;max-height:360px;overflow:auto;}
-  .center-card{border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px;background:#FCFCFB;}
+  .center-card{border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px;background:var(--bg-card-2);}
   .center-row{display:flex;align-items:center;gap:8px;}
   .center-row input{
     border:1px solid var(--border-strong);border-radius:var(--radius-sm);
-    padding:8px 10px;font-size:13px;font-family:inherit;
+    padding:8px 10px;font-size:13px;font-family:inherit;background:var(--bg-card);color:var(--text);
   }
   .center-row input.center-name-input{flex:1.4;}
   .center-row input.center-abbr-input{flex:0.7;}
@@ -316,7 +343,7 @@
   }
   .center-color-swatch:hover{transform:scale(1.15);}
   .center-color-swatch.selected{box-shadow:0 0 0 2px var(--text);}
-  .center-color-swatch.none-color{background:#fff;position:relative;}
+  .center-color-swatch.none-color{background:var(--bg-card);position:relative;}
   .center-color-swatch.none-color::after{
     content:'';position:absolute;left:2px;right:2px;top:8px;height:1.5px;background:#C7C6C1;transform:rotate(-45deg);
   }
@@ -324,20 +351,20 @@
   /* ---------- Recurring task modal ---------- */
   .weekday-picker{display:flex;gap:6px;}
   .weekday-btn{
-    width:34px;height:34px;border-radius:50%;border:1px solid var(--border-strong);background:#fff;
+    width:34px;height:34px;border-radius:50%;border:1px solid var(--border-strong);background:var(--bg-card);
     color:var(--text-soft);font-size:12.5px;font-weight:700;cursor:pointer;
     display:flex;align-items:center;justify-content:center;transition:all .12s;
   }
-  .weekday-btn:hover{background:#F5F4F0;}
+  .weekday-btn:hover{background:var(--bg-card-2);}
   .weekday-btn.selected{background:var(--accent);border-color:var(--accent);color:#fff;}
   .recurring-list-section{margin-top:20px;padding-top:16px;border-top:1px solid var(--border);}
   .recurring-list-title{font-size:12px;font-weight:700;color:var(--text-soft);text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px;}
   .recurring-list{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:6px;max-height:220px;overflow:auto;}
   .recurring-item{
-    display:flex;align-items:center;gap:10px;background:#FCFCFB;border:1px solid var(--border);
+    display:flex;align-items:center;gap:10px;background:var(--bg-card-2);border:1px solid var(--border);
     border-radius:var(--radius-sm);padding:9px 12px;cursor:pointer;transition:background .12s;
   }
-  .recurring-item:hover{background:#F5F4F0;}
+  .recurring-item:hover{background:var(--bg-card-2);}
   .recurring-item-dot{width:8px;height:8px;border-radius:50%;flex:none;}
   .recurring-item-title{font-size:13px;font-weight:700;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .recurring-item-pattern{font-size:11px;color:var(--text-soft);white-space:nowrap;}
@@ -351,56 +378,56 @@
   .duty-view{max-width:100%;}
   .duty-month-bar{
     display:flex;align-items:center;gap:8px;flex-wrap:wrap;
-    background:#fff;border:1px solid var(--border);border-radius:var(--radius);
+    background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);
     padding:10px 14px;margin-bottom:14px;
   }
   .duty-month-label{font-size:12.5px;font-weight:700;color:var(--text);}
   .duty-month-select{
     border:1px solid var(--border-strong);border-radius:var(--radius-sm);
-    padding:6px 8px;font-size:12.5px;font-family:inherit;background:#fff;
+    padding:6px 8px;font-size:12.5px;font-family:inherit;background:var(--bg-card);
   }
   .duty-org-input{
     border:1px solid var(--border-strong);border-radius:var(--radius-sm);
-    padding:6px 10px;font-size:12.5px;font-family:inherit;background:#fff;min-width:160px;
+    padding:6px 10px;font-size:12.5px;font-family:inherit;background:var(--bg-card);min-width:160px;
   }
   .duty-org-input:focus{outline:none;border-color:var(--accent);}
   .duty-month-hint{font-size:11px;color:var(--text-faint);flex-basis:100%;}
-  .duty-lock-badge{font-size:11.5px;font-weight:700;color:#D64545;background:#FDEAEA;padding:6px 10px;border-radius:6px;}
+  .duty-lock-badge{font-size:11.5px;font-weight:700;color:#ff8f8f;background:var(--danger-soft);padding:6px 10px;border-radius:6px;}
   .duty-upload-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:20px;}
-  .duty-upload-card{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:14px;display:flex;flex-direction:column;gap:8px;}
+  .duty-upload-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:14px;display:flex;flex-direction:column;gap:8px;}
   .duty-upload-title{font-size:13px;font-weight:700;}
   .duty-upload-desc{font-size:11px;color:var(--text-soft);line-height:1.5;min-height:32px;}
   .duty-upload-card input[type=file]{font-size:11.5px;}
-  .duty-upload-status{font-size:11px;color:#1F8A4C;font-weight:700;background:#E9F7EF;padding:5px 8px;border-radius:6px;}
+  .duty-upload-status{font-size:11px;color:#6fe0a0;font-weight:700;background:var(--success-soft);padding:5px 8px;border-radius:6px;}
   .duty-item-badges{display:flex;flex-wrap:wrap;gap:5px;margin-top:2px;}
   .duty-item-badge{font-size:10px;font-weight:700;color:var(--accent-dark);background:var(--accent-soft);padding:2px 7px;border-radius:5px;}
-  .duty-preview-wrap{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:16px;}
+  .duty-preview-wrap{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:16px;}
   .duty-preview-title{font-size:13px;font-weight:700;margin-bottom:10px;color:var(--text-soft);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
   .duty-search-input{
     border:1px solid var(--border-strong);border-radius:var(--radius-sm);
-    padding:7px 12px;font-size:12.5px;font-family:inherit;width:180px;
+    padding:7px 12px;font-size:12.5px;font-family:inherit;width:180px;background:var(--bg-card);color:var(--text);
   }
   .duty-search-input:focus{outline:none;border-color:var(--accent);}
   .duty-table-scroll{overflow:auto;max-height:520px;border:1px solid var(--border);border-radius:8px;}
   .duty-table{border-collapse:collapse;font-size:11px;white-space:nowrap;}
   .duty-table th,.duty-table td{border:1px solid var(--border);padding:4px 7px;text-align:center;}
-  .duty-table th{background:#FAFAF8;position:sticky;top:0;z-index:2;font-weight:700;color:var(--text-soft);}
+  .duty-table th{background:var(--bg-card-2);position:sticky;top:0;z-index:2;font-weight:700;color:var(--text-soft);}
   .duty-name-cell{text-align:left;font-weight:600;}
-  .duty-holiday-cell{color:#E0392F;font-weight:700;background:#FDEAEA;}
+  .duty-holiday-cell{color:var(--danger);font-weight:700;background:var(--danger-soft);}
   .duty-code-cell{max-width:38px;width:38px;min-width:38px;padding-left:2px !important;padding-right:2px !important;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .duty-remark-cell{min-width:160px;max-width:280px;}
   td.duty-remark-cell{white-space:nowrap !important;overflow:hidden;text-overflow:ellipsis;text-align:left !important;}
-  .duty-readonly-cell{background:#FAFAF8;color:var(--text-soft);}
-  .duty-editable-cell{cursor:pointer;background:#fff;}
-  .duty-editable-cell:hover{background:#FFFBEA;}
-  .duty-del-cell{background:#FDEAEA;padding:2px !important;}
+  .duty-readonly-cell{background:var(--bg-card-2);color:var(--text-soft);}
+  .duty-editable-cell{cursor:pointer;background:var(--bg-card);}
+  .duty-editable-cell:hover{background:var(--warning-soft);}
+  .duty-del-cell{background:var(--danger-soft);padding:2px !important;}
   .duty-table td.duty-sticky-1,.duty-table th.duty-sticky-1{position:sticky;left:0;width:64px;min-width:64px;max-width:64px;}
-  .duty-table td.duty-sticky-2,.duty-table th.duty-sticky-2{position:sticky;left:64px;width:42px;min-width:42px;max-width:42px;background:#fff;}
-  .duty-table td.duty-sticky-3,.duty-table th.duty-sticky-3{position:sticky;left:106px;width:78px;min-width:78px;max-width:78px;background:#fff;}
-  .duty-table td.duty-sticky-4,.duty-table th.duty-sticky-4{position:sticky;left:184px;width:72px;min-width:72px;max-width:72px;background:#fff;}
+  .duty-table td.duty-sticky-2,.duty-table th.duty-sticky-2{position:sticky;left:64px;width:42px;min-width:42px;max-width:42px;background:var(--bg-card);}
+  .duty-table td.duty-sticky-3,.duty-table th.duty-sticky-3{position:sticky;left:106px;width:78px;min-width:78px;max-width:78px;background:var(--bg-card);}
+  .duty-table td.duty-sticky-4,.duty-table th.duty-sticky-4{position:sticky;left:184px;width:72px;min-width:72px;max-width:72px;background:var(--bg-card);}
   .duty-table td.duty-sticky-1,.duty-table td.duty-sticky-2,.duty-table td.duty-sticky-3,.duty-table td.duty-sticky-4{z-index:1;box-shadow:2px 0 3px -2px rgba(0,0,0,0.15);}
-  .duty-table th.duty-sticky-1,.duty-table th.duty-sticky-2,.duty-table th.duty-sticky-3,.duty-table th.duty-sticky-4{z-index:3;background:#FAFAF8;box-shadow:2px 0 3px -2px rgba(0,0,0,0.15);}
-  .duty-del-cell button{border:none;background:none;color:#D64545;font-size:10.5px;font-weight:700;cursor:pointer;padding:4px 6px;white-space:nowrap;}
+  .duty-table th.duty-sticky-1,.duty-table th.duty-sticky-2,.duty-table th.duty-sticky-3,.duty-table th.duty-sticky-4{z-index:3;background:var(--bg-card-2);box-shadow:2px 0 3px -2px rgba(0,0,0,0.15);}
+  .duty-del-cell button{border:none;background:none;color:#ff8f8f;font-size:10.5px;font-weight:700;cursor:pointer;padding:4px 6px;white-space:nowrap;}
   .duty-del-cell button:hover{text-decoration:underline;}
   .duty-actions{display:flex;gap:10px;justify-content:flex-end;}
 
@@ -417,7 +444,7 @@
   .duty-manage-view .duty-prev-note{font-size:10.5px;padding:6px 10px;}
   .duty-stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:12px;}
   .duty-stat-card{
-    background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:16px 16px 16px 20px;
+    background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:16px 16px 16px 20px;
     text-align:center;position:relative;overflow:hidden;
   }
   .duty-stat-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--accent);}
@@ -429,38 +456,38 @@
   .duty-stat-label{font-size:11.5px;color:var(--text-soft);font-weight:600;margin-top:4px;}
   .duty-stat-delta{margin-top:6px;}
   .duty-prev-note{font-size:11.5px;color:var(--accent-dark);background:var(--accent-soft);padding:8px 12px;border-radius:8px;margin-bottom:14px;font-weight:600;}
-  .duty-warn-box{background:#FFF7E8;border:1px solid #F5D68A;border-radius:var(--radius);padding:12px 16px;margin:14px 0;}
-  .duty-warn-box-ok{background:#E9F7EF;border-color:#B7E4C7;color:#1F8A4C;font-size:12.5px;font-weight:700;padding:10px 16px;}
-  .duty-warn-box-title{font-size:12.5px;font-weight:800;color:#B8790A;margin-bottom:8px;}
+  .duty-warn-box{background:var(--warning-soft);border:1px solid #5a4a29;border-radius:var(--radius);padding:12px 16px;margin:14px 0;}
+  .duty-warn-box-ok{background:var(--success-soft);border-color:#2f4a3a;color:#6fe0a0;font-size:12.5px;font-weight:700;padding:10px 16px;}
+  .duty-warn-box-title{font-size:12.5px;font-weight:800;color:var(--warning);margin-bottom:8px;}
   .duty-warn-list{margin:0;padding-left:18px;max-height:180px;overflow-y:auto;}
-  .duty-warn-list li{font-size:12px;color:#7A5A0A;line-height:1.9;}
-  .duty-prev-note-empty{color:#C9762B;background:#FDF1E7;}
+  .duty-warn-list li{font-size:12px;color:var(--warning);line-height:1.9;}
+  .duty-prev-note-empty{color:#f2ae7a;background:var(--warning-soft);}
   .duty-delta{font-size:11px;font-weight:800;padding:2px 6px;border-radius:5px;}
-  .duty-delta-up{color:#1F8A4C;background:#E9F7EF;}
-  .duty-delta-down{color:#D64545;background:#FDEAEA;}
-  .duty-delta-flat{color:var(--text-faint);background:#F0F0EE;}
-  .duty-bar-track{background:#F0EFEA;border-radius:6px;height:6px;overflow:hidden;margin-top:5px;min-width:80px;}
+  .duty-delta-up{color:#6fe0a0;background:var(--success-soft);}
+  .duty-delta-down{color:#ff8f8f;background:var(--danger-soft);}
+  .duty-delta-flat{color:var(--text-faint);background:var(--bg-card-2);}
+  .duty-bar-track{background:var(--bg-card-2);border-radius:6px;height:6px;overflow:hidden;margin-top:5px;min-width:80px;}
   .duty-bar-fill{height:100%;background:linear-gradient(90deg,var(--accent),#8AA6FF);border-radius:6px;}
   .duty-grade-pill{display:inline-block;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:700;margin:2px 2px 2px 0;white-space:nowrap;}
   .eval-badge{display:inline-block;padding:2px 7px;border-radius:999px;font-size:10px;font-weight:700;margin-left:4px;}
   .eval-badge-blue{background:var(--accent-soft);color:var(--accent-dark);}
-  .eval-badge-red{background:#FDEAEA;color:#D64545;}
-  .eval-badge-gray{background:#F0F0EE;color:#6B6A66;}
+  .eval-badge-red{background:var(--danger-soft);color:#ff8f8f;}
+  .eval-badge-gray{background:var(--bg-card-2);color:var(--text-soft);}
   .eval-editable-cell{cursor:pointer;}
   .eval-row-delete-btn{border:none;background:none;color:var(--text-faint);cursor:pointer;font-size:13px;padding:3px 6px;border-radius:5px;}
-  .eval-row-delete-btn:hover{color:#D64545;background:#FDEAEA;}
+  .eval-row-delete-btn:hover{color:#ff8f8f;background:var(--danger-soft);}
   .eval-editable-cell:hover{background:var(--accent-soft);}
-  .duty-report-section{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:14px;}
+  .duty-report-section{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:14px;}
   .duty-report-section-title{font-size:13px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:6px;}
   .duty-report-table{width:100%;border-collapse:collapse;font-size:12.5px;}
   .duty-report-table th,.duty-report-table td{border:1px solid var(--border);padding:9px 12px;text-align:center;}
-  .duty-report-table th{background:#FAFAF8;font-weight:700;color:var(--text-soft);}
+  .duty-report-table th{background:var(--bg-card-2);font-weight:700;color:var(--text-soft);}
   .salary-mini-upload-btn{
     margin-top:4px;font-size:10px;font-weight:700;color:var(--accent-dark);background:var(--accent-soft);
     border:none;border-radius:5px;padding:2px 6px;cursor:pointer;white-space:nowrap;
   }
-  .salary-mini-upload-btn:hover{background:#E4E9FE;}
-  .duty-report-table tbody tr:hover{background:#FBFBF9;}
+  .salary-mini-upload-btn:hover{background:var(--accent-soft);}
+  .duty-report-table tbody tr:hover{background:var(--bg-card-2);}
   .duty-namelist{font-size:12px;color:var(--text-soft);line-height:1.8;}
   .duty-report-row2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;}
   .duty-report-row2 .duty-report-section{margin-bottom:0;}
@@ -479,7 +506,7 @@
   .notices-search:focus{outline:none;border-color:var(--accent);}
   .category-chips{display:flex;gap:6px;}
   .category-chip{
-    border:1px solid var(--border-strong);background:#fff;color:var(--text-soft);
+    border:1px solid var(--border-strong);background:var(--bg-card);color:var(--text-soft);
     padding:7px 12px;border-radius:999px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;
   }
   .category-chip.active{background:var(--text);color:#fff;border-color:var(--text);}
@@ -490,7 +517,7 @@
   .notice-add-btn:hover{background:var(--accent-dark);}
   .notice-list{display:flex;flex-direction:column;gap:8px;}
   .notice-card{
-    background:#fff;border:1px solid var(--border);border-radius:var(--radius);
+    background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);
     padding:14px 16px;transition:box-shadow .12s,border-color .12s;
   }
   .notice-card:hover{box-shadow:var(--shadow-sm);border-color:var(--border-strong);}
@@ -510,11 +537,11 @@
     background:var(--accent-soft);color:var(--accent-dark);border:none;border-radius:6px;
     padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;
   }
-  .notice-edit-btn:hover{background:#E4E9FE;}
+  .notice-edit-btn:hover{background:var(--accent-soft);}
   .notice-file-tag{font-size:11px;color:var(--accent-dark);font-weight:600;margin-top:8px;display:inline-flex;align-items:center;gap:4px;text-decoration:none;cursor:pointer;}
   .notice-file-tag:hover{text-decoration:underline;}
   .file-chip{
-    display:inline-flex;align-items:center;gap:8px;background:#F5F4F0;border:1px solid var(--border);
+    display:inline-flex;align-items:center;gap:8px;background:var(--bg-card-2);border:1px solid var(--border);
     border-radius:var(--radius-sm);padding:6px 10px;font-size:12.5px;
   }
   .file-chip a{color:var(--accent-dark);font-weight:600;text-decoration:none;}
@@ -523,10 +550,10 @@
   .rte-toolbar{display:flex;align-items:center;gap:6px;margin-bottom:6px;}
   .rte-btn{
     width:30px;height:30px;border:1px solid var(--border-strong);border-radius:6px;
-    background:#fff;cursor:pointer;font-size:13px;color:var(--text);
+    background:var(--bg-card);cursor:pointer;font-size:13px;color:var(--text);
     display:flex;align-items:center;justify-content:center;
   }
-  .rte-btn:hover{background:#F5F4F0;}
+  .rte-btn:hover{background:var(--bg-card-2);}
   .rte-divider{width:1px;height:20px;background:var(--border-strong);margin:0 2px;}
   .rte-swatch{
     width:22px;height:22px;border-radius:50%;cursor:pointer;
@@ -549,7 +576,7 @@
   }
   .modal-overlay.hidden{display:none;}
   .modal{
-    background:#fff;border-radius:var(--radius-lg);width:400px;max-width:92vw;
+    background:var(--bg-card);border-radius:var(--radius-lg);width:400px;max-width:92vw;
     max-height:88vh;overflow:auto;box-shadow:var(--shadow);padding:22px;
   }
   .modal h2{font-size:16px;margin:0 0 16px;font-weight:700;}
@@ -563,7 +590,7 @@
   .field-hint{font-size:11px;color:var(--accent-dark);margin-top:5px;font-weight:600;}
   .field input[type=text],.field input[type=date],.field input[type=time],.field select,.field textarea{
     width:100%;border:1px solid var(--border-strong);border-radius:var(--radius-sm);
-    padding:9px 10px;font-size:13.5px;font-family:inherit;color:var(--text);
+    padding:9px 10px;font-size:13.5px;font-family:inherit;color:var(--text);background:var(--bg-card);
   }
   .field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--accent);}
   .field textarea{resize:vertical;min-height:56px;}
@@ -582,10 +609,10 @@
   .swatch::after{content:'';width:8px;height:8px;}
   .modal-actions{display:flex;justify-content:space-between;align-items:center;margin-top:18px;}
   .btn-secondary{
-    background:#fff;border:1px solid var(--border-strong);color:var(--text-soft);
+    background:var(--bg-card);border:1px solid var(--border-strong);color:var(--text-soft);
     padding:9px 14px;border-radius:var(--radius-sm);font-size:13px;font-weight:600;cursor:pointer;
   }
-  .btn-secondary:hover{background:#F5F4F0;}
+  .btn-secondary:hover{background:var(--bg-card-2);}
   .btn-primary{
     background:var(--accent);border:none;color:#fff;
     padding:9px 16px;border-radius:var(--radius-sm);font-size:13px;font-weight:700;cursor:pointer;
@@ -594,7 +621,7 @@
   .btn-danger-text{background:none;border:none;color:var(--danger);font-size:12.5px;font-weight:600;cursor:pointer;padding:6px 4px;}
 
   #loadingOverlay{
-    position:fixed;inset:0;background:#fff;display:flex;align-items:center;justify-content:center;
+    position:fixed;inset:0;background:var(--bg-card);display:flex;align-items:center;justify-content:center;
     color:var(--text-soft);font-size:13px;z-index:100;
   }
 
@@ -605,6 +632,234 @@
     .btn-add{padding:9px;}
     .week-grid{grid-template-columns:1fr;}
   }
+/* ===================================================================
+   도급비 현황 (KTIS 관리자 페이지 "매출 현황" 탭에서 이식)
+   이 안의 클래스들은 .docube-scope 하위에서만 쓰이며, 변수도 이 안에서만 유효함
+=================================================================== */
+.docube-scope{
+  --navy-950:#0d0e12; --gold:#e0b34e; --gold-dark:#f0c065; --gold-soft:rgba(224,179,78,0.14);
+  --text-0:#ffffff; --text-1:#c7cbd6; --text-2:#8890a2;
+  --bg-app:#15161a; --bg-card:#1c1e23; --border-light:#2b2d33;
+  --ink-0:#e8e8ea; --ink-1:#9497a1; --ink-2:#6c6f7a;
+}
+.docube-scope .cal-nav{ display:flex; align-items:center; gap:10px; }
+.docube-scope .cal-nav-btn{
+  width:30px; height:30px; border-radius:8px;
+  border:1px solid var(--border-light);
+  background:var(--bg-card);
+  display:flex; align-items:center; justify-content:center;
+  cursor:pointer; color:var(--ink-1);
+  font-size:15px; font-weight:700;
+  transition: background .12s ease, border-color .12s ease;
+}
+.docube-scope .cal-nav-btn:hover{ background:var(--bg-card-2); border-color:#3a3d46; }
+.docube-scope .cal-month-label{
+  font-size:16px; font-weight:800; color:var(--ink-0);
+  min-width:112px; text-align:center;
+}
+.docube-scope .cal-today-btn{
+  padding:6px 12px; border-radius:8px;
+  border:1px solid var(--border-light);
+  background:var(--bg-card);
+  font-size:12.5px; font-weight:700; color:var(--ink-1);
+  cursor:pointer;
+}
+.docube-scope .cal-today-btn:hover{ background:var(--bg-card-2); }
+.docube-scope .btn-primary.gold{ background: var(--gold); color:#1a1400; }
+.docube-scope .btn-primary.gold:hover{ background:#e0a600; }
+
+.docube-scope .inner-tabs{
+  display:flex; gap:4px;
+  margin-bottom:18px;
+  border-bottom:1px solid var(--border-light);
+}
+.docube-scope .inner-tab{
+  padding:9px 4px; margin-right:18px;
+  font-size:13.5px; font-weight:700; color:var(--ink-2);
+  cursor:pointer; user-select:none;
+  position:relative;
+}
+.docube-scope .inner-tab:hover{ color:var(--ink-0); }
+.docube-scope .inner-tab.active{ color:var(--ink-0); }
+.docube-scope .inner-tab.active::after{
+  content:""; position:absolute; left:0; right:0; bottom:-1px; height:2px;
+  background:var(--gold); border-radius:2px 2px 0 0;
+}
+.docube-scope .inner-page{ display:none; }
+.docube-scope .inner-page.active{ display:block; }
+.docube-scope .stat-toolbar{
+  display:flex; align-items:center; justify-content:space-between;
+  margin-bottom:16px;
+}
+.docube-scope .rev-detail-toolbar{ margin-bottom:14px; }
+.docube-scope .rev-detail-hint{ font-size:12px; color:var(--ink-2); }
+
+.docube-scope .rev-grand{
+  background: var(--navy-950);
+  border-radius:16px;
+  padding:22px 26px;
+  margin-bottom:20px;
+  display:flex; align-items:center; justify-content:space-between;
+  flex-wrap:wrap; gap:12px;
+}
+.docube-scope .rev-grand .label{ font-size:12.5px; font-weight:700; color:var(--text-1); margin-bottom:6px; }
+.docube-scope .rev-grand .value{ font-size:30px; font-weight:800; color:var(--gold); letter-spacing:-0.01em; }
+.docube-scope .rev-grand-breakdown{ display:flex; gap:18px; flex-wrap:wrap; }
+.docube-scope .rev-grand-breakdown .gb-item{ text-align:right; }
+.docube-scope .rev-grand-breakdown .gb-label{ font-size:11px; color:var(--text-2); font-weight:600; margin-bottom:3px; }
+.docube-scope .rev-grand-breakdown .gb-value{ font-size:13px; color:var(--text-0); font-weight:700; }
+.docube-scope .rev-grand-sub{ font-size:11.5px; color:var(--text-2); font-weight:600; margin-top:4px; }
+
+.docube-scope .rev-section{
+  background:var(--bg-card);
+  border:1px solid var(--border-light);
+  border-radius:14px;
+  padding:18px 20px;
+  margin-bottom:16px;
+}
+.docube-scope .rev-section-title{ font-size:14px; font-weight:800; color:var(--ink-0); margin-bottom:4px; }
+.docube-scope .rev-section-sub{ font-size:12px; color:var(--ink-2); line-height:1.6; margin-bottom:14px; }
+
+.docube-scope .rev-row{
+  display:flex; align-items:center; gap:12px;
+  padding:9px 0;
+  border-bottom:1px solid var(--border-light);
+}
+.docube-scope .rev-row:last-of-type{ border-bottom:none; }
+.docube-scope .rev-row .rev-label{ flex:1; font-size:13px; font-weight:700; color:var(--ink-0); }
+.docube-scope .rev-row .rev-price{
+  width:110px; text-align:right; font-size:11.5px; color:var(--ink-2); font-weight:600;
+  cursor:pointer; border-bottom:1px dashed transparent;
+}
+.docube-scope .rev-row .rev-price:hover{ color:var(--ink-0); border-bottom-color:var(--ink-2); }
+.docube-scope .rev-row .rev-count-input{
+  width:64px; padding:6px 8px; border:1px solid var(--border-light); border-radius:7px;
+  text-align:center; font-size:13px; font-weight:700; color:var(--ink-0); background:var(--bg-card);
+}
+.docube-scope .rev-row .rev-x{ font-size:12px; color:var(--ink-2); }
+.docube-scope .rev-row .rev-subtotal{ width:126px; text-align:right; font-size:13px; font-weight:800; color:var(--ink-0); }
+
+.docube-scope .rev-section-total-block{
+  margin-top:8px; padding-top:10px;
+  border-top:1px solid var(--border-light);
+}
+.docube-scope .stb-row{
+  display:flex; justify-content:space-between; align-items:center;
+  padding:4px 0;
+  font-size:12.5px; color:var(--ink-1); font-weight:600;
+}
+.docube-scope .stb-row b{ color:var(--ink-0); font-weight:700; }
+.docube-scope .stb-row.grand{
+  margin-top:6px; padding-top:10px;
+  border-top:2px solid var(--ink-0);
+  font-size:14px; font-weight:800; color:var(--ink-0);
+}
+.docube-scope .stb-row.grand b{ color:var(--gold-dark, #b9860a); font-size:16px; }
+
+.docube-scope .trainee-add-row{ display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap; }
+.docube-scope .trainee-add-row input, .docube-scope .trainee-add-row select{
+  padding:8px 10px; border:1px solid var(--border-light); border-radius:8px;
+  font-size:12.5px; font-family:inherit; color:var(--ink-0); background:var(--bg-app);
+}
+.docube-scope .trainee-add-row input{ width:150px; }
+.docube-scope .trainee-list{ display:flex; flex-direction:column; gap:6px; margin-bottom:6px; }
+.docube-scope .trainee-item{
+  display:flex; align-items:center; gap:10px;
+  padding:8px 12px; border:1px solid var(--border-light); border-radius:9px;
+  font-size:12.5px;
+}
+.docube-scope .trainee-item.fail{ border-color:#5a3538; background:var(--danger-soft); }
+.docube-scope .trainee-item .ti-days{ font-weight:700; color:var(--ink-0); }
+.docube-scope .trainee-item .ti-status{ padding:2px 8px; border-radius:999px; font-size:11px; font-weight:700; }
+.docube-scope .trainee-item .ti-status.pass{ background:var(--success-soft); color:#6fe0a0; }
+.docube-scope .trainee-item .ti-status.fail{ background:var(--danger-soft); color:#ff8f8f; }
+.docube-scope .trainee-item .ti-pay{ margin-left:auto; font-weight:800; color:var(--ink-0); }
+.docube-scope .trainee-item .ti-del{
+  color:var(--ink-2); cursor:pointer; font-size:14px;
+  width:18px; height:18px; display:flex; align-items:center; justify-content:center; border-radius:5px;
+}
+.docube-scope .trainee-item .ti-del:hover{ background:var(--danger-soft); color:#ff8f8f; }
+.docube-scope .trainee-empty{ font-size:12px; color:var(--ink-2); padding:14px 0; text-align:center; }
+
+.docube-scope .telecom-row{ display:flex; gap:16px; margin-bottom:6px; }
+.docube-scope .telecom-row label{ flex:1; font-size:12px; font-weight:700; color:var(--ink-1); }
+.docube-scope .telecom-row input{
+  display:block; width:100%; margin-top:6px;
+  padding:9px 10px; border:1px solid var(--border-light); border-radius:8px;
+  font-size:13px; color:var(--ink-0); background:var(--bg-app);
+}
+
+.docube-scope .rev-saved-badge{
+  font-size:11.5px; font-weight:700; padding:5px 10px; border-radius:999px;
+  background:var(--bg-card-2); color:var(--ink-2);
+}
+.docube-scope .rev-saved-badge.on{ background:var(--success-soft); color:#6fe0a0; }
+
+.docube-scope .rev-year-block{ margin-bottom:22px; }
+.docube-scope .rev-year-head{
+  display:flex; align-items:baseline; justify-content:space-between;
+  padding:8px 2px; margin-bottom:8px;
+  border-bottom:2px solid var(--ink-0);
+}
+.docube-scope .rev-year-head .yh-label{ font-size:15px; font-weight:800; color:var(--ink-0); }
+.docube-scope .rev-year-head .yh-total{ font-size:13px; font-weight:700; color:var(--ink-2); }
+.docube-scope .rev-year-head .yh-total b{ color:var(--gold-dark, #b9860a); font-size:14px; }
+
+.docube-scope .rev-month-card{
+  background:var(--bg-card);
+  border:1px solid var(--border-light);
+  border-radius:12px;
+  margin-bottom:8px;
+  overflow:hidden;
+}
+.docube-scope .rev-month-row{
+  display:grid;
+  grid-template-columns: 90px 1fr 1fr 1fr 1fr 130px 16px;
+  align-items:center;
+  gap:8px;
+  padding:12px 14px;
+  cursor:pointer;
+}
+.docube-scope .rev-month-row:hover{ background:var(--bg-card-2); }
+.docube-scope .rev-month-row .mr-month{ font-size:13px; font-weight:800; color:var(--ink-0); }
+.docube-scope .rev-month-row .mr-metric{ text-align:right; }
+.docube-scope .rev-month-row .mr-metric .mm-label{ font-size:10.5px; color:var(--ink-2); font-weight:600; }
+.docube-scope .rev-month-row .mr-metric .mm-value{ font-size:12.5px; color:var(--ink-0); font-weight:700; margin-top:2px; }
+.docube-scope .rev-month-row .mr-total-wrap{ display:flex; flex-direction:column; align-items:flex-end; gap:3px; }
+.docube-scope .rev-month-row .mr-total{ text-align:right; font-size:14.5px; font-weight:800; color:var(--gold-dark, #b9860a); }
+.docube-scope .rev-month-row .mr-chev{ color:var(--ink-2); font-size:12px; transition: transform .15s ease; }
+.docube-scope .rev-month-row.open .mr-chev{ transform: rotate(90deg); }
+
+.docube-scope .delta{
+  display:inline-block; margin-top:3px;
+  font-size:10px; font-weight:700; padding:1px 6px; border-radius:999px;
+  white-space:nowrap;
+}
+.docube-scope .delta.up{ color:#6fe0a0; background:var(--success-soft); }
+.docube-scope .delta.down{ color:#ff8f8f; background:var(--danger-soft); }
+.docube-scope .delta.flat{ color:var(--ink-2); background:var(--bg-card-2); }
+.docube-scope .delta.none{ color:var(--ink-2); background:transparent; font-weight:600; }
+
+.docube-scope .rev-month-detail{ display:none; border-top:1px solid var(--border-light); padding:14px 18px; background:var(--bg-card-2); }
+.docube-scope .rev-month-detail.open{ display:block; }
+.docube-scope .rev-detail-grid{ display:grid; grid-template-columns: repeat(4, 1fr); gap:16px; }
+.docube-scope .rev-detail-col-title{ font-size:11px; font-weight:800; color:var(--ink-2); margin-bottom:8px; letter-spacing:0.02em; }
+.docube-scope .rev-detail-item{ display:flex; justify-content:space-between; font-size:12px; padding:4px 0; color:var(--ink-1); }
+.docube-scope .rev-detail-item b{ color:var(--ink-0); font-weight:700; }
+.docube-scope .rev-detail-empty-note{ text-align:center; color:var(--ink-2); font-size:12.5px; padding:36px 0; }
+
+.docube-scope .rev-detail-footer{ margin-top:8px; padding-top:8px; border-top:1px solid var(--border-light); }
+.docube-scope .rev-detail-footer .rev-detail-item{ font-size:11.5px; color:var(--ink-2); }
+.docube-scope .rev-detail-footer .rev-detail-item.total{ font-weight:800; color:var(--ink-0); }
+.docube-scope .rev-detail-footer .rev-detail-item.total b{ color:var(--gold-dark, #b9860a); }
+
+.docube-scope .rev-detail-grandline{
+  display:flex; justify-content:flex-end; gap:20px; flex-wrap:wrap;
+  margin-top:14px; padding-top:12px;
+  border-top:2px solid var(--ink-0);
+  font-size:12px; color:var(--ink-1); font-weight:700;
+}
+.docube-scope .rev-detail-grandline .rdg-total{ color:var(--gold-dark, #b9860a); font-size:13.5px; font-weight:800; }
 </style>
 </head>
 <body>
@@ -613,32 +868,34 @@
   <aside class="sidebar">
     <div class="brand"><span class="brand-icon">◆</span><span>업무 관리</span></div>
     <nav class="tabs">
-      <button class="tab" data-view="month" onclick="switchView('month')"><span class="dot"></span><span class="label">📅 캘린더</span></button>
-      <button class="tab" data-view="notices" onclick="switchView('notices')"><span class="dot"></span><span class="label">📢 업무공지</span></button>
+      <button class="tab" data-view="home" onclick="switchView('home')"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 11.2 12 4l8.5 7.2"/><path d="M6 9.8V19a1 1 0 0 0 1 1h3.2v-5.2h3.6V20H17a1 1 0 0 0 1-1V9.8"/></svg></span><span class="label">홈</span></button>
+      <button class="tab" data-view="month" onclick="switchView('month')"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="2.2"/><path d="M8 3.2v3.6M16 3.2v3.6M3.5 9.8h17"/></svg></span><span class="label">캘린더</span></button>
+      <button class="tab" data-view="notices" onclick="switchView('notices')"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 10.2v3.6a1 1 0 0 0 1 1h1.8l7 3.8V5.4l-7 3.8H4.5a1 1 0 0 0-1 1Z"/><path d="M16.8 8.4a3.8 3.8 0 0 1 0 7.2"/></svg></span><span class="label">업무공지</span></button>
       <div class="nav-group-wrap">
         <button class="tab nav-group-trigger" id="callGroupTrigger" onclick="toggleCallGroupMenu(event)">
-          <span class="dot"></span><span class="label">📞 종합콜현황</span><span class="nav-group-chevron" id="callGroupChevron">▸</span>
+          <span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5.2 4h3.4l1.6 4.2-2.2 1.5a10.6 10.6 0 0 0 4.9 4.9l1.5-2.2 4.2 1.6v3.4a1.6 1.6 0 0 1-1.7 1.6A15.6 15.6 0 0 1 3.6 5.7 1.6 1.6 0 0 1 5.2 4Z"/></svg></span><span class="label">종합콜현황</span><span class="nav-group-chevron" id="callGroupChevron">▸</span>
         </button>
         <div class="nav-group-children hidden" id="callGroupChildren">
-          <button class="tab tab-sub" data-view="callSummary" onclick="switchView('callSummary')"><span class="dot"></span><span class="label">📊 종합현황</span></button>
-          <button class="tab tab-sub" data-view="callRank" onclick="switchView('callRank')"><span class="dot"></span><span class="label">🏅 실적순위</span></button>
-          <button class="tab tab-sub" data-view="callInput" onclick="switchView('callInput')"><span class="dot"></span><span class="label">📥 실적입력</span></button>
+          <button class="tab tab-sub" data-view="callSummary" onclick="switchView('callSummary')"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 20V11M10 20V4.5M15.5 20v-6.5M2.5 20h19"/></svg></span><span class="label">종합현황</span></button>
+          <button class="tab tab-sub" data-view="callRank" onclick="switchView('callRank')"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8.2" r="4.8"/><path d="M8.9 12.3 7.3 20l4.7-2.7 4.7 2.7-1.6-7.7"/></svg></span><span class="label">실적순위</span></button>
+          <button class="tab tab-sub" data-view="callInput" onclick="switchView('callInput')"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5v10.5M8.2 10.5 12 14.3l3.8-3.8"/><path d="M4.5 15v3.2a1.8 1.8 0 0 0 1.8 1.8h11.4a1.8 1.8 0 0 0 1.8-1.8V15"/></svg></span><span class="label">실적입력</span></button>
         </div>
       </div>
       <div class="nav-group-wrap">
         <button class="tab nav-group-trigger" id="dutyGroupTrigger" onclick="toggleDutyGroupMenu(event)">
-          <span class="dot"></span><span class="label">🗂️ 복무업무</span><span class="nav-group-chevron" id="dutyGroupChevron">▸</span>
+          <span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 7.2a1.8 1.8 0 0 1 1.8-1.8h4l2 2h7.4a1.8 1.8 0 0 1 1.8 1.8v7.6a1.8 1.8 0 0 1-1.8 1.8H5.3a1.8 1.8 0 0 1-1.8-1.8Z"/></svg></span><span class="label">복무업무</span><span class="nav-group-chevron" id="dutyGroupChevron">▸</span>
         </button>
         <div class="nav-group-children hidden" id="dutyGroupChildren">
-          <button class="tab tab-sub" data-view="duty" onclick="switchView('duty')"><span class="dot"></span><span class="label">📋 복무입력</span></button>
-          <button class="tab tab-sub" data-view="dutyReport" onclick="switchView('dutyReport')"><span class="dot"></span><span class="label">📊 복무관리</span></button>
-          <button class="tab tab-sub" data-view="salary" onclick="switchView('salary')"><span class="dot"></span><span class="label">💵 급여내역</span></button>
+          <button class="tab tab-sub" data-view="duty" onclick="switchView('duty')"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5.8" y="4" width="12.4" height="17" rx="2"/><rect x="8.8" y="2.3" width="6.4" height="3.2" rx="1"/><path d="M9 11.2h6M9 14.8h6"/></svg></span><span class="label">복무입력</span></button>
+          <button class="tab tab-sub" data-view="dutyReport" onclick="switchView('dutyReport')"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 20V11M10 20V4.5M15.5 20v-6.5M2.5 20h19"/></svg></span><span class="label">복무관리</span></button>
+          <button class="tab tab-sub" data-view="salary" onclick="switchView('salary')"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M9 9.3h6M9 12h6M12 9.3v6.4M9.5 15.7h5"/></svg></span><span class="label">급여내역</span></button>
         </div>
       </div>
-      <button class="tab" data-view="eval" onclick="switchView('eval')"><span class="dot"></span><span class="label">🏆 관리자평가</span></button>
+      <button class="tab" data-view="eval" onclick="switchView('eval')"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7.5 4h9v3.6a4.5 4.5 0 0 1-9 0Z"/><path d="M5.7 6H4a1.8 1.8 0 0 0 1.7 3.6M18.3 6H20a1.8 1.8 0 0 1-1.7 3.6"/><path d="M12 11.6v3M9.3 20h5.4M10.4 17.2h3.2v2.8h-3.2Z"/></svg></span><span class="label">관리자평가</span></button>
+      <button class="tab" data-view="docube" onclick="switchView('docube')"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-2.2-1.6L14 21l-2-1.6L10 21l-2.2-1.6L6 21Z"/><path d="M9 8.5h6M9 12h6"/></svg></span><span class="label">도급비 현황</span></button>
     </nav>
     <div class="settings-menu-wrap">
-      <button class="tab" id="sidebarSettingsTrigger" onclick="toggleSidebarSettingsMenu(event)"><span class="dot"></span><span class="label">⚙️ 설정</span></button>
+      <button class="tab" id="sidebarSettingsTrigger" onclick="toggleSidebarSettingsMenu(event)"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2.8v2.6M12 18.6v2.6M4.6 4.6l1.8 1.8M17.6 17.6l1.8 1.8M2.8 12h2.6M18.6 12h2.6M4.6 19.4l1.8-1.8M17.6 6.4l1.8-1.8"/></svg></span><span class="label">설정</span></button>
       <div class="settings-dropdown hidden" id="sidebarSettingsMenu">
         <button class="settings-dropdown-item" onclick="openCenterModal(); closeSidebarSettingsMenu();">🏢 센터명 설정</button>
         <button class="settings-dropdown-item" onclick="openDutyLockModal(); closeSidebarSettingsMenu();">🔒 복무마감 설정</button>
@@ -1104,13 +1361,13 @@
 <script>
 /* ============ Data & State ============ */
 const COLORS = {
-  white:{bg:'#FFFFFF',fg:'#2F2E2B',dot:'#FFFFFF'},
-  blue:{bg:'#EAF1FF',fg:'#3D6BE0',dot:'#4C6EF5'},
-  red:{bg:'#FDEAEA',fg:'#D64545',dot:'#EB5757'},
-  orange:{bg:'#FDF1E7',fg:'#C9762B',dot:'#F2994A'},
-  green:{bg:'#E9F7EF',fg:'#1F8A4C',dot:'#27AE60'},
-  purple:{bg:'#F5EBFC',fg:'#8434C4',dot:'#9B51E0'},
-  gray:{bg:'#F0F0EE',fg:'#6B6A66',dot:'#9B9A96'}
+  white:{bg:'#2a2c32',fg:'#e8e8ea',dot:'#c7c6c1'},
+  blue:{bg:'#1c2540',fg:'#8ab0ff',dot:'#4C6EF5'},
+  red:{bg:'#3a2427',fg:'#ff8f8f',dot:'#EB5757'},
+  orange:{bg:'#3a2c1c',fg:'#f2ae7a',dot:'#F2994A'},
+  green:{bg:'#1d3327',fg:'#6fe0a0',dot:'#27AE60'},
+  purple:{bg:'#2b2038',fg:'#c9a0f5',dot:'#9B51E0'},
+  gray:{bg:'#2a2b2f',fg:'#a9a8a4',dot:'#9B9A96'}
 };
 const REPEAT_LABEL = {none:'', daily:'매일', weekly:'매주', monthly:'매월'};
 const WEEKDAYS = ['일','월','화','수','목','금','토'];
@@ -1401,6 +1658,7 @@ function applyLoadedPayload(parsed){
   payAdjStore = parsed.payAdj || { monthly: {} };
   evalStore = parsed.evalData || { weekly: {}, reducedHoursNames: [] };
   callStatsStore = parsed.callStats || { obJehu: {}, obJanggi: {}, raw: {}, offDeduction: [], attendanceDeduction: [] };
+  docubeStore = (callStatsStore && callStatsStore.docube) ? callStatsStore.docube : defaultDocubeStore();
   /* 이전(전역) 육아단축자 명단이 남아있으면, 아직 자체 명단이 없는 주차들에 1회 승계 */
   if(evalStore.reducedHoursNames && evalStore.reducedHoursNames.length){
     Object.keys(evalStore.weekly||{}).sort().forEach(k=>{
@@ -1414,6 +1672,7 @@ let localSaveInFlight = false;
 async function saveData(){
   localSaveInFlight = true;
   try{
+  callStatsStore.docube = docubeStore;
   const cleanPayload = JSON.parse(JSON.stringify({
     events: state.events, notices: state.notices,
     centers: state.centers, noticeCategories: state.noticeCategories,
@@ -1423,10 +1682,6 @@ async function saveData(){
 
   if(syncEnabled && !syncApplyingRemote){
     try{
-      const sizeKB = Math.round(new Blob([payload]).size/1024);
-      if(sizeKB > 900){
-        showSaveError(`⚠ 데이터 용량(${sizeKB}KB)이 커서 동기화 저장에 실패할 수 있어요. 공지 첨부파일을 정리해주세요.`);
-      }
       await supabaseUpsertRow(cleanPayload);
       hideSaveError();
       try{ localStorage.setItem(STORAGE_KEY, payload); }catch(e){}
@@ -1571,11 +1826,13 @@ function render(){
   updateTitle();
   updateTopControls();
   const vc = document.getElementById('viewContainer');
-  if(state.view==='month') vc.innerHTML = renderMonth();
+  if(state.view==='home') vc.innerHTML = renderHome();
+  else if(state.view==='month') vc.innerHTML = renderMonth();
   else if(state.view==='notices') vc.innerHTML = renderNotices();
   else if(state.view==='dutyReport') vc.innerHTML = renderDutyReport();
   else if(state.view==='salary') vc.innerHTML = renderSalaryView();
   else if(state.view==='eval') vc.innerHTML = renderEvalView();
+  else if(state.view==='docube'){ vc.innerHTML = renderDocubeView(); initDocubeView(); }
   else if(state.view==='callInput') vc.innerHTML = renderCallInputView();
   else if(state.view==='callSummary') vc.innerHTML = renderCallPlaceholder('종합현황');
   else if(state.view==='callRank') vc.innerHTML = renderCallPlaceholder('실적순위');
@@ -1593,7 +1850,9 @@ function updateTopControls(){
 function updateTitle(){
   const el = document.getElementById('viewTitle');
   const d = state.cursorDate;
-  if(state.view==='month'){
+  if(state.view==='home'){
+    el.textContent = '홈';
+  }else if(state.view==='month'){
     el.textContent = `${d.getFullYear()}년 ${d.getMonth()+1}월`;
   }else if(state.view==='notices'){
     el.textContent = '업무공지';
@@ -1603,6 +1862,8 @@ function updateTitle(){
     el.textContent = '급여내역';
   }else if(state.view==='eval'){
     el.textContent = '관리자평가';
+  }else if(state.view==='docube'){
+    el.textContent = '도급비 현황';
   }else if(state.view==='callInput'){
     el.textContent = '실적입력';
   }else if(state.view==='callSummary'){
@@ -1618,6 +1879,18 @@ function getWeekRange(d){
   const start = new Date(d); start.setDate(d.getDate()-d.getDay());
   const end = new Date(start); end.setDate(start.getDate()+6);
   return {start,end};
+}
+
+/* ============ Home view (내용은 추후 확정 예정) ============ */
+function renderHome(){
+  return `
+    <div style="display:flex;align-items:center;justify-content:center;min-height:60vh;">
+      <div style="text-align:center;color:var(--text-faint);">
+        <div style="font-size:14px;font-weight:600;color:var(--text-soft);">홈 탭 준비 중</div>
+        <div style="font-size:12.5px;margin-top:6px;">여기에 넣을 내용은 아직 정해지지 않았어요.</div>
+      </div>
+    </div>
+  `;
 }
 
 /* ============ Month view ============ */
@@ -1650,7 +1923,7 @@ function renderMonth(){
     const doneCount = taskItems.filter(e=>isEventDone(e,dateStr)).length;
     const progressPct = taskItems.length ? Math.round(doneCount/taskItems.length*100) : null;
     let chips = '';
-    dayEvents.slice(0,5).forEach(e=>{
+    dayEvents.forEach(e=>{
       const c = COLORS[e.color]||COLORS.white;
       const isSchedule = e.type==='schedule';
       const done = isEventDone(e, dateStr);
@@ -1674,7 +1947,7 @@ function renderMonth(){
         <span class="chip-title">${escapeHtml(e.title)}</span>
       </div>`;
     });
-    if(dayEvents.length>5) chips += `<div class="chip-more">+${dayEvents.length-5}개 더보기</div>`;
+    if(dayEvents.length>5) chips += `<div class="chip-more">스크롤해서 더보기 (총 ${dayEvents.length}개)</div>`;
     html += `<div class="day-cell ${inMonth?'':'dim'}" onclick="onDayCellClick('${dateStr}')"
       ondragover="onDayCellDragOver(event)" ondragleave="onDayCellDragLeave(event)" ondrop="onDayCellDrop(event,'${dateStr}')">
       <div class="day-num ${isToday?'today-num':''} ${numClass}">${cellDate.getDate()}</div>
@@ -2933,6 +3206,17 @@ let callStatsStore = {
   offDeduction: [],   /* 휴무차감 붙여넣기 레코드 배열 */
   attendanceDeduction: [] /* 근태차감 붙여넣기 레코드 배열 */
 }; /* 종합콜현황 전용 데이터, 다른 탭과 완전히 독립적 */
+function defaultDocubeStore(){
+  return {
+    prices: {
+      counselor: 3547000, centerHead: 4168000, teamLeader: 4108000,
+      specialCounsel: 4108000, km: 4108000, instructor: 4108000, qa: 4108000,
+      traineeFull: 810000
+    },
+    records: {} /* key: 'YYYY-M' */
+  };
+}
+let docubeStore = defaultDocubeStore(); /* 도급비 현황 전용 데이터, callStatsStore 안에 함께 저장(동기화)됨 */
 let dutyUndoStack = [];
 let dutyRedoStack = [];
 const DUTY_UNDO_LIMIT = 20;
@@ -3168,7 +3452,7 @@ function renderSalaryPreviewTable(rows, orgName){
       <td>${idx+1}</td>
       <td class="duty-name-cell" style="white-space:nowrap;">${escapeHtml(r.name||'')}</td>
       <td>${escapeHtml(r.sabun)}</td>
-      <td style="text-align:left;white-space:nowrap;">${escapeHtml(displayGradeShort(r.grade, isAggregate?r._org:orgName))}${r.hasSalaryRow?'':' <span style="color:#D64545;">⚠</span>'}</td>
+      <td style="text-align:left;white-space:nowrap;">${escapeHtml(displayGradeShort(r.grade, isAggregate?r._org:orgName))}${r.hasSalaryRow?'':' <span style="color:#ff8f8f;">⚠</span>'}</td>
       <td style="white-space:nowrap;">${dutyFmtDate(r.hireDate)}</td>
       <td style="white-space:nowrap;">${dutyFmtDate(r.transferDate)}</td>
       <td style="white-space:nowrap;">${dutyFmtDate(r.leaveDate)}</td>
@@ -3990,7 +4274,7 @@ function renderDutyProgressSummary(monthLabel){
     const snap = loadDutyMonthSnapshot(monthLabel, org);
     const count = snap && snap.employees ? snap.employees.length : 0;
     const locked = isDutyMonthLocked(monthLabel, org);
-    const status = count>0 ? `<span style="color:#1F8A4C;font-weight:700;">✅ 입력됨 (${count}명)</span>` : `<span style="color:var(--text-faint);">⬜ 미입력</span>`;
+    const status = count>0 ? `<span style="color:#6fe0a0;font-weight:700;">✅ 입력됨 (${count}명)</span>` : `<span style="color:var(--text-faint);">⬜ 미입력</span>`;
     return `<tr>
       <td style="text-align:left;font-weight:600;white-space:nowrap;">${escapeHtml(org)}</td>
       <td>${status}</td>
@@ -4435,10 +4719,10 @@ function openDutyValidationModal(){
   }else{
     const results = computeDutyValidation();
     if(results.length===0){
-      summaryEl.innerHTML = `<span style="color:#1F8A4C;">✅ 전체 ${dutyState.employees.length}명 모두 근태관리 원본의 요약 수치와 정확히 일치해요.</span>`;
+      summaryEl.innerHTML = `<span style="color:#6fe0a0;">✅ 전체 ${dutyState.employees.length}명 모두 근태관리 원본의 요약 수치와 정확히 일치해요.</span>`;
       bodyEl.innerHTML = '';
     }else{
-      summaryEl.innerHTML = `<span style="color:#D64545;">⚠ 전체 ${dutyState.employees.length}명 중 ${results.length}명에서 차이가 발견됐어요.</span> 공휴일 관련 차이는 자동 보정 때문일 수 있어요.`;
+      summaryEl.innerHTML = `<span style="color:#ff8f8f;">⚠ 전체 ${dutyState.employees.length}명 중 ${results.length}명에서 차이가 발견됐어요.</span> 공휴일 관련 차이는 자동 보정 때문일 수 있어요.`;
       bodyEl.innerHTML = results.map(r=>{
         const lines = r.mismatches.map(m=>
           `<div style="font-size:12px;padding:2px 0;">${escapeHtml(m.label)}: 원본 ${m.expected} → 지금 ${m.actual}${m.note?` <span style="color:var(--text-faint);">(${escapeHtml(m.note)})</span>`:''}</div>`
@@ -4531,7 +4815,7 @@ function renderDutyWorkCategoryStatsHtml(monthLabel, orgName, allCenters){
   const totalHeadcount = catStats.reduce((a,c)=>a+c.headcount,0);
   const grandTotalAll = catStats.reduce((a,c)=>a+rowGrandTotal(c), 0);
   const grandAvgAll = totalHeadcount ? grandTotalAll/totalHeadcount : 0;
-  const totalRow = `<tr style="background:#FAFAF8;">
+  const totalRow = `<tr style="background:var(--bg-card-2);">
     <td style="text-align:left;font-weight:800;white-space:nowrap;">전체 합계</td>
     <td style="font-weight:800;">${totalHeadcount}명</td>
     ${DUTY_SALARY_ITEM_DEFS.map(def=>{
@@ -5378,7 +5662,7 @@ function renderEvalSummaryDashboard(dateKey){
     <td>${r.complaintPenalty}점</td>
     <td>${r.resignCount}명 (${r.resignPenalty}점)</td>
     <td style="font-weight:800;">${r.total.toFixed(1)}점${p?gap(r.total,p.total):''}</td>
-    <td style="font-weight:800;color:#1F8A4C;">${r.incentive.toLocaleString()}원${p?gap(r.incentive,p.incentive):''}</td>
+    <td style="font-weight:800;color:#6fe0a0;">${r.incentive.toLocaleString()}원${p?gap(r.incentive,p.incentive):''}</td>
   </tr>`;
   }).join('');
   return `
@@ -5522,7 +5806,7 @@ function renderEvalEmployeeTable(week, locked){
       ${editCell('ctIn', evalFmtSeconds(e.ctIn))}
       ${editCell('ctOut', evalFmtSeconds(e.ctOut))}
       ${editCell('ctTotal', `<b>${evalFmtSeconds(e.ctTotal)}</b>`)}
-      <td>${months}개월${excludedTenure?' <span style="color:#D64545;">(제외)</span>':''}</td>
+      <td>${months}개월${excludedTenure?' <span style="color:#ff8f8f;">(제외)</span>':''}</td>
       <td>${isUnder80?'<span class="eval-badge eval-badge-red">✓</span>':''}</td>
     </tr>`;
   }).join('');
@@ -5999,6 +6283,672 @@ async function migrateLegacyDutyLocalStorage(){
     alert(`KB손해보험 장기계약정비센터 복무 데이터(${jeongbiMonths.join(', ')})를 첨부해주신 파일 기준으로 불러왔어요. 복무입력 탭에서 확인해주세요.`);
   }
 })();
+
+/* =========================================================
+   도급비 현황 (KTIS 관리자페이지 "매출 현황" 탭에서 그대로 이식)
+   도급단가표 기준 인건비 + 교육생 급여 + 통신비를 월별로 입력 → 산출세부에서 정리
+   다른 탭들과 완전히 독립적으로 동작하며, callStatsStore.docube 안에 저장되어 함께 동기화됩니다.
+========================================================= */
+const DOCUBE_COUNSELOR_ROLES = [
+  { key:'cs_counsel', label:'제휴상담' },
+  { key:'cs_support',  label:'제휴지원' },
+  { key:'acc',         label:'장기사고' },
+  { key:'contract',    label:'보유계약' },
+  { key:'valid_ob',    label:'실효OB' },
+  { key:'chat',        label:'채팅상담' },
+];
+const DOCUBE_STAFF_ROLES = [
+  { key:'centerHead',     label:'센터장',   priceKey:'centerHead' },
+  { key:'teamLeader',     label:'상담팀장', priceKey:'teamLeader' },
+  { key:'specialCounsel', label:'특화상담', priceKey:'specialCounsel' },
+  { key:'km',             label:'KM',      priceKey:'km' },
+  { key:'instructor',     label:'강사',    priceKey:'instructor' },
+  { key:'qa',             label:'QA',      priceKey:'qa' },
+];
+
+function docubeFormatWon(n){
+  if(n === null || n === undefined || isNaN(n)) n = 0;
+  return Math.round(n).toLocaleString('ko-KR') + '원';
+}
+function docubeCalcVat(supply){ return Math.round(supply * 0.1); }
+function docubeMonthKey(y,m){ return `${y}-${m+1}`; }
+function docubeComputeTraineePay(t, priceSet){
+  const base = t.passed ? priceSet.traineeFull : Math.round(priceSet.traineeFull/2);
+  const stdDays = t.stdDays > 0 ? t.stdDays : 23;
+  const actualDays = t.actualDays > 0 ? t.actualDays : 1;
+  const raw = (base/stdDays) * actualDays;
+  return Math.floor(raw / 100) * 100; // 100원 미만 절사
+}
+function docubeRecordTotals(rec){
+  const cSupply = DOCUBE_COUNSELOR_ROLES.reduce((a,r)=>a+(rec.counselorCounts[r.key]||0)*rec.prices.counselor,0);
+  const cCount = DOCUBE_COUNSELOR_ROLES.reduce((a,r)=>a+(rec.counselorCounts[r.key]||0),0);
+  const sSupply = DOCUBE_STAFF_ROLES.reduce((a,r)=>a+(rec.staffCounts[r.key]||0)*rec.prices[r.priceKey],0);
+  const sCount = DOCUBE_STAFF_ROLES.reduce((a,r)=>a+(rec.staffCounts[r.key]||0),0);
+  const tSupply = (rec.trainees||[]).reduce((a,t)=>a+docubeComputeTraineePay(t, rec.prices),0);
+  const teSupply = rec.telecom.supply||0;
+  const teVat = rec.telecom.vat||0;
+  const cVat = docubeCalcVat(cSupply), sVat = docubeCalcVat(sSupply), tVat = docubeCalcVat(tSupply);
+  const cTotal=cSupply+cVat, sTotal=sSupply+sVat, tTotal=tSupply+tVat, teTotal=teSupply+teVat;
+  const totalSupply = cSupply+sSupply+tSupply+teSupply;
+  const totalVat = cVat+sVat+tVat+teVat;
+  return { cSupply,cVat,cTotal,cCount, sSupply,sVat,sTotal,sCount, tSupply,tVat,tTotal,tCount:(rec.trainees||[]).length, teSupply,teVat,teTotal, totalSupply, totalVat, grand: totalSupply+totalVat };
+}
+
+let docubeSaveTimer = null;
+function saveDocubeData(){
+  clearTimeout(docubeSaveTimer);
+  docubeSaveTimer = setTimeout(()=>{ saveData(); }, 600);
+}
+
+function renderDocubeView(){
+  return `
+  <div class="docube-scope">
+    <div class="inner-tabs">
+      <div class="inner-tab" data-inner="docube-detail">산출세부</div>
+      <div class="inner-tab active" data-inner="docube-input">매출입력</div>
+    </div>
+
+    <div class="inner-page" id="inner-docube-detail">
+      <div class="rev-detail-toolbar">
+        <span class="rev-detail-hint">연도별로 묶어서 최신 달부터 보여드려요. 각 항목 옆 배지는 전월 대비 증감률입니다. 월 행을 클릭하면 항목별 상세가 펼쳐집니다.</span>
+      </div>
+      <div id="revDetailWrap"></div>
+    </div>
+
+    <div class="inner-page active" id="inner-docube-input">
+      <div class="stat-toolbar">
+        <div class="cal-nav">
+          <div class="cal-nav-btn" id="revPrev">‹</div>
+          <div class="cal-month-label" id="revMonthLabel">-</div>
+          <div class="cal-nav-btn" id="revNext">›</div>
+        </div>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span class="rev-saved-badge" id="revSavedBadge">미입력</span>
+          <div class="cal-today-btn" id="revTodayBtn">이번 달</div>
+        </div>
+      </div>
+
+      <div class="rev-grand">
+        <div>
+          <div class="label">총 청구액 (VAT 포함)</div>
+          <div class="value" id="revGrandTotal">0원</div>
+          <div class="rev-grand-sub" id="revGrandSub">공급가액 0원 · 부가세 0원</div>
+        </div>
+        <div class="rev-grand-breakdown" id="revGrandBreakdown"></div>
+      </div>
+
+      <div class="rev-section">
+        <div class="rev-section-title">상담원</div>
+        <div class="rev-section-sub">세부 업무별로 인원을 구분해서 입력하세요. 단가는 모두 동일합니다 (더블클릭하면 단가 수정 가능).</div>
+        <div id="revCounselorRows"></div>
+        <div class="rev-section-total-block">
+          <div class="stb-row"><span>인원</span><b><span id="revCounselorCount">0</span>명</b></div>
+          <div class="stb-row"><span>공급가액</span><b id="revCounselorSupply">0원</b></div>
+          <div class="stb-row"><span>부가세(10%)</span><b id="revCounselorVat">0원</b></div>
+          <div class="stb-row grand"><span>합계</span><b id="revCounselorTotal">0원</b></div>
+        </div>
+      </div>
+
+      <div class="rev-section">
+        <div class="rev-section-title">관리·전문 인력</div>
+        <div class="rev-section-sub">센터장 및 팀장/특화/KM/강사/QA 인원을 입력하세요.</div>
+        <div id="revStaffRows"></div>
+        <div class="rev-section-total-block">
+          <div class="stb-row"><span>공급가액</span><b id="revStaffSupply">0원</b></div>
+          <div class="stb-row"><span>부가세(10%)</span><b id="revStaffVat">0원</b></div>
+          <div class="stb-row grand"><span>합계</span><b id="revStaffTotal">0원</b></div>
+        </div>
+      </div>
+
+      <div class="rev-section">
+        <div class="rev-section-title">교육생</div>
+        <div class="rev-section-sub">'표준근무일수'는 환산표에서 일당을 조회하는 기준(해당 월의 근무일수, 17~23일)이고, '교육일수'는 교육생들이 실제로 나온 일수입니다. 같은 조건(인원/일수/수료여부)의 교육생을 한 번에 등록할 수 있어요. 교육비 = 일당 × 교육일수를 100원 미만 절사해서 계산하며, 미수료 시 단가가 반토막(40만 5천원 기준)으로 적용됩니다.</div>
+        <div class="trainee-add-row">
+          <select id="traineeStdDays" title="표준근무일수 (환산표 기준)">
+            <option value="17">표준 17일</option>
+            <option value="18">표준 18일</option>
+            <option value="19">표준 19일</option>
+            <option value="20">표준 20일</option>
+            <option value="21">표준 21일</option>
+            <option value="22">표준 22일</option>
+            <option value="23" selected>표준 23일</option>
+          </select>
+          <input type="number" id="traineeCount" min="1" max="200" placeholder="교육생 인원 (예: 5)">
+          <input type="number" id="traineeDays" min="1" max="31" placeholder="교육일수 (예: 20)">
+          <select id="traineeStatus">
+            <option value="pass">수료</option>
+            <option value="fail">미수료</option>
+          </select>
+          <div class="btn-primary gold" id="traineeAddBtn">일괄 등록</div>
+        </div>
+        <div class="trainee-list" id="traineeList"></div>
+        <div class="rev-section-total-block">
+          <div class="stb-row"><span>인원</span><b><span id="revTraineeCount">0</span>명</b></div>
+          <div class="stb-row"><span>공급가액</span><b id="revTraineeSupply">0원</b></div>
+          <div class="stb-row"><span>부가세(10%)</span><b id="revTraineeVat">0원</b></div>
+          <div class="stb-row grand"><span>합계</span><b id="revTraineeTotal">0원</b></div>
+        </div>
+      </div>
+
+      <div class="rev-section">
+        <div class="rev-section-title">기타 (통신비)</div>
+        <div class="rev-section-sub">공급가액과 부가세를 각각 직접 입력하세요.</div>
+        <div class="telecom-row">
+          <label>공급가액<input type="number" id="telecomSupply" min="0" placeholder="0"></label>
+          <label>부가세<input type="number" id="telecomVat" min="0" placeholder="0"></label>
+        </div>
+        <div class="rev-section-total-block">
+          <div class="stb-row"><span>공급가액</span><b id="revTelecomSupply">0원</b></div>
+          <div class="stb-row"><span>부가세</span><b id="revTelecomVat">0원</b></div>
+          <div class="stb-row grand"><span>합계</span><b id="revTelecomTotal">0원</b></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  `;
+}
+
+function initDocubeView(){
+  const root = document.querySelector('.docube-scope');
+  if(!root) return;
+
+  /* 내부 탭 전환 (산출세부 / 매출입력) */
+  root.querySelectorAll('.inner-tabs .inner-tab').forEach(tab=>{
+    tab.addEventListener('click', ()=>{
+      root.querySelectorAll('.inner-tabs .inner-tab').forEach(t=>t.classList.remove('active'));
+      tab.classList.add('active');
+      root.querySelectorAll('.inner-page').forEach(p=>p.classList.remove('active'));
+      root.querySelector('#inner-' + tab.dataset.inner).classList.add('active');
+    });
+  });
+
+  let prices = { ...docubeStore.prices };
+  let counselorCounts = {}; DOCUBE_COUNSELOR_ROLES.forEach(r=>counselorCounts[r.key]=0);
+  let staffCounts = {}; DOCUBE_STAFF_ROLES.forEach(r=>staffCounts[r.key]=0);
+  let trainees = [];
+  let nextTraineeId = 1;
+  let telecom = { supply:0, vat:0 };
+
+  /* 최초 1회, 저장된 데이터가 없으면 2026년 7월 실제 청구서 데이터로 시작 (원본 파일에 있던 이관 데이터) */
+  let seeded = false;
+  if(Object.keys(docubeStore.records).length === 0){
+    docubeStore.records[docubeMonthKey(2026,6)] = {
+      year: 2026, month: 6, // 7월 (0-indexed)
+      counselorCounts: {
+        cs_counsel: 33.363636363636367, cs_support: 11, acc: 90.36363636363636,
+        contract: 6.454545454545455, valid_ob: 1.8181818181818181, chat: 4,
+      },
+      staffCounts: { centerHead: 1, teamLeader: 12, specialCounsel: 2, km: 2, instructor: 2, qa: 7 },
+      trainees: [
+        { id:1, stdDays:22, actualDays:2, passed:true },
+        { id:2, stdDays:22, actualDays:2, passed:true },
+        { id:3, stdDays:22, actualDays:2, passed:true },
+        { id:4, stdDays:22, actualDays:2, passed:true },
+        { id:5, stdDays:22, actualDays:2, passed:true },
+        { id:6, stdDays:22, actualDays:2, passed:true },
+      ],
+      telecom: { supply: 69155, vat: 6915 },
+      prices: { ...prices },
+    };
+    seeded = true;
+  }
+
+  let revenueRecords = new Map(Object.entries(docubeStore.records));
+
+  let maxId = 0;
+  revenueRecords.forEach(rec=>{ (rec.trainees||[]).forEach(t=>{ if(t.id>maxId) maxId=t.id; }); });
+  nextTraineeId = maxId+1;
+
+  const today0b = new Date();
+  let revYear = today0b.getFullYear();
+  let revMonth = today0b.getMonth();
+  if(revenueRecords.size > 0){
+    const keys = Array.from(revenueRecords.keys()).sort((a,b)=>{
+      const [ay,am]=a.split('-').map(Number), [by,bm]=b.split('-').map(Number);
+      return (ay*12+am) - (by*12+bm);
+    });
+    const lastRec = revenueRecords.get(keys[keys.length-1]);
+    revYear = lastRec.year; revMonth = lastRec.month;
+  }
+
+  function persistRecords(){
+    docubeStore.records = Object.fromEntries(revenueRecords);
+    docubeStore.prices = { ...prices };
+    saveDocubeData();
+  }
+  if(seeded) persistRecords();
+
+  /* ---------- 상담원 섹션 ---------- */
+  const counselorRowsEl = document.getElementById('revCounselorRows');
+  const counselorCountEl = document.getElementById('revCounselorCount');
+  const counselorSupplyEl = document.getElementById('revCounselorSupply');
+  const counselorVatEl = document.getElementById('revCounselorVat');
+  const counselorTotalEl = document.getElementById('revCounselorTotal');
+
+  function renderCounselorRows(){
+    counselorRowsEl.innerHTML = DOCUBE_COUNSELOR_ROLES.map(r => `
+      <div class="rev-row" data-role="${r.key}">
+        <span class="rev-label">${r.label}</span>
+        <span class="rev-price" data-pricekey="counselor" title="더블클릭하여 단가 수정">${docubeFormatWon(prices.counselor)}</span>
+        <span class="rev-x">×</span>
+        <input type="number" class="rev-count-input" min="0" data-count="${r.key}" value="${counselorCounts[r.key] || ''}" placeholder="0">
+        <span class="rev-subtotal" data-subtotal="${r.key}">${docubeFormatWon(0)}</span>
+      </div>
+    `).join('');
+
+    counselorRowsEl.querySelectorAll('.rev-count-input').forEach(inp=>{
+      inp.addEventListener('input', ()=>{
+        counselorCounts[inp.dataset.count] = Number(inp.value) || 0;
+        updateCounselorSection();
+        syncCurrentMonth();
+      });
+    });
+    bindPriceEdit(counselorRowsEl, ()=>{ renderCounselorRows(); updateCounselorSection(); syncCurrentMonth(); });
+  }
+
+  function updateCounselorSection(){
+    let totalCount = 0;
+    DOCUBE_COUNSELOR_ROLES.forEach(r=>{
+      const cnt = counselorCounts[r.key] || 0;
+      totalCount += cnt;
+      const sub = counselorRowsEl.querySelector(`[data-subtotal="${r.key}"]`);
+      if(sub) sub.textContent = docubeFormatWon(cnt * prices.counselor);
+      const priceEl = counselorRowsEl.querySelector(`[data-role="${r.key}"] .rev-price`);
+      if(priceEl) priceEl.textContent = docubeFormatWon(prices.counselor);
+    });
+    const supply = totalCount * prices.counselor;
+    const vat = docubeCalcVat(supply);
+    counselorCountEl.textContent = totalCount;
+    counselorSupplyEl.textContent = docubeFormatWon(supply);
+    counselorVatEl.textContent = docubeFormatWon(vat);
+    counselorTotalEl.textContent = docubeFormatWon(supply + vat);
+  }
+  function counselorGrandTotal(){
+    const totalCount = DOCUBE_COUNSELOR_ROLES.reduce((a,r)=>a+(counselorCounts[r.key]||0),0);
+    return totalCount * prices.counselor;
+  }
+
+  /* ---------- 관리·전문 인력 섹션 ---------- */
+  const staffRowsEl = document.getElementById('revStaffRows');
+  const staffSupplyEl = document.getElementById('revStaffSupply');
+  const staffVatEl = document.getElementById('revStaffVat');
+  const staffTotalEl = document.getElementById('revStaffTotal');
+
+  function renderStaffRows(){
+    staffRowsEl.innerHTML = DOCUBE_STAFF_ROLES.map(r => `
+      <div class="rev-row" data-role="${r.key}">
+        <span class="rev-label">${r.label}</span>
+        <span class="rev-price" data-pricekey="${r.priceKey}" title="더블클릭하여 단가 수정">${docubeFormatWon(prices[r.priceKey])}</span>
+        <span class="rev-x">×</span>
+        <input type="number" class="rev-count-input" min="0" data-count="${r.key}" value="${staffCounts[r.key] || ''}" placeholder="0">
+        <span class="rev-subtotal" data-subtotal="${r.key}">${docubeFormatWon(0)}</span>
+      </div>
+    `).join('');
+
+    staffRowsEl.querySelectorAll('.rev-count-input').forEach(inp=>{
+      inp.addEventListener('input', ()=>{
+        staffCounts[inp.dataset.count] = Number(inp.value) || 0;
+        updateStaffSection();
+        syncCurrentMonth();
+      });
+    });
+    bindPriceEdit(staffRowsEl, ()=>{ renderStaffRows(); updateStaffSection(); syncCurrentMonth(); });
+  }
+
+  function updateStaffSection(){
+    let total = 0;
+    DOCUBE_STAFF_ROLES.forEach(r=>{
+      const cnt = staffCounts[r.key] || 0;
+      const amt = cnt * prices[r.priceKey];
+      total += amt;
+      const sub = staffRowsEl.querySelector(`[data-subtotal="${r.key}"]`);
+      if(sub) sub.textContent = docubeFormatWon(amt);
+      const priceEl = staffRowsEl.querySelector(`[data-role="${r.key}"] .rev-price`);
+      if(priceEl) priceEl.textContent = docubeFormatWon(prices[r.priceKey]);
+    });
+    const vat = docubeCalcVat(total);
+    staffSupplyEl.textContent = docubeFormatWon(total);
+    staffVatEl.textContent = docubeFormatWon(vat);
+    staffTotalEl.textContent = docubeFormatWon(total + vat);
+  }
+  function staffGrandTotal(){
+    return DOCUBE_STAFF_ROLES.reduce((a,r)=>a+(staffCounts[r.key]||0)*prices[r.priceKey],0);
+  }
+
+  /* ---------- 단가 더블클릭 수정 (공통) ---------- */
+  function bindPriceEdit(container, onChanged){
+    container.querySelectorAll('.rev-price').forEach(el=>{
+      el.addEventListener('dblclick', ()=>{
+        const key = el.dataset.pricekey;
+        const cur = prices[key];
+        const input = prompt('단가를 수정하세요 (원)', cur);
+        if(input === null) return;
+        const num = Number(String(input).replace(/,/g,''));
+        if(isNaN(num) || num < 0) return;
+        prices[key] = num;
+        onChanged();
+      });
+    });
+  }
+
+  /* ---------- 교육생 섹션 ---------- */
+  const traineeStdDaysSelect = document.getElementById('traineeStdDays');
+  const traineeCountInput = document.getElementById('traineeCount');
+  const traineeDaysInput = document.getElementById('traineeDays');
+  const traineeStatusSelect = document.getElementById('traineeStatus');
+  const traineeAddBtn = document.getElementById('traineeAddBtn');
+  const traineeListEl = document.getElementById('traineeList');
+  const traineeCountEl = document.getElementById('revTraineeCount');
+  const traineeSupplyEl = document.getElementById('revTraineeSupply');
+  const traineeVatEl = document.getElementById('revTraineeVat');
+  const traineeTotalEl = document.getElementById('revTraineeTotal');
+
+  function computeTraineePay(t){ return docubeComputeTraineePay(t, prices); }
+
+  traineeAddBtn.addEventListener('click', ()=>{
+    const headcount = Number(traineeCountInput.value) || 1;
+    const actualDays = Number(traineeDaysInput.value);
+    const stdDays = Number(traineeStdDaysSelect.value);
+    if(!actualDays || actualDays <= 0){ traineeDaysInput.focus(); return; }
+    if(headcount <= 0){ traineeCountInput.focus(); return; }
+    const passed = traineeStatusSelect.value === 'pass';
+    for(let i=0; i<headcount; i++){
+      trainees.push({ id: nextTraineeId++, stdDays, actualDays, passed });
+    }
+    traineeCountInput.value = '';
+    traineeDaysInput.value = '';
+    renderTrainees();
+    syncCurrentMonth();
+  });
+
+  function renderTrainees(){
+    if(trainees.length === 0){
+      traineeListEl.innerHTML = `<div class="trainee-empty">추가된 교육생이 없습니다.</div>`;
+    } else {
+      traineeListEl.innerHTML = trainees.map(t=>{
+        const pay = computeTraineePay(t);
+        return `
+          <div class="trainee-item ${t.passed ? '' : 'fail'}" data-id="${t.id}">
+            <span class="ti-days">실출근 ${t.actualDays}일 (표준 ${t.stdDays}일)</span>
+            <span class="ti-status ${t.passed ? 'pass' : 'fail'}">${t.passed ? '수료' : '미수료'}</span>
+            <span class="ti-pay">${docubeFormatWon(pay)}</span>
+            <span class="ti-del" data-del="${t.id}">×</span>
+          </div>
+        `;
+      }).join('');
+      traineeListEl.querySelectorAll('.ti-del').forEach(btn=>{
+        btn.addEventListener('click', ()=>{
+          trainees = trainees.filter(t=>t.id !== Number(btn.dataset.del));
+          renderTrainees();
+          syncCurrentMonth();
+        });
+      });
+    }
+    const supply = traineeGrandTotal();
+    const vat = docubeCalcVat(supply);
+    traineeCountEl.textContent = trainees.length;
+    traineeSupplyEl.textContent = docubeFormatWon(supply);
+    traineeVatEl.textContent = docubeFormatWon(vat);
+    traineeTotalEl.textContent = docubeFormatWon(supply + vat);
+  }
+  function traineeGrandTotal(){
+    return trainees.reduce((a,t)=>a+computeTraineePay(t),0);
+  }
+
+  /* ---------- 통신비 섹션 ---------- */
+  const telecomSupplyInput = document.getElementById('telecomSupply');
+  const telecomVatInput = document.getElementById('telecomVat');
+  const telecomSupplyEl = document.getElementById('revTelecomSupply');
+  const telecomVatEl = document.getElementById('revTelecomVat');
+  const telecomTotalEl = document.getElementById('revTelecomTotal');
+
+  function updateTelecom(){
+    telecom.supply = Number(telecomSupplyInput.value) || 0;
+    telecom.vat = Number(telecomVatInput.value) || 0;
+    telecomSupplyEl.textContent = docubeFormatWon(telecom.supply);
+    telecomVatEl.textContent = docubeFormatWon(telecom.vat);
+    telecomTotalEl.textContent = docubeFormatWon(telecom.supply + telecom.vat);
+    syncCurrentMonth();
+  }
+  telecomSupplyInput.addEventListener('input', updateTelecom);
+  telecomVatInput.addEventListener('input', updateTelecom);
+
+  /* ---------- 총 청구액 (VAT 포함, 입력 화면 상단 실시간 표시) ---------- */
+  const grandTotalEl = document.getElementById('revGrandTotal');
+  const grandSubEl = document.getElementById('revGrandSub');
+  const grandBreakdownEl = document.getElementById('revGrandBreakdown');
+
+  function updateGrandTotal(){
+    const cSupply = counselorGrandTotal(), cVat = docubeCalcVat(cSupply);
+    const sSupply = staffGrandTotal(), sVat = docubeCalcVat(sSupply);
+    const tSupply = traineeGrandTotal(), tVat = docubeCalcVat(tSupply);
+    const teSupply = telecom.supply, teVat = telecom.vat;
+
+    const totalSupply = cSupply + sSupply + tSupply + teSupply;
+    const totalVat = cVat + sVat + tVat + teVat;
+
+    grandTotalEl.textContent = docubeFormatWon(totalSupply + totalVat);
+    grandSubEl.textContent = `공급가액 ${docubeFormatWon(totalSupply)} · 부가세 ${docubeFormatWon(totalVat)}`;
+    grandBreakdownEl.innerHTML = `
+      <div class="gb-item"><div class="gb-label">상담원</div><div class="gb-value">${docubeFormatWon(cSupply + cVat)}</div></div>
+      <div class="gb-item"><div class="gb-label">관리·전문</div><div class="gb-value">${docubeFormatWon(sSupply + sVat)}</div></div>
+      <div class="gb-item"><div class="gb-label">교육생</div><div class="gb-value">${docubeFormatWon(tSupply + tVat)}</div></div>
+      <div class="gb-item"><div class="gb-label">통신비</div><div class="gb-value">${docubeFormatWon(teSupply + teVat)}</div></div>
+    `;
+  }
+
+  /* ---------- 월별 저장 / 불러오기 ---------- */
+  const monthLabelEl = document.getElementById('revMonthLabel');
+  const savedBadgeEl = document.getElementById('revSavedBadge');
+
+  function hasMeaningfulData(){
+    const anyCounselor = DOCUBE_COUNSELOR_ROLES.some(r=>(counselorCounts[r.key]||0) > 0);
+    const anyStaff = DOCUBE_STAFF_ROLES.some(r=>(staffCounts[r.key]||0) > 0);
+    return anyCounselor || anyStaff || trainees.length > 0 || telecom.supply > 0 || telecom.vat > 0;
+  }
+
+  function syncCurrentMonth(){
+    updateGrandTotal();
+    const key = docubeMonthKey(revYear, revMonth);
+    if(hasMeaningfulData()){
+      revenueRecords.set(key, {
+        year: revYear, month: revMonth,
+        counselorCounts: { ...counselorCounts },
+        staffCounts: { ...staffCounts },
+        trainees: trainees.map(t=>({ ...t })),
+        telecom: { ...telecom },
+        prices: { ...prices },
+      });
+      savedBadgeEl.textContent = '입력됨';
+      savedBadgeEl.classList.add('on');
+    } else {
+      revenueRecords.delete(key);
+      savedBadgeEl.textContent = '미입력';
+      savedBadgeEl.classList.remove('on');
+    }
+    persistRecords();
+    renderDetailView();
+  }
+
+  function loadMonth(y, m){
+    revYear = y; revMonth = m;
+    monthLabelEl.textContent = `${y}년 ${m+1}월`;
+    const rec = revenueRecords.get(docubeMonthKey(y,m));
+
+    if(rec){
+      counselorCounts = { ...rec.counselorCounts };
+      staffCounts = { ...rec.staffCounts };
+      trainees = rec.trainees.map(t=>({ ...t }));
+      telecom = { ...rec.telecom };
+      savedBadgeEl.textContent = '입력됨';
+      savedBadgeEl.classList.add('on');
+    } else {
+      DOCUBE_COUNSELOR_ROLES.forEach(r=>counselorCounts[r.key]=0);
+      DOCUBE_STAFF_ROLES.forEach(r=>staffCounts[r.key]=0);
+      trainees = [];
+      telecom = { supply:0, vat:0 };
+      savedBadgeEl.textContent = '미입력';
+      savedBadgeEl.classList.remove('on');
+    }
+    telecomSupplyInput.value = telecom.supply || '';
+    telecomVatInput.value = telecom.vat || '';
+    telecomSupplyEl.textContent = docubeFormatWon(telecom.supply);
+    telecomVatEl.textContent = docubeFormatWon(telecom.vat);
+    telecomTotalEl.textContent = docubeFormatWon(telecom.supply + telecom.vat);
+
+    renderCounselorRows();
+    renderStaffRows();
+    updateCounselorSection();
+    updateStaffSection();
+    renderTrainees();
+    updateGrandTotal();
+  }
+
+  document.getElementById('revPrev').addEventListener('click', ()=>{
+    let m = revMonth - 1, y = revYear;
+    if(m < 0){ m = 11; y--; }
+    loadMonth(y, m);
+  });
+  document.getElementById('revNext').addEventListener('click', ()=>{
+    let m = revMonth + 1, y = revYear;
+    if(m > 11){ m = 0; y++; }
+    loadMonth(y, m);
+  });
+  document.getElementById('revTodayBtn').addEventListener('click', ()=>{
+    loadMonth(today0b.getFullYear(), today0b.getMonth());
+  });
+
+  /* ---------- 산출세부 (연도별 · 월별 요약, 클릭하면 항목별 상세) ---------- */
+  const detailWrapEl = document.getElementById('revDetailWrap');
+  let openMonthKey = null;
+
+  function prevMonthKeyFn(y, m){
+    let pm = m - 1, py = y;
+    if(pm < 0){ pm = 11; py--; }
+    return docubeMonthKey(py, pm);
+  }
+
+  function deltaBadge(cur, prev){
+    if(prev === undefined || prev === null) return '<span class="delta none">전월 데이터 없음</span>';
+    if(prev === 0){
+      if(cur === 0) return '<span class="delta flat">– 0%</span>';
+      return '<span class="delta up">▲ 신규</span>';
+    }
+    const pct = ((cur - prev) / prev) * 100;
+    if(Math.abs(pct) < 0.05) return '<span class="delta flat">– 0%</span>';
+    const cls = pct > 0 ? 'up' : 'down';
+    const arrow = pct > 0 ? '▲' : '▼';
+    return `<span class="delta ${cls}">${arrow} ${Math.abs(pct).toFixed(1)}%</span>`;
+  }
+
+  function renderDetailView(){
+    if(revenueRecords.size === 0){
+      detailWrapEl.innerHTML = `<div class="rev-detail-empty-note">매출입력 탭에서 데이터를 입력하면 이곳에 월별로 정리되어 표시됩니다.</div>`;
+      return;
+    }
+
+    const byYear = new Map();
+    Array.from(revenueRecords.values()).forEach(rec=>{
+      if(!byYear.has(rec.year)) byYear.set(rec.year, []);
+      byYear.get(rec.year).push(rec);
+    });
+    const years = Array.from(byYear.keys()).sort((a,b) => b - a);
+
+    detailWrapEl.innerHTML = years.map(y=>{
+      const recs = byYear.get(y).sort((a,b) => b.month - a.month);
+      const yearGrand = recs.reduce((a,r) => a + docubeRecordTotals(r).grand, 0);
+
+      const monthCards = recs.map(rec=>{
+        const t = docubeRecordTotals(rec);
+        const key = docubeMonthKey(rec.year, rec.month);
+        const isOpen = openMonthKey === key;
+
+        const prevRec = revenueRecords.get(prevMonthKeyFn(rec.year, rec.month));
+        const pt = prevRec ? docubeRecordTotals(prevRec) : null;
+
+        const detailCols = [
+          { title:'상담원', rows: DOCUBE_COUNSELOR_ROLES.map(r => ({ label:r.label, count:rec.counselorCounts[r.key]||0, amt:(rec.counselorCounts[r.key]||0)*rec.prices.counselor })),
+            footer: { supply:t.cSupply, vat:t.cVat, total:t.cTotal } },
+          { title:'관리·전문', rows: DOCUBE_STAFF_ROLES.map(r => ({ label:r.label, count:rec.staffCounts[r.key]||0, amt:(rec.staffCounts[r.key]||0)*rec.prices[r.priceKey] })),
+            footer: { supply:t.sSupply, vat:t.sVat, total:t.sTotal } },
+          { title:'교육생', rows: (rec.trainees||[]).length === 0
+              ? [{ label:'등록 없음', count:'', amt:0 }]
+              : rec.trainees.map((tr,i) => ({ label:`${i+1}. 실출근 ${tr.actualDays}일/표준 ${tr.stdDays}일 (${tr.passed?'수료':'미수료'})`, count:'', amt: docubeComputeTraineePay(tr, rec.prices) })),
+            footer: { supply:t.tSupply, vat:t.tVat, total:t.tTotal } },
+          { title:'통신비', rows: [
+              { label:'공급가액', count:'', amt: rec.telecom.supply||0 },
+              { label:'부가세',   count:'', amt: rec.telecom.vat||0 },
+            ],
+            footer: { supply:t.teSupply, vat:t.teVat, total:t.teTotal } },
+        ];
+
+        return `
+          <div class="rev-month-card">
+            <div class="rev-month-row ${isOpen ? 'open' : ''}" data-key="${key}">
+              <div class="mr-month">${rec.month+1}월</div>
+              <div class="mr-metric"><div class="mm-label">상담원</div><div class="mm-value">${t.cCount}명 · ${docubeFormatWon(t.cTotal)}</div>${deltaBadge(t.cTotal, pt ? pt.cTotal : null)}</div>
+              <div class="mr-metric"><div class="mm-label">관리·전문</div><div class="mm-value">${t.sCount}명 · ${docubeFormatWon(t.sTotal)}</div>${deltaBadge(t.sTotal, pt ? pt.sTotal : null)}</div>
+              <div class="mr-metric"><div class="mm-label">교육생</div><div class="mm-value">${t.tCount}명 · ${docubeFormatWon(t.tTotal)}</div>${deltaBadge(t.tTotal, pt ? pt.tTotal : null)}</div>
+              <div class="mr-metric"><div class="mm-label">통신비</div><div class="mm-value">${docubeFormatWon(t.teTotal)}</div>${deltaBadge(t.teTotal, pt ? pt.teTotal : null)}</div>
+              <div class="mr-total-wrap">
+                <div class="mr-total">${docubeFormatWon(t.grand)}</div>
+                ${deltaBadge(t.grand, pt ? pt.grand : null)}
+              </div>
+              <div class="mr-chev">▸</div>
+            </div>
+            <div class="rev-month-detail ${isOpen ? 'open' : ''}">
+              <div class="rev-detail-grid">
+                ${detailCols.map(col => `
+                  <div>
+                    <div class="rev-detail-col-title">${col.title}</div>
+                    ${col.rows.map(r => `
+                      <div class="rev-detail-item">
+                        <span>${r.label}${r.count !== '' ? ` (${r.count}명)` : ''}</span>
+                        <b>${docubeFormatWon(r.amt)}</b>
+                      </div>
+                    `).join('')}
+                    <div class="rev-detail-footer">
+                      <div class="rev-detail-item"><span>공급가액</span><b>${docubeFormatWon(col.footer.supply)}</b></div>
+                      <div class="rev-detail-item"><span>부가세</span><b>${docubeFormatWon(col.footer.vat)}</b></div>
+                      <div class="rev-detail-item total"><span>합계</span><b>${docubeFormatWon(col.footer.total)}</b></div>
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+              <div class="rev-detail-grandline">
+                <span>이 달 공급가액 합계 ${docubeFormatWon(t.totalSupply)}</span>
+                <span>부가세 합계 ${docubeFormatWon(t.totalVat)}</span>
+                <span class="rdg-total">청구액(VAT포함) ${docubeFormatWon(t.grand)}</span>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      return `
+        <div class="rev-year-block">
+          <div class="rev-year-head">
+            <span class="yh-label">${y}년</span>
+            <span class="yh-total">연간 합계 <b>${docubeFormatWon(yearGrand)}</b></span>
+          </div>
+          ${monthCards}
+        </div>
+      `;
+    }).join('');
+
+    detailWrapEl.querySelectorAll('.rev-month-row').forEach(row=>{
+      row.addEventListener('click', ()=>{
+        const key = row.dataset.key;
+        openMonthKey = (openMonthKey === key) ? null : key;
+        renderDetailView();
+      });
+    });
+  }
+
+  /* 초기 렌더: 저장된 마지막(또는 최신) 월 입력 화면 + 산출세부 */
+  loadMonth(revYear, revMonth);
+  renderDetailView();
+}
 </script>
 </body>
 </html>
