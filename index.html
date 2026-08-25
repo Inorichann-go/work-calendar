@@ -710,6 +710,15 @@
 .docube-scope .rev-grand-breakdown .gb-value{ font-size:13px; color:var(--text-0); font-weight:700; }
 .docube-scope .rev-grand-sub{ font-size:11.5px; color:var(--text-2); font-weight:600; margin-top:4px; }
 
+.docube-scope .rev-section-cols{
+  display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px; align-items:stretch;
+}
+.docube-scope .rev-section-cols.rev-section-cols-uneven{ grid-template-columns:1.6fr 1fr; }
+.docube-scope .rev-section-cols .rev-section{ margin-bottom:0; height:100%; display:flex; flex-direction:column; }
+.docube-scope .rev-section-cols .rev-section .rev-section-total-block{ margin-top:auto; }
+@media (max-width:900px){
+  .docube-scope .rev-section-cols{ grid-template-columns:1fr; }
+}
 .docube-scope .rev-section{
   background:var(--bg-card);
   border:1px solid var(--border-light);
@@ -721,23 +730,24 @@
 .docube-scope .rev-section-sub{ font-size:12px; color:var(--ink-2); line-height:1.6; margin-bottom:14px; }
 
 .docube-scope .rev-row{
-  display:flex; align-items:center; gap:12px;
+  display:flex; align-items:center; gap:8px;
   padding:9px 0;
   border-bottom:1px solid var(--border-light);
 }
 .docube-scope .rev-row:last-of-type{ border-bottom:none; }
-.docube-scope .rev-row .rev-label{ flex:1; font-size:13px; font-weight:700; color:var(--ink-0); }
+.docube-scope .rev-row .rev-label{ flex:0 0 auto; min-width:60px; font-size:13px; font-weight:700; color:var(--ink-0); }
 .docube-scope .rev-row .rev-price{
-  width:110px; text-align:right; font-size:11.5px; color:var(--ink-2); font-weight:600;
-  cursor:pointer; border-bottom:1px dashed transparent;
+  width:auto; text-align:left; font-size:11.5px; color:var(--ink-2); font-weight:600;
+  cursor:pointer; border-bottom:1px dashed transparent; white-space:nowrap;
 }
 .docube-scope .rev-row .rev-price:hover{ color:var(--ink-0); border-bottom-color:var(--ink-2); }
+.docube-scope .rev-row .rev-row-right{ display:flex; align-items:center; gap:6px; margin-left:auto; flex:none; }
 .docube-scope .rev-row .rev-count-input{
-  width:64px; padding:6px 8px; border:1px solid var(--border-light); border-radius:7px;
-  text-align:center; font-size:13px; font-weight:700; color:var(--ink-0); background:var(--bg-card);
+  width:76px; padding:6px 6px; border:1px solid var(--border-light); border-radius:7px;
+  text-align:center; font-size:12.5px; font-weight:700; color:var(--ink-0); background:var(--bg-card);
 }
 .docube-scope .rev-row .rev-x{ font-size:12px; color:var(--ink-2); }
-.docube-scope .rev-row .rev-subtotal{ width:126px; text-align:right; font-size:13px; font-weight:800; color:var(--ink-0); }
+.docube-scope .rev-row .rev-subtotal{ width:92px; text-align:right; font-size:13px; font-weight:800; color:var(--ink-0); }
 
 .docube-scope .rev-section-total-block{
   margin-top:8px; padding-top:10px;
@@ -892,7 +902,15 @@
         </div>
       </div>
       <button class="tab" data-view="eval" onclick="switchView('eval')"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7.5 4h9v3.6a4.5 4.5 0 0 1-9 0Z"/><path d="M5.7 6H4a1.8 1.8 0 0 0 1.7 3.6M18.3 6H20a1.8 1.8 0 0 1-1.7 3.6"/><path d="M12 11.6v3M9.3 20h5.4M10.4 17.2h3.2v2.8h-3.2Z"/></svg></span><span class="label">관리자평가</span></button>
-      <button class="tab" data-view="docube" onclick="switchView('docube')"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-2.2-1.6L14 21l-2-1.6L10 21l-2.2-1.6L6 21Z"/><path d="M9 8.5h6M9 12h6"/></svg></span><span class="label">도급비 현황</span></button>
+      <div class="nav-group-wrap">
+        <button class="tab nav-group-trigger" id="docubeGroupTrigger" onclick="toggleDocubeGroupMenu(event)">
+          <span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-2.2-1.6L14 21l-2-1.6L10 21l-2.2-1.6L6 21Z"/><path d="M9 8.5h6M9 12h6"/></svg></span><span class="label">도급비 현황</span><span class="nav-group-chevron" id="docubeGroupChevron">▸</span>
+        </button>
+        <div class="nav-group-children hidden" id="docubeGroupChildren">
+          <button class="tab tab-sub" data-view="docubeDetail" onclick="switchView('docubeDetail')"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 20V11M10 20V4.5M15.5 20v-6.5M2.5 20h19"/></svg></span><span class="label">산출세부</span></button>
+          <button class="tab tab-sub" data-view="docubeInput" onclick="switchView('docubeInput')"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5v10.5M8.2 10.5 12 14.3l3.8-3.8"/><path d="M4.5 15v3.2a1.8 1.8 0 0 0 1.8 1.8h11.4a1.8 1.8 0 0 0 1.8-1.8V15"/></svg></span><span class="label">매출입력</span></button>
+        </div>
+      </div>
     </nav>
     <div class="settings-menu-wrap">
       <button class="tab" id="sidebarSettingsTrigger" onclick="toggleSidebarSettingsMenu(event)"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2.8v2.6M12 18.6v2.6M4.6 4.6l1.8 1.8M17.6 17.6l1.8 1.8M2.8 12h2.6M18.6 12h2.6M4.6 19.4l1.8-1.8M17.6 6.4l1.8-1.8"/></svg></span><span class="label">설정</span></button>
@@ -1771,6 +1789,8 @@ let dutyGroupExpanded = false;
 const DUTY_GROUP_VIEWS = ['duty','dutyReport','salary'];
 let callGroupExpanded = false;
 const CALL_GROUP_VIEWS = ['callSummary','callRank','callInput'];
+let docubeGroupExpanded = false;
+const DOCUBE_GROUP_VIEWS = ['docubeDetail','docubeInput'];
 function toggleCallGroupMenu(ev){
   if(ev) ev.stopPropagation();
   callGroupExpanded = !callGroupExpanded;
@@ -1801,13 +1821,30 @@ function updateDutyGroupUI(){
   const triggerEl = document.getElementById('dutyGroupTrigger');
   if(triggerEl) triggerEl.classList.toggle('active', isDutyView);
 }
+function toggleDocubeGroupMenu(ev){
+  if(ev) ev.stopPropagation();
+  docubeGroupExpanded = !docubeGroupExpanded;
+  updateDocubeGroupUI();
+}
+function updateDocubeGroupUI(){
+  const isDocubeView = DOCUBE_GROUP_VIEWS.includes(state.view);
+  const expanded = docubeGroupExpanded || isDocubeView;
+  const childrenEl = document.getElementById('docubeGroupChildren');
+  const chevronEl = document.getElementById('docubeGroupChevron');
+  if(childrenEl) childrenEl.classList.toggle('hidden', !expanded);
+  if(chevronEl) chevronEl.textContent = expanded ? '▾' : '▸';
+  const triggerEl = document.getElementById('docubeGroupTrigger');
+  if(triggerEl) triggerEl.classList.toggle('active', isDocubeView);
+}
 function switchView(view){
   state.view = view;
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active', t.dataset.view===view));
   if(DUTY_GROUP_VIEWS.includes(view)) dutyGroupExpanded = true;
   if(CALL_GROUP_VIEWS.includes(view)) callGroupExpanded = true;
+  if(DOCUBE_GROUP_VIEWS.includes(view)) docubeGroupExpanded = true;
   updateDutyGroupUI();
   updateCallGroupUI();
+  updateDocubeGroupUI();
   render();
 }
 function navPrev(){ moveCursor(-1); }
@@ -1832,7 +1869,8 @@ function render(){
   else if(state.view==='dutyReport') vc.innerHTML = renderDutyReport();
   else if(state.view==='salary') vc.innerHTML = renderSalaryView();
   else if(state.view==='eval') vc.innerHTML = renderEvalView();
-  else if(state.view==='docube'){ vc.innerHTML = renderDocubeView(); initDocubeView(); }
+  else if(state.view==='docubeDetail'){ vc.innerHTML = renderDocubeDetailView(); initDocubeDetailView(); }
+  else if(state.view==='docubeInput'){ vc.innerHTML = renderDocubeInputView(); initDocubeInputView(); }
   else if(state.view==='callInput') vc.innerHTML = renderCallInputView();
   else if(state.view==='callSummary') vc.innerHTML = renderCallPlaceholder('종합현황');
   else if(state.view==='callRank') vc.innerHTML = renderCallPlaceholder('실적순위');
@@ -1862,8 +1900,10 @@ function updateTitle(){
     el.textContent = '급여내역';
   }else if(state.view==='eval'){
     el.textContent = '관리자평가';
-  }else if(state.view==='docube'){
-    el.textContent = '도급비 현황';
+  }else if(state.view==='docubeDetail'){
+    el.textContent = '도급비 현황 · 산출세부';
+  }else if(state.view==='docubeInput'){
+    el.textContent = '도급비 현황 · 매출입력';
   }else if(state.view==='callInput'){
     el.textContent = '실적입력';
   }else if(state.view==='callSummary'){
@@ -6310,6 +6350,11 @@ function docubeFormatWon(n){
   if(n === null || n === undefined || isNaN(n)) n = 0;
   return Math.round(n).toLocaleString('ko-KR') + '원';
 }
+function docubeFormatCount(n){
+  if(n === null || n === undefined || isNaN(n)) n = 0;
+  const rounded = Math.round(n * 10) / 10;
+  return (Number.isInteger(rounded) ? rounded : rounded.toFixed(1)).toString();
+}
 function docubeCalcVat(supply){ return Math.round(supply * 0.1); }
 function docubeMonthKey(y,m){ return `${y}-${m+1}`; }
 function docubeComputeTraineePay(t, priceSet){
@@ -6340,43 +6385,42 @@ function saveDocubeData(){
   docubeSaveTimer = setTimeout(()=>{ saveData(); }, 600);
 }
 
-function renderDocubeView(){
+function renderDocubeDetailView(){
   return `
   <div class="docube-scope">
-    <div class="inner-tabs">
-      <div class="inner-tab" data-inner="docube-detail">산출세부</div>
-      <div class="inner-tab active" data-inner="docube-input">매출입력</div>
+    <div class="rev-detail-toolbar">
+      <span class="rev-detail-hint">연도별로 묶어서 최신 달부터 보여드려요. 각 항목 옆 배지는 전월 대비 증감률입니다. 월 행을 클릭하면 항목별 상세가 펼쳐집니다.</span>
+    </div>
+    <div id="revDetailWrap"></div>
+  </div>
+  `;
+}
+
+function renderDocubeInputView(){
+  return `
+  <div class="docube-scope">
+    <div class="stat-toolbar">
+      <div class="cal-nav">
+        <div class="cal-nav-btn" id="revPrev">‹</div>
+        <div class="cal-month-label" id="revMonthLabel">-</div>
+        <div class="cal-nav-btn" id="revNext">›</div>
+      </div>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <span class="rev-saved-badge" id="revSavedBadge">미입력</span>
+        <div class="cal-today-btn" id="revTodayBtn">이번 달</div>
+      </div>
     </div>
 
-    <div class="inner-page" id="inner-docube-detail">
-      <div class="rev-detail-toolbar">
-        <span class="rev-detail-hint">연도별로 묶어서 최신 달부터 보여드려요. 각 항목 옆 배지는 전월 대비 증감률입니다. 월 행을 클릭하면 항목별 상세가 펼쳐집니다.</span>
+    <div class="rev-grand">
+      <div>
+        <div class="label">총 청구액 (VAT 포함)</div>
+        <div class="value" id="revGrandTotal">0원</div>
+        <div class="rev-grand-sub" id="revGrandSub">공급가액 0원 · 부가세 0원</div>
       </div>
-      <div id="revDetailWrap"></div>
+      <div class="rev-grand-breakdown" id="revGrandBreakdown"></div>
     </div>
 
-    <div class="inner-page active" id="inner-docube-input">
-      <div class="stat-toolbar">
-        <div class="cal-nav">
-          <div class="cal-nav-btn" id="revPrev">‹</div>
-          <div class="cal-month-label" id="revMonthLabel">-</div>
-          <div class="cal-nav-btn" id="revNext">›</div>
-        </div>
-        <div style="display:flex; align-items:center; gap:10px;">
-          <span class="rev-saved-badge" id="revSavedBadge">미입력</span>
-          <div class="cal-today-btn" id="revTodayBtn">이번 달</div>
-        </div>
-      </div>
-
-      <div class="rev-grand">
-        <div>
-          <div class="label">총 청구액 (VAT 포함)</div>
-          <div class="value" id="revGrandTotal">0원</div>
-          <div class="rev-grand-sub" id="revGrandSub">공급가액 0원 · 부가세 0원</div>
-        </div>
-        <div class="rev-grand-breakdown" id="revGrandBreakdown"></div>
-      </div>
-
+    <div class="rev-section-cols">
       <div class="rev-section">
         <div class="rev-section-title">상담원</div>
         <div class="rev-section-sub">세부 업무별로 인원을 구분해서 입력하세요. 단가는 모두 동일합니다 (더블클릭하면 단가 수정 가능).</div>
@@ -6399,7 +6443,9 @@ function renderDocubeView(){
           <div class="stb-row grand"><span>합계</span><b id="revStaffTotal">0원</b></div>
         </div>
       </div>
+    </div>
 
+    <div class="rev-section-cols rev-section-cols-uneven">
       <div class="rev-section">
         <div class="rev-section-title">교육생</div>
         <div class="rev-section-sub">'표준근무일수'는 환산표에서 일당을 조회하는 기준(해당 월의 근무일수, 17~23일)이고, '교육일수'는 교육생들이 실제로 나온 일수입니다. 같은 조건(인원/일수/수료여부)의 교육생을 한 번에 등록할 수 있어요. 교육비 = 일당 × 교육일수를 100원 미만 절사해서 계산하며, 미수료 시 단가가 반토막(40만 5천원 기준)으로 적용됩니다.</div>
@@ -6448,19 +6494,9 @@ function renderDocubeView(){
   `;
 }
 
-function initDocubeView(){
+function initDocubeInputView(){
   const root = document.querySelector('.docube-scope');
   if(!root) return;
-
-  /* 내부 탭 전환 (산출세부 / 매출입력) */
-  root.querySelectorAll('.inner-tabs .inner-tab').forEach(tab=>{
-    tab.addEventListener('click', ()=>{
-      root.querySelectorAll('.inner-tabs .inner-tab').forEach(t=>t.classList.remove('active'));
-      tab.classList.add('active');
-      root.querySelectorAll('.inner-page').forEach(p=>p.classList.remove('active'));
-      root.querySelector('#inner-' + tab.dataset.inner).classList.add('active');
-    });
-  });
 
   let prices = { ...docubeStore.prices };
   let counselorCounts = {}; DOCUBE_COUNSELOR_ROLES.forEach(r=>counselorCounts[r.key]=0);
@@ -6530,9 +6566,11 @@ function initDocubeView(){
       <div class="rev-row" data-role="${r.key}">
         <span class="rev-label">${r.label}</span>
         <span class="rev-price" data-pricekey="counselor" title="더블클릭하여 단가 수정">${docubeFormatWon(prices.counselor)}</span>
-        <span class="rev-x">×</span>
-        <input type="number" class="rev-count-input" min="0" data-count="${r.key}" value="${counselorCounts[r.key] || ''}" placeholder="0">
-        <span class="rev-subtotal" data-subtotal="${r.key}">${docubeFormatWon(0)}</span>
+        <div class="rev-row-right">
+          <span class="rev-x">×</span>
+          <input type="number" class="rev-count-input" min="0" data-count="${r.key}" value="${counselorCounts[r.key] || ''}" placeholder="0">
+          <span class="rev-subtotal" data-subtotal="${r.key}">${docubeFormatWon(0)}</span>
+        </div>
       </div>
     `).join('');
 
@@ -6558,7 +6596,7 @@ function initDocubeView(){
     });
     const supply = totalCount * prices.counselor;
     const vat = docubeCalcVat(supply);
-    counselorCountEl.textContent = totalCount;
+    counselorCountEl.textContent = docubeFormatCount(totalCount);
     counselorSupplyEl.textContent = docubeFormatWon(supply);
     counselorVatEl.textContent = docubeFormatWon(vat);
     counselorTotalEl.textContent = docubeFormatWon(supply + vat);
@@ -6579,9 +6617,11 @@ function initDocubeView(){
       <div class="rev-row" data-role="${r.key}">
         <span class="rev-label">${r.label}</span>
         <span class="rev-price" data-pricekey="${r.priceKey}" title="더블클릭하여 단가 수정">${docubeFormatWon(prices[r.priceKey])}</span>
-        <span class="rev-x">×</span>
-        <input type="number" class="rev-count-input" min="0" data-count="${r.key}" value="${staffCounts[r.key] || ''}" placeholder="0">
-        <span class="rev-subtotal" data-subtotal="${r.key}">${docubeFormatWon(0)}</span>
+        <div class="rev-row-right">
+          <span class="rev-x">×</span>
+          <input type="number" class="rev-count-input" min="0" data-count="${r.key}" value="${staffCounts[r.key] || ''}" placeholder="0">
+          <span class="rev-subtotal" data-subtotal="${r.key}">${docubeFormatWon(0)}</span>
+        </div>
       </div>
     `).join('');
 
@@ -6665,20 +6705,28 @@ function initDocubeView(){
     if(trainees.length === 0){
       traineeListEl.innerHTML = `<div class="trainee-empty">추가된 교육생이 없습니다.</div>`;
     } else {
-      traineeListEl.innerHTML = trainees.map(t=>{
-        const pay = computeTraineePay(t);
+      const groups = new Map();
+      trainees.forEach(t=>{
+        const key = `${t.stdDays}_${t.actualDays}_${t.passed}`;
+        if(!groups.has(key)) groups.set(key, { stdDays:t.stdDays, actualDays:t.actualDays, passed:t.passed, ids:[] });
+        groups.get(key).ids.push(t.id);
+      });
+      traineeListEl.innerHTML = Array.from(groups.values()).map(g=>{
+        const perPay = computeTraineePay({ stdDays:g.stdDays, actualDays:g.actualDays, passed:g.passed });
+        const groupPay = perPay * g.ids.length;
         return `
-          <div class="trainee-item ${t.passed ? '' : 'fail'}" data-id="${t.id}">
-            <span class="ti-days">실출근 ${t.actualDays}일 (표준 ${t.stdDays}일)</span>
-            <span class="ti-status ${t.passed ? 'pass' : 'fail'}">${t.passed ? '수료' : '미수료'}</span>
-            <span class="ti-pay">${docubeFormatWon(pay)}</span>
-            <span class="ti-del" data-del="${t.id}">×</span>
+          <div class="trainee-item ${g.passed ? '' : 'fail'}" data-ids="${g.ids.join(',')}">
+            <span class="ti-days">${g.ids.length}명 · 교육 ${g.actualDays}일 (표준 ${g.stdDays}일)</span>
+            <span class="ti-status ${g.passed ? 'pass' : 'fail'}">${g.passed ? '수료' : '미수료'}</span>
+            <span class="ti-pay">${docubeFormatWon(groupPay)}<span style="opacity:.6;font-weight:600;"> (1인 ${docubeFormatWon(perPay)})</span></span>
+            <span class="ti-del" data-del="${g.ids.join(',')}" title="이 그룹 전체 삭제">×</span>
           </div>
         `;
       }).join('');
       traineeListEl.querySelectorAll('.ti-del').forEach(btn=>{
         btn.addEventListener('click', ()=>{
-          trainees = trainees.filter(t=>t.id !== Number(btn.dataset.del));
+          const ids = btn.dataset.del.split(',').map(Number);
+          trainees = trainees.filter(t=>!ids.includes(t.id));
           renderTrainees();
           syncCurrentMonth();
         });
@@ -6767,7 +6815,6 @@ function initDocubeView(){
       savedBadgeEl.classList.remove('on');
     }
     persistRecords();
-    renderDetailView();
   }
 
   function loadMonth(y, m){
@@ -6817,29 +6864,37 @@ function initDocubeView(){
   document.getElementById('revTodayBtn').addEventListener('click', ()=>{
     loadMonth(today0b.getFullYear(), today0b.getMonth());
   });
+  /* 초기 렌더: 저장된 마지막(또는 최신) 월 입력 화면 */
+  loadMonth(revYear, revMonth);
+}
 
-  /* ---------- 산출세부 (연도별 · 월별 요약, 클릭하면 항목별 상세) ---------- */
+/* ============ 도급비 현황 · 산출세부 (독립 뷰) ============ */
+function docubePrevMonthKey(y, m){
+  let pm = m - 1, py = y;
+  if(pm < 0){ pm = 11; py--; }
+  return docubeMonthKey(py, pm);
+}
+
+function docubeDeltaBadge(cur, prev){
+  if(prev === undefined || prev === null) return '<span class="delta none">전월 데이터 없음</span>';
+  if(prev === 0){
+    if(cur === 0) return '<span class="delta flat">– 0%</span>';
+    return '<span class="delta up">▲ 신규</span>';
+  }
+  const pct = ((cur - prev) / prev) * 100;
+  if(Math.abs(pct) < 0.05) return '<span class="delta flat">– 0%</span>';
+  const cls = pct > 0 ? 'up' : 'down';
+  const arrow = pct > 0 ? '▲' : '▼';
+  return `<span class="delta ${cls}">${arrow} ${Math.abs(pct).toFixed(1)}%</span>`;
+}
+
+let docubeDetailOpenKey = null;
+
+function initDocubeDetailView(){
   const detailWrapEl = document.getElementById('revDetailWrap');
-  let openMonthKey = null;
+  if(!detailWrapEl) return;
 
-  function prevMonthKeyFn(y, m){
-    let pm = m - 1, py = y;
-    if(pm < 0){ pm = 11; py--; }
-    return docubeMonthKey(py, pm);
-  }
-
-  function deltaBadge(cur, prev){
-    if(prev === undefined || prev === null) return '<span class="delta none">전월 데이터 없음</span>';
-    if(prev === 0){
-      if(cur === 0) return '<span class="delta flat">– 0%</span>';
-      return '<span class="delta up">▲ 신규</span>';
-    }
-    const pct = ((cur - prev) / prev) * 100;
-    if(Math.abs(pct) < 0.05) return '<span class="delta flat">– 0%</span>';
-    const cls = pct > 0 ? 'up' : 'down';
-    const arrow = pct > 0 ? '▲' : '▼';
-    return `<span class="delta ${cls}">${arrow} ${Math.abs(pct).toFixed(1)}%</span>`;
-  }
+  const revenueRecords = new Map(Object.entries(docubeStore.records || {}));
 
   function renderDetailView(){
     if(revenueRecords.size === 0){
@@ -6861,9 +6916,9 @@ function initDocubeView(){
       const monthCards = recs.map(rec=>{
         const t = docubeRecordTotals(rec);
         const key = docubeMonthKey(rec.year, rec.month);
-        const isOpen = openMonthKey === key;
+        const isOpen = docubeDetailOpenKey === key;
 
-        const prevRec = revenueRecords.get(prevMonthKeyFn(rec.year, rec.month));
+        const prevRec = revenueRecords.get(docubePrevMonthKey(rec.year, rec.month));
         const pt = prevRec ? docubeRecordTotals(prevRec) : null;
 
         const detailCols = [
@@ -6873,7 +6928,19 @@ function initDocubeView(){
             footer: { supply:t.sSupply, vat:t.sVat, total:t.sTotal } },
           { title:'교육생', rows: (rec.trainees||[]).length === 0
               ? [{ label:'등록 없음', count:'', amt:0 }]
-              : rec.trainees.map((tr,i) => ({ label:`${i+1}. 실출근 ${tr.actualDays}일/표준 ${tr.stdDays}일 (${tr.passed?'수료':'미수료'})`, count:'', amt: docubeComputeTraineePay(tr, rec.prices) })),
+              : (()=>{
+                  const groups = new Map();
+                  (rec.trainees||[]).forEach(tr=>{
+                    const key = `${tr.stdDays}_${tr.actualDays}_${tr.passed}`;
+                    if(!groups.has(key)) groups.set(key, { stdDays:tr.stdDays, actualDays:tr.actualDays, passed:tr.passed, count:0 });
+                    groups.get(key).count++;
+                  });
+                  return Array.from(groups.values()).map(g => ({
+                    label: `교육 ${g.actualDays}일/표준 ${g.stdDays}일 (${g.passed?'수료':'미수료'})`,
+                    count: g.count,
+                    amt: docubeComputeTraineePay({stdDays:g.stdDays, actualDays:g.actualDays, passed:g.passed}, rec.prices) * g.count,
+                  }));
+                })(),
             footer: { supply:t.tSupply, vat:t.tVat, total:t.tTotal } },
           { title:'통신비', rows: [
               { label:'공급가액', count:'', amt: rec.telecom.supply||0 },
@@ -6886,13 +6953,13 @@ function initDocubeView(){
           <div class="rev-month-card">
             <div class="rev-month-row ${isOpen ? 'open' : ''}" data-key="${key}">
               <div class="mr-month">${rec.month+1}월</div>
-              <div class="mr-metric"><div class="mm-label">상담원</div><div class="mm-value">${t.cCount}명 · ${docubeFormatWon(t.cTotal)}</div>${deltaBadge(t.cTotal, pt ? pt.cTotal : null)}</div>
-              <div class="mr-metric"><div class="mm-label">관리·전문</div><div class="mm-value">${t.sCount}명 · ${docubeFormatWon(t.sTotal)}</div>${deltaBadge(t.sTotal, pt ? pt.sTotal : null)}</div>
-              <div class="mr-metric"><div class="mm-label">교육생</div><div class="mm-value">${t.tCount}명 · ${docubeFormatWon(t.tTotal)}</div>${deltaBadge(t.tTotal, pt ? pt.tTotal : null)}</div>
-              <div class="mr-metric"><div class="mm-label">통신비</div><div class="mm-value">${docubeFormatWon(t.teTotal)}</div>${deltaBadge(t.teTotal, pt ? pt.teTotal : null)}</div>
+              <div class="mr-metric"><div class="mm-label">상담원</div><div class="mm-value">${docubeFormatCount(t.cCount)}명 · ${docubeFormatWon(t.cTotal)}</div>${docubeDeltaBadge(t.cTotal, pt ? pt.cTotal : null)}</div>
+              <div class="mr-metric"><div class="mm-label">관리·전문</div><div class="mm-value">${docubeFormatCount(t.sCount)}명 · ${docubeFormatWon(t.sTotal)}</div>${docubeDeltaBadge(t.sTotal, pt ? pt.sTotal : null)}</div>
+              <div class="mr-metric"><div class="mm-label">교육생</div><div class="mm-value">${t.tCount}명 · ${docubeFormatWon(t.tTotal)}</div>${docubeDeltaBadge(t.tTotal, pt ? pt.tTotal : null)}</div>
+              <div class="mr-metric"><div class="mm-label">통신비</div><div class="mm-value">${docubeFormatWon(t.teTotal)}</div>${docubeDeltaBadge(t.teTotal, pt ? pt.teTotal : null)}</div>
               <div class="mr-total-wrap">
                 <div class="mr-total">${docubeFormatWon(t.grand)}</div>
-                ${deltaBadge(t.grand, pt ? pt.grand : null)}
+                ${docubeDeltaBadge(t.grand, pt ? pt.grand : null)}
               </div>
               <div class="mr-chev">▸</div>
             </div>
@@ -6903,7 +6970,7 @@ function initDocubeView(){
                     <div class="rev-detail-col-title">${col.title}</div>
                     ${col.rows.map(r => `
                       <div class="rev-detail-item">
-                        <span>${r.label}${r.count !== '' ? ` (${r.count}명)` : ''}</span>
+                        <span>${r.label}${r.count !== '' ? ` (${docubeFormatCount(r.count)}명)` : ''}</span>
                         <b>${docubeFormatWon(r.amt)}</b>
                       </div>
                     `).join('')}
@@ -6939,14 +7006,12 @@ function initDocubeView(){
     detailWrapEl.querySelectorAll('.rev-month-row').forEach(row=>{
       row.addEventListener('click', ()=>{
         const key = row.dataset.key;
-        openMonthKey = (openMonthKey === key) ? null : key;
+        docubeDetailOpenKey = (docubeDetailOpenKey === key) ? null : key;
         renderDetailView();
       });
     });
   }
 
-  /* 초기 렌더: 저장된 마지막(또는 최신) 월 입력 화면 + 산출세부 */
-  loadMonth(revYear, revMonth);
   renderDetailView();
 }
 </script>
