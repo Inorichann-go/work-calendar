@@ -749,6 +749,49 @@
 .docube-scope .rev-row .rev-x{ font-size:12px; color:var(--ink-2); }
 .docube-scope .rev-row .rev-subtotal{ width:92px; text-align:right; font-size:13px; font-weight:800; color:var(--ink-0); }
 
+.docube-scope .rev-billing-section{ padding-bottom:14px; }
+.docube-scope .billing-table-wrap{ overflow-x:auto; margin-bottom:4px; }
+.docube-scope .billing-table{ width:100%; border-collapse:collapse; font-size:13px; table-layout:fixed; }
+.docube-scope .billing-table th{
+  text-align:left; font-size:11px; font-weight:700; color:var(--ink-2);
+  padding:6px 8px; border-bottom:1px solid var(--border-light);
+}
+.docube-scope .billing-table th:nth-child(1){ width:18%; }
+.docube-scope .billing-table th:nth-child(2){ width:18%; }
+.docube-scope .billing-table th:nth-child(3){ width:28%; }
+.docube-scope .billing-table th:nth-child(4){ width:36%; }
+.docube-scope .billing-table td{ padding:8px; border-bottom:1px solid var(--border-light); vertical-align:top; }
+.docube-scope .billing-table .billing-row:last-of-type td{ border-bottom:1px solid var(--border-light); }
+.docube-scope .billing-table .bt-item{ font-weight:700; color:var(--ink-0); white-space:nowrap; padding-top:12px; }
+.docube-scope .billing-table .bt-count{ width:18%; }
+.docube-scope .billing-table .bt-amount{ width:28%; }
+.docube-scope .billing-count-input{
+  width:70px; padding:6px 8px; border:1px solid var(--border-light); border-radius:7px;
+  text-align:center; font-size:13px; font-weight:700; color:var(--ink-0); background:var(--bg-card);
+}
+.docube-scope .bt-count-value{
+  width:70px; padding:7px 8px; text-align:center;
+  font-size:13px; font-weight:700; color:var(--ink-0);
+  background:var(--bg-app); border:1px dashed var(--border-light); border-radius:7px;
+}
+.docube-scope .bt-amount-value{ font-size:13px; font-weight:800; color:var(--ink-0); white-space:nowrap; }
+.docube-scope .bt-unit-price{
+  font-size:10.5px; color:var(--ink-2); font-weight:600; margin-top:3px; cursor:pointer;
+  border-bottom:1px dashed transparent; display:inline-block;
+}
+.docube-scope .bt-unit-price:hover{ color:var(--ink-0); border-bottom-color:var(--ink-2); }
+.docube-scope .bt-note{ width:36%; }
+.docube-scope .csr-note-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(72px, 1fr)); gap:8px; max-width:520px; }
+.docube-scope .csr-note-grid label{ font-size:10px; color:var(--ink-2); font-weight:600; display:flex; flex-direction:column; gap:2px; width:58px; flex:none; }
+.docube-scope .csr-note-grid input{
+  width:100%; padding:4px 3px; border:1px solid var(--border-light); border-radius:6px;
+  font-size:11.5px; color:var(--ink-1); background:var(--bg-app); text-align:center;
+}
+.docube-scope .billing-subtotal-row td{
+  border-bottom:none; border-top:2px solid var(--ink-0); padding-top:10px;
+  font-weight:800; color:var(--ink-0); font-size:14px;
+}
+
 .docube-scope .rev-section-total-block{
   margin-top:8px; padding-top:10px;
   border-top:1px solid var(--border-light);
@@ -778,7 +821,6 @@
   padding:8px 12px; border:1px solid var(--border-light); border-radius:9px;
   font-size:12.5px;
 }
-.docube-scope .trainee-item.fail{ border-color:#5a3538; background:var(--danger-soft); }
 .docube-scope .trainee-item .ti-days{ font-weight:700; color:var(--ink-0); }
 .docube-scope .trainee-item .ti-status{ padding:2px 8px; border-radius:999px; font-size:11px; font-weight:700; }
 .docube-scope .trainee-item .ti-status.pass{ background:var(--success-soft); color:#6fe0a0; }
@@ -805,6 +847,14 @@
 }
 .docube-scope .rev-saved-badge.on{ background:var(--success-soft); color:#6fe0a0; }
 
+.docube-scope .docube-lock-banner{
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  background:var(--danger-soft); border:1px solid #4a2c2f; border-radius:8px;
+  padding:7px 10px 7px 12px; margin-bottom:12px;
+}
+.docube-scope .docube-lock-banner span{ font-size:11.5px; font-weight:600; color:#ff8f8f; }
+.docube-scope .docube-lock-banner .btn-secondary{ padding:4px 10px; font-size:11px; flex:none; }
+
 .docube-scope .rev-year-block{ margin-bottom:22px; }
 .docube-scope .rev-year-head{
   display:flex; align-items:baseline; justify-content:space-between;
@@ -824,7 +874,7 @@
 }
 .docube-scope .rev-month-row{
   display:grid;
-  grid-template-columns: 90px 1fr 1fr 1fr 1fr 130px 16px;
+  grid-template-columns: 90px 1fr 1fr 1fr 130px 16px;
   align-items:center;
   gap:8px;
   padding:12px 14px;
@@ -852,7 +902,7 @@
 
 .docube-scope .rev-month-detail{ display:none; border-top:1px solid var(--border-light); padding:14px 18px; background:var(--bg-card-2); }
 .docube-scope .rev-month-detail.open{ display:block; }
-.docube-scope .rev-detail-grid{ display:grid; grid-template-columns: repeat(4, 1fr); gap:16px; }
+.docube-scope .rev-detail-grid{ display:grid; grid-template-columns: 1.6fr 1fr 1fr; gap:16px; }
 .docube-scope .rev-detail-col-title{ font-size:11px; font-weight:800; color:var(--ink-2); margin-bottom:8px; letter-spacing:0.02em; }
 .docube-scope .rev-detail-item{ display:flex; justify-content:space-between; font-size:12px; padding:4px 0; color:var(--ink-1); }
 .docube-scope .rev-detail-item b{ color:var(--ink-0); font-weight:700; }
@@ -918,6 +968,7 @@
         <button class="settings-dropdown-item" onclick="openCenterModal(); closeSidebarSettingsMenu();">🏢 센터명 설정</button>
         <button class="settings-dropdown-item" onclick="openDutyLockModal(); closeSidebarSettingsMenu();">🔒 복무마감 설정</button>
         <button class="settings-dropdown-item" onclick="openEvalLockModal(); closeSidebarSettingsMenu();">🔒 관리자평가 마감 설정</button>
+        <button class="settings-dropdown-item" onclick="openDocubeLockModal(); closeSidebarSettingsMenu();">🔒 도급비마감 설정</button>
       </div>
     </div>
     <div class="today-card">
@@ -1283,6 +1334,17 @@
     <div id="evalLockModalBody"></div>
     <div class="modal-actions" style="justify-content:flex-end;">
       <button type="button" class="btn-secondary" onclick="closeEvalLockModal()">닫기</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay hidden" id="docubeLockModalOverlay">
+  <div class="modal" style="width:480px;">
+    <h2>🔒 도급비마감 설정</h2>
+    <p style="font-size:11.5px;color:var(--text-soft);margin:-8px 0 14px;">마감(잠금)한 달은 매출입력 탭에서 입력·수정이 모두 막히고, 조회와 산출세부 확인만 가능해요.</p>
+    <div id="docubeLockModalBody"></div>
+    <div class="modal-actions" style="justify-content:flex-end;">
+      <button type="button" class="btn-secondary" onclick="closeDocubeLockModal()">닫기</button>
     </div>
   </div>
 </div>
@@ -1677,6 +1739,7 @@ function applyLoadedPayload(parsed){
   evalStore = parsed.evalData || { weekly: {}, reducedHoursNames: [] };
   callStatsStore = parsed.callStats || { obJehu: {}, obJanggi: {}, raw: {}, offDeduction: [], attendanceDeduction: [] };
   docubeStore = (callStatsStore && callStatsStore.docube) ? callStatsStore.docube : defaultDocubeStore();
+  if(!Array.isArray(docubeStore.lockedKeys)) docubeStore.lockedKeys = [];
   /* 이전(전역) 육아단축자 명단이 남아있으면, 아직 자체 명단이 없는 주차들에 1회 승계 */
   if(evalStore.reducedHoursNames && evalStore.reducedHoursNames.length){
     Object.keys(evalStore.weekly||{}).sort().forEach(k=>{
@@ -3253,10 +3316,13 @@ function defaultDocubeStore(){
       specialCounsel: 4108000, km: 4108000, instructor: 4108000, qa: 4108000,
       traineeFull: 810000
     },
-    records: {} /* key: 'YYYY-M' */
+    records: {}, /* key: 'YYYY-M' */
+    lockedKeys: [] /* 마감(잠금)된 월 목록, key: 'YYYY-M' */
   };
 }
 let docubeStore = defaultDocubeStore(); /* 도급비 현황 전용 데이터, callStatsStore 안에 함께 저장(동기화)됨 */
+let docubeSelectedYear = null; /* 매출입력 탭에서 마지막으로 보고 있던 연/월 (재렌더링/동기화로 인해 화면이 되돌아가지 않도록 별도 보관) */
+let docubeSelectedMonth = null;
 let dutyUndoStack = [];
 let dutyRedoStack = [];
 const DUTY_UNDO_LIMIT = 20;
@@ -6329,7 +6395,7 @@ async function migrateLegacyDutyLocalStorage(){
    도급단가표 기준 인건비 + 교육생 급여 + 통신비를 월별로 입력 → 산출세부에서 정리
    다른 탭들과 완전히 독립적으로 동작하며, callStatsStore.docube 안에 저장되어 함께 동기화됩니다.
 ========================================================= */
-const DOCUBE_COUNSELOR_ROLES = [
+const DOCUBE_CSR_NOTE_ROLES = [
   { key:'cs_counsel', label:'제휴상담' },
   { key:'cs_support',  label:'제휴지원' },
   { key:'acc',         label:'장기사고' },
@@ -6355,6 +6421,10 @@ function docubeFormatCount(n){
   const rounded = Math.round(n * 10) / 10;
   return (Number.isInteger(rounded) ? rounded : rounded.toFixed(1)).toString();
 }
+function docubeFormatCountWhole(n){
+  if(n === null || n === undefined || isNaN(n)) n = 0;
+  return Math.round(n).toString();
+}
 function docubeCalcVat(supply){ return Math.round(supply * 0.1); }
 function docubeMonthKey(y,m){ return `${y}-${m+1}`; }
 function docubeComputeTraineePay(t, priceSet){
@@ -6362,11 +6432,25 @@ function docubeComputeTraineePay(t, priceSet){
   const stdDays = t.stdDays > 0 ? t.stdDays : 23;
   const actualDays = t.actualDays > 0 ? t.actualDays : 1;
   const raw = (base/stdDays) * actualDays;
-  return Math.floor(raw / 100) * 100; // 100원 미만 절사
+  return Math.round(raw / 100) * 100; // 백원 단위 반올림
+}
+function docubeCsrNoteSummary(note){
+  if(!note) return '';
+  return DOCUBE_CSR_NOTE_ROLES
+    .map(r => ({ label:r.label, val: note[r.key]||0 }))
+    .filter(x => x.val > 0)
+    .map(x => `${x.label} ${docubeFormatCount(x.val)}`)
+    .join(' · ');
+}
+function docubeCsrCountFromNote(note){
+  if(!note) return 0;
+  const sum = DOCUBE_CSR_NOTE_ROLES.reduce((a,r)=>a+(note[r.key]||0),0);
+  return Math.round(sum);
 }
 function docubeRecordTotals(rec){
-  const cSupply = DOCUBE_COUNSELOR_ROLES.reduce((a,r)=>a+(rec.counselorCounts[r.key]||0)*rec.prices.counselor,0);
-  const cCount = DOCUBE_COUNSELOR_ROLES.reduce((a,r)=>a+(rec.counselorCounts[r.key]||0),0);
+  const csrCount = rec.csrCount || 0;
+  const cSupply = csrCount * rec.prices.counselor;
+  const cCount = csrCount;
   const sSupply = DOCUBE_STAFF_ROLES.reduce((a,r)=>a+(rec.staffCounts[r.key]||0)*rec.prices[r.priceKey],0);
   const sCount = DOCUBE_STAFF_ROLES.reduce((a,r)=>a+(rec.staffCounts[r.key]||0),0);
   const tSupply = (rec.trainees||[]).reduce((a,t)=>a+docubeComputeTraineePay(t, rec.prices),0);
@@ -6374,9 +6458,13 @@ function docubeRecordTotals(rec){
   const teVat = rec.telecom.vat||0;
   const cVat = docubeCalcVat(cSupply), sVat = docubeCalcVat(sSupply), tVat = docubeCalcVat(tSupply);
   const cTotal=cSupply+cVat, sTotal=sSupply+sVat, tTotal=tSupply+tVat, teTotal=teSupply+teVat;
+  const billingCount = cCount + sCount;
+  const billingSupply = cSupply + sSupply;
+  const billingVat = cVat + sVat;
+  const billingTotal = cTotal + sTotal;
   const totalSupply = cSupply+sSupply+tSupply+teSupply;
   const totalVat = cVat+sVat+tVat+teVat;
-  return { cSupply,cVat,cTotal,cCount, sSupply,sVat,sTotal,sCount, tSupply,tVat,tTotal,tCount:(rec.trainees||[]).length, teSupply,teVat,teTotal, totalSupply, totalVat, grand: totalSupply+totalVat };
+  return { cSupply,cVat,cTotal,cCount, sSupply,sVat,sTotal,sCount, billingCount,billingSupply,billingVat,billingTotal, tSupply,tVat,tTotal,tCount:(rec.trainees||[]).length, teSupply,teVat,teTotal, totalSupply, totalVat, grand: totalSupply+totalVat };
 }
 
 let docubeSaveTimer = null;
@@ -6399,6 +6487,7 @@ function renderDocubeDetailView(){
 function renderDocubeInputView(){
   return `
   <div class="docube-scope">
+    <div id="docubeLockBanner"></div>
     <div class="stat-toolbar">
       <div class="cal-nav">
         <div class="cal-nav-btn" id="revPrev">‹</div>
@@ -6420,35 +6509,36 @@ function renderDocubeInputView(){
       <div class="rev-grand-breakdown" id="revGrandBreakdown"></div>
     </div>
 
-    <div class="rev-section-cols">
-      <div class="rev-section">
-        <div class="rev-section-title">상담원</div>
-        <div class="rev-section-sub">세부 업무별로 인원을 구분해서 입력하세요. 단가는 모두 동일합니다 (더블클릭하면 단가 수정 가능).</div>
-        <div id="revCounselorRows"></div>
-        <div class="rev-section-total-block">
-          <div class="stb-row"><span>인원</span><b><span id="revCounselorCount">0</span>명</b></div>
-          <div class="stb-row"><span>공급가액</span><b id="revCounselorSupply">0원</b></div>
-          <div class="stb-row"><span>부가세(10%)</span><b id="revCounselorVat">0원</b></div>
-          <div class="stb-row grand"><span>합계</span><b id="revCounselorTotal">0원</b></div>
-        </div>
+    <div class="rev-section rev-billing-section">
+      <div class="rev-section-title">청구 인원</div>
+      <div class="rev-section-sub">CSR 인원은 비고란의 업무별 세부 인원을 모두 더한 값을 반올림해서 자동으로 계산돼요 (청구액도 이 반올림된 인원수 기준으로 계산됩니다). 단가는 항목별 금액 아래 숫자를 더블클릭하면 수정할 수 있어요.</div>
+      <div class="billing-table-wrap">
+        <table class="billing-table">
+          <thead>
+            <tr><th>항목</th><th>정산세부</th><th>청구액</th><th>비고</th></tr>
+          </thead>
+          <tbody id="billingRows"></tbody>
+          <tfoot>
+            <tr class="billing-subtotal-row">
+              <td>소계</td>
+              <td id="billingCountTotal">0</td>
+              <td id="billingAmountTotal">0원</td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
       </div>
-
-      <div class="rev-section">
-        <div class="rev-section-title">관리·전문 인력</div>
-        <div class="rev-section-sub">센터장 및 팀장/특화/KM/강사/QA 인원을 입력하세요.</div>
-        <div id="revStaffRows"></div>
-        <div class="rev-section-total-block">
-          <div class="stb-row"><span>공급가액</span><b id="revStaffSupply">0원</b></div>
-          <div class="stb-row"><span>부가세(10%)</span><b id="revStaffVat">0원</b></div>
-          <div class="stb-row grand"><span>합계</span><b id="revStaffTotal">0원</b></div>
-        </div>
+      <div class="rev-section-total-block">
+        <div class="stb-row"><span>공급가액</span><b id="revBillingSupply">0원</b></div>
+        <div class="stb-row"><span>부가세(10%)</span><b id="revBillingVat">0원</b></div>
+        <div class="stb-row grand"><span>합계</span><b id="revBillingTotal">0원</b></div>
       </div>
     </div>
 
     <div class="rev-section-cols rev-section-cols-uneven">
       <div class="rev-section">
         <div class="rev-section-title">교육생</div>
-        <div class="rev-section-sub">'표준근무일수'는 환산표에서 일당을 조회하는 기준(해당 월의 근무일수, 17~23일)이고, '교육일수'는 교육생들이 실제로 나온 일수입니다. 같은 조건(인원/일수/수료여부)의 교육생을 한 번에 등록할 수 있어요. 교육비 = 일당 × 교육일수를 100원 미만 절사해서 계산하며, 미수료 시 단가가 반토막(40만 5천원 기준)으로 적용됩니다.</div>
+        <div class="rev-section-sub">'표준근무일수'는 환산표에서 일당을 조회하는 기준(해당 월의 근무일수, 17~23일)이고, '교육일수'는 교육생들이 실제로 나온 일수입니다. 같은 조건(인원/일수/수료여부)의 교육생을 한 번에 등록할 수 있어요. 교육비 = 일당 × 교육일수를 백원 단위로 반올림해서 계산하며, 미수료 시 단가가 반토막(40만 5천원 기준)으로 적용됩니다.</div>
         <div class="trainee-add-row">
           <select id="traineeStdDays" title="표준근무일수 (환산표 기준)">
             <option value="17">표준 17일</option>
@@ -6499,7 +6589,8 @@ function initDocubeInputView(){
   if(!root) return;
 
   let prices = { ...docubeStore.prices };
-  let counselorCounts = {}; DOCUBE_COUNSELOR_ROLES.forEach(r=>counselorCounts[r.key]=0);
+  let csrCount = 0;
+  let csrNote = {}; DOCUBE_CSR_NOTE_ROLES.forEach(r=>csrNote[r.key]=0);
   let staffCounts = {}; DOCUBE_STAFF_ROLES.forEach(r=>staffCounts[r.key]=0);
   let trainees = [];
   let nextTraineeId = 1;
@@ -6510,9 +6601,10 @@ function initDocubeInputView(){
   if(Object.keys(docubeStore.records).length === 0){
     docubeStore.records[docubeMonthKey(2026,6)] = {
       year: 2026, month: 6, // 7월 (0-indexed)
-      counselorCounts: {
-        cs_counsel: 33.363636363636367, cs_support: 11, acc: 90.36363636363636,
-        contract: 6.454545454545455, valid_ob: 1.8181818181818181, chat: 4,
+      csrCount: 147,
+      csrNote: {
+        cs_counsel: 33.4, cs_support: 11, acc: 90.4,
+        contract: 6.5, valid_ob: 1.8, chat: 4,
       },
       staffCounts: { centerHead: 1, teamLeader: 12, specialCounsel: 2, km: 2, instructor: 2, qa: 7 },
       trainees: [
@@ -6538,7 +6630,9 @@ function initDocubeInputView(){
   const today0b = new Date();
   let revYear = today0b.getFullYear();
   let revMonth = today0b.getMonth();
-  if(revenueRecords.size > 0){
+  if(docubeSelectedYear !== null && docubeSelectedMonth !== null){
+    revYear = docubeSelectedYear; revMonth = docubeSelectedMonth;
+  } else if(revenueRecords.size > 0){
     const keys = Array.from(revenueRecords.keys()).sort((a,b)=>{
       const [ay,am]=a.split('-').map(Number), [by,bm]=b.split('-').map(Number);
       return (ay*12+am) - (by*12+bm);
@@ -6554,110 +6648,69 @@ function initDocubeInputView(){
   }
   if(seeded) persistRecords();
 
-  /* ---------- 상담원 섹션 ---------- */
-  const counselorRowsEl = document.getElementById('revCounselorRows');
-  const counselorCountEl = document.getElementById('revCounselorCount');
-  const counselorSupplyEl = document.getElementById('revCounselorSupply');
-  const counselorVatEl = document.getElementById('revCounselorVat');
-  const counselorTotalEl = document.getElementById('revCounselorTotal');
+  /* ---------- 청구 인원 (CSR + 관리·전문 인력, 통합 테이블) ---------- */
+  const billingRowsEl = document.getElementById('billingRows');
+  const billingCountTotalEl = document.getElementById('billingCountTotal');
+  const billingAmountTotalEl = document.getElementById('billingAmountTotal');
+  const billingSupplyEl = document.getElementById('revBillingSupply');
+  const billingVatEl = document.getElementById('revBillingVat');
+  const billingTotalEl = document.getElementById('revBillingTotal');
 
-  function renderCounselorRows(){
-    counselorRowsEl.innerHTML = DOCUBE_COUNSELOR_ROLES.map(r => `
-      <div class="rev-row" data-role="${r.key}">
-        <span class="rev-label">${r.label}</span>
-        <span class="rev-price" data-pricekey="counselor" title="더블클릭하여 단가 수정">${docubeFormatWon(prices.counselor)}</span>
-        <div class="rev-row-right">
-          <span class="rev-x">×</span>
-          <input type="number" class="rev-count-input" min="0" data-count="${r.key}" value="${counselorCounts[r.key] || ''}" placeholder="0">
-          <span class="rev-subtotal" data-subtotal="${r.key}">${docubeFormatWon(0)}</span>
-        </div>
-      </div>
+  function renderBillingRows(){
+    const csrNoteHtml = DOCUBE_CSR_NOTE_ROLES.map(r => `
+      <label>${r.label}<input type="number" step="0.1" min="0" class="csr-note-input" data-note="${r.key}" value="${csrNote[r.key] || ''}" placeholder="0"></label>
     `).join('');
 
-    counselorRowsEl.querySelectorAll('.rev-count-input').forEach(inp=>{
+    const csrRow = `
+      <tr class="billing-row" data-row="csr">
+        <td class="bt-item">CSR</td>
+        <td class="bt-count">
+          <div class="bt-count-value" id="csrCountCell" title="세부 업무별 인원 합계를 반올림한 값 (자동 계산)">${docubeFormatCountWhole(csrCount)}</div>
+        </td>
+        <td class="bt-amount">
+          <div class="bt-amount-value" id="csrAmountCell">0원</div>
+          <div class="bt-unit-price" data-pricekey="counselor" title="더블클릭하여 단가 수정">@${docubeFormatWon(prices.counselor)}</div>
+        </td>
+        <td class="bt-note">
+          <div class="csr-note-grid">${csrNoteHtml}</div>
+        </td>
+      </tr>
+    `;
+
+    const staffRows = DOCUBE_STAFF_ROLES.map(r => `
+      <tr class="billing-row" data-row="${r.key}">
+        <td class="bt-item">${r.label}</td>
+        <td class="bt-count">
+          <input type="number" min="0" class="billing-count-input" data-staff="${r.key}" value="${staffCounts[r.key] || ''}" placeholder="0">
+        </td>
+        <td class="bt-amount">
+          <div class="bt-amount-value" data-staff-amount="${r.key}">0원</div>
+          <div class="bt-unit-price" data-pricekey="${r.priceKey}" title="더블클릭하여 단가 수정">@${docubeFormatWon(prices[r.priceKey])}</div>
+        </td>
+        <td class="bt-note"></td>
+      </tr>
+    `).join('');
+
+    billingRowsEl.innerHTML = csrRow + staffRows;
+
+    billingRowsEl.querySelectorAll('.csr-note-input').forEach(inp=>{
       inp.addEventListener('input', ()=>{
-        counselorCounts[inp.dataset.count] = Number(inp.value) || 0;
-        updateCounselorSection();
+        csrNote[inp.dataset.note] = Number(inp.value) || 0;
+        csrCount = docubeCsrCountFromNote(csrNote);
+        const csrCountCell = document.getElementById('csrCountCell');
+        if(csrCountCell) csrCountCell.textContent = docubeFormatCountWhole(csrCount);
+        updateBillingSection();
         syncCurrentMonth();
       });
     });
-    bindPriceEdit(counselorRowsEl, ()=>{ renderCounselorRows(); updateCounselorSection(); syncCurrentMonth(); });
-  }
-
-  function updateCounselorSection(){
-    let totalCount = 0;
-    DOCUBE_COUNSELOR_ROLES.forEach(r=>{
-      const cnt = counselorCounts[r.key] || 0;
-      totalCount += cnt;
-      const sub = counselorRowsEl.querySelector(`[data-subtotal="${r.key}"]`);
-      if(sub) sub.textContent = docubeFormatWon(cnt * prices.counselor);
-      const priceEl = counselorRowsEl.querySelector(`[data-role="${r.key}"] .rev-price`);
-      if(priceEl) priceEl.textContent = docubeFormatWon(prices.counselor);
-    });
-    const supply = totalCount * prices.counselor;
-    const vat = docubeCalcVat(supply);
-    counselorCountEl.textContent = docubeFormatCount(totalCount);
-    counselorSupplyEl.textContent = docubeFormatWon(supply);
-    counselorVatEl.textContent = docubeFormatWon(vat);
-    counselorTotalEl.textContent = docubeFormatWon(supply + vat);
-  }
-  function counselorGrandTotal(){
-    const totalCount = DOCUBE_COUNSELOR_ROLES.reduce((a,r)=>a+(counselorCounts[r.key]||0),0);
-    return totalCount * prices.counselor;
-  }
-
-  /* ---------- 관리·전문 인력 섹션 ---------- */
-  const staffRowsEl = document.getElementById('revStaffRows');
-  const staffSupplyEl = document.getElementById('revStaffSupply');
-  const staffVatEl = document.getElementById('revStaffVat');
-  const staffTotalEl = document.getElementById('revStaffTotal');
-
-  function renderStaffRows(){
-    staffRowsEl.innerHTML = DOCUBE_STAFF_ROLES.map(r => `
-      <div class="rev-row" data-role="${r.key}">
-        <span class="rev-label">${r.label}</span>
-        <span class="rev-price" data-pricekey="${r.priceKey}" title="더블클릭하여 단가 수정">${docubeFormatWon(prices[r.priceKey])}</span>
-        <div class="rev-row-right">
-          <span class="rev-x">×</span>
-          <input type="number" class="rev-count-input" min="0" data-count="${r.key}" value="${staffCounts[r.key] || ''}" placeholder="0">
-          <span class="rev-subtotal" data-subtotal="${r.key}">${docubeFormatWon(0)}</span>
-        </div>
-      </div>
-    `).join('');
-
-    staffRowsEl.querySelectorAll('.rev-count-input').forEach(inp=>{
+    billingRowsEl.querySelectorAll('[data-staff]').forEach(inp=>{
       inp.addEventListener('input', ()=>{
-        staffCounts[inp.dataset.count] = Number(inp.value) || 0;
-        updateStaffSection();
+        staffCounts[inp.dataset.staff] = Number(inp.value) || 0;
+        updateBillingSection();
         syncCurrentMonth();
       });
     });
-    bindPriceEdit(staffRowsEl, ()=>{ renderStaffRows(); updateStaffSection(); syncCurrentMonth(); });
-  }
-
-  function updateStaffSection(){
-    let total = 0;
-    DOCUBE_STAFF_ROLES.forEach(r=>{
-      const cnt = staffCounts[r.key] || 0;
-      const amt = cnt * prices[r.priceKey];
-      total += amt;
-      const sub = staffRowsEl.querySelector(`[data-subtotal="${r.key}"]`);
-      if(sub) sub.textContent = docubeFormatWon(amt);
-      const priceEl = staffRowsEl.querySelector(`[data-role="${r.key}"] .rev-price`);
-      if(priceEl) priceEl.textContent = docubeFormatWon(prices[r.priceKey]);
-    });
-    const vat = docubeCalcVat(total);
-    staffSupplyEl.textContent = docubeFormatWon(total);
-    staffVatEl.textContent = docubeFormatWon(vat);
-    staffTotalEl.textContent = docubeFormatWon(total + vat);
-  }
-  function staffGrandTotal(){
-    return DOCUBE_STAFF_ROLES.reduce((a,r)=>a+(staffCounts[r.key]||0)*prices[r.priceKey],0);
-  }
-
-  /* ---------- 단가 더블클릭 수정 (공통) ---------- */
-  function bindPriceEdit(container, onChanged){
-    container.querySelectorAll('.rev-price').forEach(el=>{
+    billingRowsEl.querySelectorAll('.bt-unit-price').forEach(el=>{
       el.addEventListener('dblclick', ()=>{
         const key = el.dataset.pricekey;
         const cur = prices[key];
@@ -6666,9 +6719,42 @@ function initDocubeInputView(){
         const num = Number(String(input).replace(/,/g,''));
         if(isNaN(num) || num < 0) return;
         prices[key] = num;
-        onChanged();
+        renderBillingRows();
+        updateBillingSection();
+        syncCurrentMonth();
       });
     });
+  }
+
+  function updateBillingSection(){
+    const csrAmount = csrCount * prices.counselor;
+    const csrAmountCell = document.getElementById('csrAmountCell');
+    if(csrAmountCell) csrAmountCell.textContent = docubeFormatWon(csrAmount);
+
+    let staffTotal = 0, staffCount = 0;
+    DOCUBE_STAFF_ROLES.forEach(r=>{
+      const cnt = staffCounts[r.key] || 0;
+      staffCount += cnt;
+      const amt = cnt * prices[r.priceKey];
+      staffTotal += amt;
+      const cell = billingRowsEl.querySelector(`[data-staff-amount="${r.key}"]`);
+      if(cell) cell.textContent = docubeFormatWon(amt);
+    });
+
+    const totalCount = csrCount + staffCount;
+    const totalSupply = csrAmount + staffTotal;
+    const vat = docubeCalcVat(totalSupply);
+
+    billingCountTotalEl.textContent = docubeFormatCountWhole(totalCount);
+    billingAmountTotalEl.textContent = docubeFormatWon(totalSupply);
+    billingSupplyEl.textContent = docubeFormatWon(totalSupply);
+    billingVatEl.textContent = docubeFormatWon(vat);
+    billingTotalEl.textContent = docubeFormatWon(totalSupply + vat);
+  }
+  function billingGrandTotal(){
+    const csrAmount = csrCount * prices.counselor;
+    const staffTotal = DOCUBE_STAFF_ROLES.reduce((a,r)=>a+(staffCounts[r.key]||0)*prices[r.priceKey],0);
+    return csrAmount + staffTotal;
   }
 
   /* ---------- 교육생 섹션 ---------- */
@@ -6767,19 +6853,17 @@ function initDocubeInputView(){
   const grandBreakdownEl = document.getElementById('revGrandBreakdown');
 
   function updateGrandTotal(){
-    const cSupply = counselorGrandTotal(), cVat = docubeCalcVat(cSupply);
-    const sSupply = staffGrandTotal(), sVat = docubeCalcVat(sSupply);
+    const billingSupply = billingGrandTotal(), billingVat = docubeCalcVat(billingSupply);
     const tSupply = traineeGrandTotal(), tVat = docubeCalcVat(tSupply);
     const teSupply = telecom.supply, teVat = telecom.vat;
 
-    const totalSupply = cSupply + sSupply + tSupply + teSupply;
-    const totalVat = cVat + sVat + tVat + teVat;
+    const totalSupply = billingSupply + tSupply + teSupply;
+    const totalVat = billingVat + tVat + teVat;
 
     grandTotalEl.textContent = docubeFormatWon(totalSupply + totalVat);
     grandSubEl.textContent = `공급가액 ${docubeFormatWon(totalSupply)} · 부가세 ${docubeFormatWon(totalVat)}`;
     grandBreakdownEl.innerHTML = `
-      <div class="gb-item"><div class="gb-label">상담원</div><div class="gb-value">${docubeFormatWon(cSupply + cVat)}</div></div>
-      <div class="gb-item"><div class="gb-label">관리·전문</div><div class="gb-value">${docubeFormatWon(sSupply + sVat)}</div></div>
+      <div class="gb-item"><div class="gb-label">청구 인원</div><div class="gb-value">${docubeFormatWon(billingSupply + billingVat)}</div></div>
       <div class="gb-item"><div class="gb-label">교육생</div><div class="gb-value">${docubeFormatWon(tSupply + tVat)}</div></div>
       <div class="gb-item"><div class="gb-label">통신비</div><div class="gb-value">${docubeFormatWon(teSupply + teVat)}</div></div>
     `;
@@ -6790,9 +6874,9 @@ function initDocubeInputView(){
   const savedBadgeEl = document.getElementById('revSavedBadge');
 
   function hasMeaningfulData(){
-    const anyCounselor = DOCUBE_COUNSELOR_ROLES.some(r=>(counselorCounts[r.key]||0) > 0);
+    const anyCsr = csrCount > 0;
     const anyStaff = DOCUBE_STAFF_ROLES.some(r=>(staffCounts[r.key]||0) > 0);
-    return anyCounselor || anyStaff || trainees.length > 0 || telecom.supply > 0 || telecom.vat > 0;
+    return anyCsr || anyStaff || trainees.length > 0 || telecom.supply > 0 || telecom.vat > 0;
   }
 
   function syncCurrentMonth(){
@@ -6801,7 +6885,8 @@ function initDocubeInputView(){
     if(hasMeaningfulData()){
       revenueRecords.set(key, {
         year: revYear, month: revMonth,
-        counselorCounts: { ...counselorCounts },
+        csrCount: csrCount,
+        csrNote: { ...csrNote },
         staffCounts: { ...staffCounts },
         trainees: trainees.map(t=>({ ...t })),
         telecom: { ...telecom },
@@ -6819,18 +6904,21 @@ function initDocubeInputView(){
 
   function loadMonth(y, m){
     revYear = y; revMonth = m;
+    docubeSelectedYear = y; docubeSelectedMonth = m;
     monthLabelEl.textContent = `${y}년 ${m+1}월`;
     const rec = revenueRecords.get(docubeMonthKey(y,m));
 
     if(rec){
-      counselorCounts = { ...rec.counselorCounts };
+      csrNote = { ...(rec.csrNote || {}) };
+      csrCount = docubeCsrCountFromNote(csrNote);
       staffCounts = { ...rec.staffCounts };
       trainees = rec.trainees.map(t=>({ ...t }));
       telecom = { ...rec.telecom };
       savedBadgeEl.textContent = '입력됨';
       savedBadgeEl.classList.add('on');
     } else {
-      DOCUBE_COUNSELOR_ROLES.forEach(r=>counselorCounts[r.key]=0);
+      csrCount = 0;
+      DOCUBE_CSR_NOTE_ROLES.forEach(r=>csrNote[r.key]=0);
       DOCUBE_STAFF_ROLES.forEach(r=>staffCounts[r.key]=0);
       trainees = [];
       telecom = { supply:0, vat:0 };
@@ -6843,12 +6931,36 @@ function initDocubeInputView(){
     telecomVatEl.textContent = docubeFormatWon(telecom.vat);
     telecomTotalEl.textContent = docubeFormatWon(telecom.supply + telecom.vat);
 
-    renderCounselorRows();
-    renderStaffRows();
-    updateCounselorSection();
-    updateStaffSection();
+    renderBillingRows();
+    updateBillingSection();
     renderTrainees();
     updateGrandTotal();
+    updateDocubeLockUI();
+  }
+
+  function updateDocubeLockUI(){
+    const locked = isDocubeMonthLocked(revYear, revMonth);
+    const bannerEl = document.getElementById('docubeLockBanner');
+    if(bannerEl){
+      bannerEl.className = locked ? 'docube-lock-banner' : '';
+      bannerEl.innerHTML = locked
+        ? `<span>🔒 ${revYear}년 ${revMonth+1}월 마감(잠금)됨 · 조회만 가능</span><button type="button" class="btn-secondary" onclick="quickUnlockDocubeMonth(${revYear},${revMonth})">잠금 해제</button>`
+        : '';
+    }
+    root.querySelectorAll('.billing-count-input, .csr-note-input, #telecomSupply, #telecomVat, #traineeCount, #traineeDays, #traineeStdDays, #traineeStatus').forEach(el=>{
+      el.disabled = locked;
+    });
+    const addBtn = document.getElementById('traineeAddBtn');
+    if(addBtn) addBtn.style.pointerEvents = locked ? 'none' : '';
+    if(addBtn) addBtn.style.opacity = locked ? '0.45' : '';
+    root.querySelectorAll('.trainee-item .ti-del').forEach(el=>{
+      el.style.pointerEvents = locked ? 'none' : '';
+      el.style.opacity = locked ? '0.3' : '';
+    });
+    root.querySelectorAll('.bt-unit-price').forEach(el=>{
+      el.style.pointerEvents = locked ? 'none' : '';
+      el.style.opacity = locked ? '0.6' : '';
+    });
   }
 
   document.getElementById('revPrev').addEventListener('click', ()=>{
@@ -6922,10 +7034,11 @@ function initDocubeDetailView(){
         const pt = prevRec ? docubeRecordTotals(prevRec) : null;
 
         const detailCols = [
-          { title:'상담원', rows: DOCUBE_COUNSELOR_ROLES.map(r => ({ label:r.label, count:rec.counselorCounts[r.key]||0, amt:(rec.counselorCounts[r.key]||0)*rec.prices.counselor })),
-            footer: { supply:t.cSupply, vat:t.cVat, total:t.cTotal } },
-          { title:'관리·전문', rows: DOCUBE_STAFF_ROLES.map(r => ({ label:r.label, count:rec.staffCounts[r.key]||0, amt:(rec.staffCounts[r.key]||0)*rec.prices[r.priceKey] })),
-            footer: { supply:t.sSupply, vat:t.sVat, total:t.sTotal } },
+          { title:'청구 인원', rows: [
+              { label: `CSR${docubeCsrNoteSummary(rec.csrNote) ? ` (${docubeCsrNoteSummary(rec.csrNote)})` : ''}`, count: rec.csrCount||0, amt: (rec.csrCount||0)*rec.prices.counselor },
+              ...DOCUBE_STAFF_ROLES.map(r => ({ label:r.label, count:rec.staffCounts[r.key]||0, amt:(rec.staffCounts[r.key]||0)*rec.prices[r.priceKey] })),
+            ],
+            footer: { supply:t.billingSupply, vat:t.billingVat, total:t.billingTotal } },
           { title:'교육생', rows: (rec.trainees||[]).length === 0
               ? [{ label:'등록 없음', count:'', amt:0 }]
               : (()=>{
@@ -6953,8 +7066,7 @@ function initDocubeDetailView(){
           <div class="rev-month-card">
             <div class="rev-month-row ${isOpen ? 'open' : ''}" data-key="${key}">
               <div class="mr-month">${rec.month+1}월</div>
-              <div class="mr-metric"><div class="mm-label">상담원</div><div class="mm-value">${docubeFormatCount(t.cCount)}명 · ${docubeFormatWon(t.cTotal)}</div>${docubeDeltaBadge(t.cTotal, pt ? pt.cTotal : null)}</div>
-              <div class="mr-metric"><div class="mm-label">관리·전문</div><div class="mm-value">${docubeFormatCount(t.sCount)}명 · ${docubeFormatWon(t.sTotal)}</div>${docubeDeltaBadge(t.sTotal, pt ? pt.sTotal : null)}</div>
+              <div class="mr-metric"><div class="mm-label">청구 인원</div><div class="mm-value">${docubeFormatCountWhole(t.billingCount)}명 · ${docubeFormatWon(t.billingTotal)}</div>${docubeDeltaBadge(t.billingTotal, pt ? pt.billingTotal : null)}</div>
               <div class="mr-metric"><div class="mm-label">교육생</div><div class="mm-value">${t.tCount}명 · ${docubeFormatWon(t.tTotal)}</div>${docubeDeltaBadge(t.tTotal, pt ? pt.tTotal : null)}</div>
               <div class="mr-metric"><div class="mm-label">통신비</div><div class="mm-value">${docubeFormatWon(t.teTotal)}</div>${docubeDeltaBadge(t.teTotal, pt ? pt.teTotal : null)}</div>
               <div class="mr-total-wrap">
@@ -7014,6 +7126,77 @@ function initDocubeDetailView(){
 
   renderDetailView();
 }
+
+/* ---- 도급비마감(잠금) ---- */
+function getDocubeLockedKeys(){
+  if(!Array.isArray(docubeStore.lockedKeys)) docubeStore.lockedKeys = [];
+  return docubeStore.lockedKeys;
+}
+function isDocubeMonthLocked(y, m){
+  return getDocubeLockedKeys().includes(docubeMonthKey(y, m));
+}
+function setDocubeMonthLocked(y, m, locked){
+  const key = docubeMonthKey(y, m);
+  let list = getDocubeLockedKeys().slice();
+  if(locked){ if(!list.includes(key)) list.push(key); }
+  else{ list = list.filter(k=>k!==key); }
+  docubeStore.lockedKeys = list;
+  saveDocubeData();
+}
+function toggleDocubeMonthLockFromModal(key){
+  const [y,m1] = key.split('-').map(Number);
+  setDocubeMonthLocked(y, m1-1, !isDocubeMonthLocked(y, m1-1));
+  renderDocubeLockModalBody();
+  if(state.view==='docubeInput') initDocubeInputView();
+}
+function quickUnlockDocubeMonth(y, m){
+  if(!confirm(`${y}년 ${m+1}월 도급비 마감(잠금)을 해제할까요?`)) return;
+  setDocubeMonthLocked(y, m, false);
+  initDocubeInputView();
+}
+function lockCustomDocubeMonth(){
+  const y = Number(document.getElementById('docubeLockAddYear').value);
+  const m1 = Number(document.getElementById('docubeLockAddMonth').value);
+  setDocubeMonthLocked(y, m1-1, true);
+  renderDocubeLockModalBody();
+  if(state.view==='docubeInput') initDocubeInputView();
+}
+function openDocubeLockModal(){
+  renderDocubeLockModalBody();
+  document.getElementById('docubeLockModalOverlay').classList.remove('hidden');
+}
+function closeDocubeLockModal(){
+  document.getElementById('docubeLockModalOverlay').classList.add('hidden');
+}
+function renderDocubeLockModalBody(){
+  const keys = Object.keys(docubeStore.records||{}).sort((a,b)=>{
+    const [ay,am]=a.split('-').map(Number), [by,bm]=b.split('-').map(Number);
+    return (by*12+bm) - (ay*12+am);
+  });
+  const locked = getDocubeLockedKeys();
+  const cur = (docubeSelectedYear!==null) ? {year:docubeSelectedYear, month:docubeSelectedMonth+1} : (()=>{ const t=new Date(); return {year:t.getFullYear(), month:t.getMonth()+1}; })();
+  const body = document.getElementById('docubeLockModalBody');
+  const rows = keys.map(key=>{
+    const [y,m1] = key.split('-').map(Number);
+    const isLocked = locked.includes(key);
+    return `<li class="center-row">
+      <span style="flex:1;font-size:13px;font-weight:600;">${y}년 ${m1}월</span>
+      <span style="font-size:11px;font-weight:700;margin-right:8px;color:${isLocked?'#ff8f8f':'#6fe0a0'};">${isLocked?'🔒 마감됨':'🔓 해제됨'}</span>
+      <button type="button" class="btn-secondary" style="padding:6px 10px;font-size:11.5px;" onclick="toggleDocubeMonthLockFromModal('${key}')">${isLocked?'잠금 해제':'마감(잠금)'}</button>
+    </li>`;
+  }).join('') || '<li class="empty-state" style="padding:10px 0;">저장된 도급비 데이터가 없어요.</li>';
+  body.innerHTML = `
+    <ul class="center-list" style="margin-bottom:0;">${rows}</ul>
+    <div style="display:flex;gap:6px;align-items:center;margin-top:14px;flex-wrap:wrap;">
+      <span style="font-size:11.5px;color:var(--text-soft);">다른 연월 지정:</span>
+      ${buildDutyMonthSelectorHtml('docubeLockAdd', cur.year, cur.month)}
+      <button type="button" class="btn-secondary" onclick="lockCustomDocubeMonth()">마감(잠금)</button>
+    </div>
+  `;
+}
+document.getElementById('docubeLockModalOverlay').addEventListener('click', (e)=>{
+  if(e.target.id==='docubeLockModalOverlay') closeDocubeLockModal();
+});
 </script>
 </body>
 </html>
