@@ -575,6 +575,8 @@
     opacity:1;transition:opacity .15s;
   }
   .modal-overlay.hidden{display:none;}
+  .pld-detail.hidden{display:none;}
+  .pld-summary-row:hover{background:var(--bg-card-2);}
   .modal{
     background:var(--bg-card);border-radius:var(--radius-lg);width:400px;max-width:92vw;
     max-height:88vh;overflow:auto;box-shadow:var(--shadow);padding:22px;
@@ -656,6 +658,35 @@
 .docube-scope .cal-month-label{
   font-size:16px; font-weight:800; color:var(--ink-0);
   min-width:112px; text-align:center;
+}
+.docube-scope .cal-month-label-clickable{ cursor:pointer; border-radius:8px; padding:4px 8px; }
+.docube-scope .cal-month-label-clickable:hover{ background:var(--bg-card-2); }
+.docube-scope .rev-month-picker{
+  position:absolute; top:calc(100% + 6px); left:50%; transform:translateX(-50%);
+  background:var(--bg-card); border:1px solid var(--border-light); border-radius:12px;
+  box-shadow:0 10px 30px rgba(0,0,0,0.4); padding:12px; z-index:40; width:240px;
+}
+.docube-scope .rev-month-picker.hidden{ display:none; }
+.docube-scope .rmp-year-nav{
+  display:flex; align-items:center; justify-content:space-between;
+  margin-bottom:10px; font-size:13px; font-weight:800; color:var(--ink-0);
+}
+.docube-scope .rmp-year-nav .rmp-year-btn{
+  width:24px; height:24px; border-radius:6px; display:flex; align-items:center; justify-content:center;
+  cursor:pointer; color:var(--ink-2); font-weight:700;
+}
+.docube-scope .rmp-year-nav .rmp-year-btn:hover{ background:var(--bg-card-2); color:var(--ink-0); }
+.docube-scope .rmp-grid{ display:grid; grid-template-columns:repeat(4, 1fr); gap:6px; }
+.docube-scope .rmp-cell{
+  position:relative; padding:8px 0; border-radius:7px; text-align:center;
+  font-size:12.5px; font-weight:700; color:var(--ink-1); cursor:pointer;
+  border:1px solid transparent;
+}
+.docube-scope .rmp-cell:hover{ background:var(--bg-card-2); }
+.docube-scope .rmp-cell.current{ border-color:var(--gold); color:var(--ink-0); }
+.docube-scope .rmp-cell.has-data::after{
+  content:""; position:absolute; bottom:3px; left:50%; transform:translateX(-50%);
+  width:4px; height:4px; border-radius:50%; background:var(--gold);
 }
 .docube-scope .cal-today-btn{
   padding:6px 12px; border-radius:8px;
@@ -1349,6 +1380,17 @@
   </div>
 </div>
 
+<div class="modal-overlay hidden" id="payLedgerDiffModalOverlay">
+  <div class="modal" style="width:720px;max-width:92vw;">
+    <h2>🔍 급여대장 차이 확인</h2>
+    <p style="font-size:11.5px;color:var(--text-soft);margin:-8px 0 14px;">사번 기준으로 매칭해서, 급여내역 탭의 계산된 합계와 업로드한 급여대장의 지급금액(4대보험·세금 공제 전)을 비교해요. 1,000원 미만 차이는 오차로 보고 일치로 처리해요.</p>
+    <div id="payLedgerDiffModalBody"></div>
+    <div class="modal-actions" style="justify-content:flex-end;">
+      <button type="button" class="btn-secondary" onclick="closePayLedgerDiffModal()">닫기</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay hidden" id="centerModalOverlay">
   <div class="modal" style="width:600px;">
     <h2>센터명 관리</h2>
@@ -1736,10 +1778,12 @@ function applyLoadedPayload(parsed){
   dutyStore = normalizeDutyStore(parsed.dutyData || { monthly: {}, lockedKeys: [] });
   migrateDutyGradeNameFix();
   payAdjStore = parsed.payAdj || { monthly: {} };
+  payLedgerStore = (payAdjStore && payAdjStore.payLedger) ? payAdjStore.payLedger : { monthly: {} };
   evalStore = parsed.evalData || { weekly: {}, reducedHoursNames: [] };
   callStatsStore = parsed.callStats || { obJehu: {}, obJanggi: {}, raw: {}, offDeduction: [], attendanceDeduction: [] };
   docubeStore = (callStatsStore && callStatsStore.docube) ? callStatsStore.docube : defaultDocubeStore();
   if(!Array.isArray(docubeStore.lockedKeys)) docubeStore.lockedKeys = [];
+  docubeStore.prices = { ...defaultDocubeStore().prices, ...(docubeStore.prices||{}) }; /* 새로 추가된 단가 키(예: 이전 단가체계)가 기존 저장 데이터에 없으면 기본값으로 채움 */
   /* 이전(전역) 육아단축자 명단이 남아있으면, 아직 자체 명단이 없는 주차들에 1회 승계 */
   if(evalStore.reducedHoursNames && evalStore.reducedHoursNames.length){
     Object.keys(evalStore.weekly||{}).sort().forEach(k=>{
@@ -1754,6 +1798,7 @@ async function saveData(){
   localSaveInFlight = true;
   try{
   callStatsStore.docube = docubeStore;
+  payAdjStore.payLedger = payLedgerStore;
   const cleanPayload = JSON.parse(JSON.stringify({
     events: state.events, notices: state.notices,
     centers: state.centers, noticeCategories: state.noticeCategories,
@@ -1809,6 +1854,7 @@ function updateStorageStatus(){
   }
 }
 function exportData(){
+  payAdjStore.payLedger = payLedgerStore;
   const payload = JSON.stringify({
     events: state.events, notices: state.notices,
     centers: state.centers, noticeCategories: state.noticeCategories,
@@ -3301,6 +3347,7 @@ const DUTY_OT_TYPES = ['평일연장','휴일근무','평일야간','휴일연�
 let dutyState = { employees: [], monthLabel: '', orgName: '', daysInMonth: 31, sourceFileName: '' };
 let dutyStore = { monthly: {}, lockedKeys: [] }; /* 캘린더 데이터와 함께 Supabase에 동기화됨 */
 let payAdjStore = { monthly: {} }; /* 급여내역 수동입력(전월미지급금/소급과오납/기타포상비), 동일하게 동기화됨 */
+let payLedgerStore = { monthly: {} }; /* 사번별 실제 급여대장(지급금액) 업로드분, 급여내역 계산값과 매칭/차이 확인용 */
 let evalStore = { weekly: {}, reducedHoursNames: [] }; /* 관리자평가 전용 데이터, 다른 탭과 완전히 독립적 */
 let callStatsStore = {
   obJehu: {},        /* { 'YYYY-MM-DD': { 이름: 값 } } - 제휴 OB콜백 */
@@ -3312,9 +3359,14 @@ let callStatsStore = {
 function defaultDocubeStore(){
   return {
     prices: {
+      /* 2026년 4월부터 쓰는 단가 */
       counselor: 3547000, centerHead: 4168000, teamLeader: 4108000,
       specialCounsel: 4108000, km: 4108000, instructor: 4108000, qa: 4108000,
-      traineeFull: 810000
+      traineeFull: 810000,
+      /* 2026년 3월까지 쓰던 단가 */
+      csrSenior: 3595000, csrJunior: 3414000, centerHeadOld: 4119000,
+      claimClerk: 4060000, teamLeaderOld: 4060000, specialCounselOld: 4060000,
+      qaOld: 4060000, aspGeneral: 340000, aspTrainee: 250000, traineeFullOld: 1594000
     },
     records: {}, /* key: 'YYYY-M' */
     lockedKeys: [] /* 마감(잠금)된 월 목록, key: 'YYYY-M' */
@@ -3423,8 +3475,8 @@ const SALARY_TABLES = {
     {grade:'KB손해보험 부천센터_보유계약(사원)', otHours:0, base:2156880, jikmu:0, jikchaek:0, geunsok:0, otAllowance:0, sikbi:100000, achieve:{S:150000,A:120000,B:100000,C:70000,D:50000,E:0}, leavePay:86390, otPay:16200},
     {grade:'KB손해보험 부천센터_보유계약(주임)', otHours:0, base:2156880, jikmu:0, jikchaek:0, geunsok:0, otAllowance:0, sikbi:100000, achieve:{S:250000,A:220000,B:200000,C:170000,D:150000,E:0}, leavePay:86390, otPay:16200},
     {grade:'KB손해보험 부천센터_보유계약(프로)', otHours:0, base:2156880, jikmu:0, jikchaek:0, geunsok:0, otAllowance:0, sikbi:100000, achieve:{S:400000,A:350000,B:320000,C:300000,D:250000,E:0}, leavePay:86390, otPay:16200},
-    {grade:'KB손해보험 부천센터_실효(사원)', otHours:0, base:866880, jikmu:0, jikchaek:0, geunsok:0, otAllowance:0, sikbi:50000, achieve:{S:200000,A:150000,B:100000,C:80000,D:50000,E:0}, leavePay:87330, otPay:16380},
-    {grade:'KB손해보험 부천센터_실효(주임)', otHours:0, base:866880, jikmu:0, jikchaek:0, geunsok:0, otAllowance:0, sikbi:50000, achieve:{S:350000,A:300000,B:250000,C:200000,D:150000,E:0}, leavePay:87330, otPay:16380},
+    {grade:'KB손해보험 부천센터_실효(사원)', otHours:7.5, base:866880, jikmu:0, jikchaek:0, geunsok:0, otAllowance:122850, sikbi:50000, achieve:{S:200000,A:150000,B:100000,C:80000,D:50000,E:0}, leavePay:87330, otPay:16380},
+    {grade:'KB손해보험 부천센터_실효(주임)', otHours:7.5, base:866880, jikmu:0, jikchaek:0, geunsok:0, otAllowance:122850, sikbi:50000, achieve:{S:350000,A:300000,B:250000,C:200000,D:150000,E:0}, leavePay:87330, otPay:16380},
     {grade:'KB손해보험 부천센터_교육/QA(일반)', otHours:3, base:2156880, jikmu:100000, jikchaek:0, geunsok:0, otAllowance:50750, sikbi:100000, achieve:{S:300000,A:250000,B:200000,C:150000,D:100000,E:0}, leavePay:90216, otPay:16915},
     {grade:'KB손해보험 부천센터_교육/QA(주임)', otHours:3, base:2156880, jikmu:100000, jikchaek:0, geunsok:30000, otAllowance:51400, sikbi:100000, achieve:{S:380000,A:310000,B:240000,C:170000,D:100000,E:0}, leavePay:91364, otPay:17131},
     {grade:'KB손해보험 부천센터_교육/QA(선임)', otHours:3, base:2156880, jikmu:130000, jikchaek:0, geunsok:70000, otAllowance:52900, sikbi:100000, achieve:{S:500000,A:400000,B:300000,C:200000,D:100000,E:0}, leavePay:94043, otPay:17633},
@@ -3446,6 +3498,25 @@ function findSalaryRow(grade, orgName){
   const table = SALARY_TABLES[orgName] || [];
   return table.find(r=>r.grade===(grade||'').trim()) || null;
 }
+/* 복무입력의 '구분'(근무시간: 8H/6H/4H)에 맞춰 기본급을 다시 계산.
+   대부분의 직급은 8H 기준 기본급(2,156,880원)을 공유하는데, 이 값을 쓰는 직급에 한해
+   구분이 6H/4H면 아래 표의 값으로 기본급을 교체함. (실효(사원/주임)처럼 원래 기본급 자체가
+   다른 직급은 그대로 유지) */
+const SALARY_BASE_BY_HOURS = { '8H': 2156880, '6H': 1620240, '4H': 1083600 };
+function resolveSalaryBase(salaryRow, gubun){
+  if(!salaryRow) return 0;
+  const g = (gubun || '8H').toUpperCase();
+  if(salaryRow.base === SALARY_BASE_BY_HOURS['8H'] && SALARY_BASE_BY_HOURS[g] !== undefined){
+    return SALARY_BASE_BY_HOURS[g];
+  }
+  return salaryRow.base;
+}
+/* 업적수당은 근무시간(구분) 비율로 환산 (예: 8H 기준 80만원인 사람이 6H면 60만원) */
+function salaryHoursRatio(gubun){
+  const match = String(gubun||'8H').match(/(\d+(\.\d+)?)/);
+  const hours = match ? Number(match[1]) : 8;
+  return hours / 8;
+}
 function totalDutyOvertimeHours(e){
   return DUTY_OT_TYPES.reduce((sum,g)=> sum + sumOtDaily(e,g), 0);
 }
@@ -3459,7 +3530,209 @@ function setPayAdjustment(monthLabel, orgName, sabun, field, value){
   payAdjStore.monthly[monthLabel][orgName][sabun] = payAdjStore.monthly[monthLabel][orgName][sabun] || {prevUnpaid:0, retroactive:0, bonus:0};
   payAdjStore.monthly[monthLabel][orgName][sabun][field] = value;
 }
+
+/* ---- 급여대장 업로드 매칭 (사번 기준, 지급금액 vs 급여내역 합계) ---- */
+const PAY_LEDGER_TOLERANCE = 1000; /* 이 금액(원) 미만 차이는 오차로 보고 "일치"로 처리, 이상이면 차이로 표시 */
+function getPayLedgerMonthOrg(monthLabel, orgName){
+  const m = payLedgerStore.monthly[monthLabel];
+  return (m && m[orgName]) || null;
+}
+function setPayLedgerMonthOrg(monthLabel, orgName, bySabun){
+  payLedgerStore.monthly[monthLabel] = payLedgerStore.monthly[monthLabel] || {};
+  payLedgerStore.monthly[monthLabel][orgName] = { bySabun, uploadedAt: new Date().toISOString() };
+}
+function clearPayLedgerMonthOrg(monthLabel, orgName){
+  if(payLedgerStore.monthly[monthLabel]) delete payLedgerStore.monthly[monthLabel][orgName];
+}
+/* 급여대장 항목 중 인적정보/은행/4대보험·세금·기타공제 관련 열은 '지급 항목 비교'에서 제외 */
+const PAY_LEDGER_EXCLUDE_HEADERS = new Set([
+  'No','사번','성명','사업장','입사일','퇴사일','조직','직급','직책','구성원그룹','연호봉구분','호봉','직무',
+  '소득세','지방소득세','국민연금','건강보험','장기요양보험','고용보험',
+  '국민연금정산','건강보험정산','장기요양보험정산','고용보험정산','연말정산차감징수액',
+  '대출원금','대출이자','노사랑기금','나눔기금','감봉','채권압류',
+  '결근감액(공제)','보건휴가감액(공제)','중식비공제(예수금)','중식비공제','압류금','기부금',
+  '기타공제','기타공제(예수금)','개인연금','급여미수금','우리사주원금','우리사주이자','학자금상환',
+  '노동조합비(케이티아이에스)','노동조합비(컨택현장)','교육비공제','미수금',
+  '지급금액','급여외지급','총지급액','공제액','실지급액','은행','계좌번호','예금주'
+]);
+async function onPayLedgerUpload(ev){
+  const file = ev.target.files[0]; if(!file) return;
+  if(dutyGroupAllCenters){
+    alert('급여대장 업로드는 "전체 센터 합산"을 끄고 특정 센터를 선택한 상태에서 해주세요.');
+    ev.target.value=''; return;
+  }
+  try{
+    const wb = await readWorkbookFromFile(file);
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:null});
+    const header = rows[0] || [];
+    let sabunIdx=-1, nameIdx=-1, totalIdx=-1;
+    header.forEach((h,idx)=>{
+      const norm = normalizeHeader(h);
+      if(norm==='사번') sabunIdx=idx;
+      else if(norm==='성명'||norm==='이름') nameIdx=idx;
+      else if(norm==='지급금액') totalIdx=idx;
+    });
+    if(sabunIdx===-1 || totalIdx===-1){
+      alert('"사번"과 "지급금액" 열을 찾을 수 없어요. 급여대장 원본 파일 형식인지 확인해주세요.');
+      ev.target.value=''; return;
+    }
+    const itemCols = [];
+    header.forEach((h,idx)=>{
+      const label = String(h||'').trim();
+      if(!label || label.startsWith('Unnamed') || label.includes('급여대장_')) return;
+      if(PAY_LEDGER_EXCLUDE_HEADERS.has(label)) return;
+      itemCols.push({idx, label});
+    });
+    const bySabun = {};
+    let count = 0;
+    for(let r=1;r<rows.length;r++){
+      const row = rows[r]; if(!row) continue;
+      const sabun = String(row[sabunIdx]!=null?row[sabunIdx]:'').trim();
+      if(!sabun) continue;
+      const total = numOrNull(row[totalIdx]) || 0;
+      const name = nameIdx!==-1 ? String(row[nameIdx]!=null?row[nameIdx]:'').trim() : '';
+      const items = [];
+      itemCols.forEach(col=>{
+        const val = numOrNull(row[col.idx]);
+        if(val) items.push({ label: col.label, value: val });
+      });
+      bySabun[sabun] = { name, total, items };
+      count++;
+    }
+    const sel = getDutyGroupSelection();
+    setPayLedgerMonthOrg(sel.monthLabel, sel.orgName, bySabun);
+    saveData();
+    if(state.view==='salary') document.getElementById('viewContainer').innerHTML = renderSalaryView();
+    alert(`급여대장 ${count}명 업로드 완료. 급여내역 표에서 차이를 확인해주세요.`);
+  }catch(err){
+    console.error(err);
+    alert('급여대장 파일을 읽는 중 문제가 발생했어요.');
+  }
+  ev.target.value='';
+}
+function computePayLedgerDiffs(rows, monthLabel, orgName){
+  const ledger = getPayLedgerMonthOrg(monthLabel, orgName);
+  if(!ledger) return null;
+  const remaining = { ...ledger.bySabun };
+  const withDiff = rows.map(r=>{
+    const entry = ledger.bySabun[r.sabun];
+    delete remaining[r.sabun];
+    if(!entry) return { ...r, ledgerTotal:null, ledgerDiff:null, ledgerMatched:false };
+    const diff = entry.total - r.BW;
+    return { ...r, ledgerTotal:entry.total, ledgerDiff:diff, ledgerMatched:true };
+  });
+  const unmatchedLedger = Object.keys(remaining).map(sabun=>({ sabun, ...remaining[sabun] }));
+  return { rows: withDiff, unmatchedLedger };
+}
+const SALARY_APP_ITEM_FIELDS = [
+  {label:'기본급', field:'BD'},
+  {label:'기본급차감', field:'BE'},
+  {label:'월기본급(계)', field:'BF'},
+  {label:'직무수당', field:'BG'},
+  {label:'직책수당', field:'BH'},
+  {label:'근속수당', field:'BI'},
+  {label:'급식비', field:'BJ'},
+  {label:'초과근무수당', field:'BL'},
+  {label:'업적수당', field:'BN'},
+  {label:'성과급_변동', field:'BO'},
+  {label:'시간외수당', field:'BQ'},
+  {label:'연차수당', field:'BS'},
+  {label:'전월미지급금', field:'BT'},
+  {label:'소급·과오납', field:'BU'},
+  {label:'기타포상비', field:'BV'},
+];
+function salaryAppItemBreakdown(r){
+  return SALARY_APP_ITEM_FIELDS
+    .map(f=>({ label:f.label, value:r[f.field] }))
+    .filter(x=> x.value && x.value!==0);
+}
+function togglePayLedgerBreakdown(sabun){
+  const row = document.getElementById('pldDetail_' + sabun);
+  if(row) row.classList.toggle('hidden');
+}
+function openPayLedgerDiffModal(){
+  const sel = getDutyGroupSelection();
+  if(dutyGroupAllCenters){
+    alert('급여대장 차이 확인은 "전체 센터 합산"을 끄고 특정 센터를 선택한 상태에서 해주세요.');
+    return;
+  }
+  const { rows } = computeSalaryRows(sel.monthLabel, sel.orgName);
+  const diffResult = computePayLedgerDiffs(rows, sel.monthLabel, sel.orgName);
+  const body = document.getElementById('payLedgerDiffModalBody');
+  if(!diffResult){
+    body.innerHTML = `<div class="empty-state" style="padding:30px 0;">${escapeHtml(sel.monthLabel)} · ${escapeHtml(sel.orgName)}에 업로드된 급여대장이 없어요.</div>`;
+  }else{
+    const mismatched = diffResult.rows.filter(r=>r.ledgerMatched && Math.abs(r.ledgerDiff)>=PAY_LEDGER_TOLERANCE);
+    const noAppMatch = diffResult.rows.filter(r=>!r.ledgerMatched);
+    const fmt = n => (n||n===0) ? Math.round(n).toLocaleString()+'원' : '';
+    let html = '';
+    if(!mismatched.length && !noAppMatch.length && !diffResult.unmatchedLedger.length){
+      html += `<div class="empty-state" style="padding:30px 0;color:#6fe0a0;">✅ 전원 일치해요. 차이 나는 사람이 없어요.</div>`;
+    }
+    if(mismatched.length){
+      html += `<div class="duty-report-section-title" style="margin-top:0;">⚠ 금액이 다른 사람 (${mismatched.length}명) · 행을 클릭하면 항목별 내역이 펼쳐져요</div>
+      <div class="duty-table-scroll" style="max-height:400px;">
+      <table class="duty-table"><thead><tr><th></th><th>사번</th><th>이름</th><th>급여내역 합계</th><th>급여대장 지급금액</th><th>차이</th></tr></thead><tbody>
+      ${mismatched.map(r=>{
+        const ledgerEntry = getPayLedgerMonthOrg(sel.monthLabel, sel.orgName).bySabun[r.sabun];
+        const appItems = salaryAppItemBreakdown(r);
+        const ledgerItems = (ledgerEntry && ledgerEntry.items) || [];
+        return `<tr class="pld-summary-row" style="cursor:pointer;" onclick="togglePayLedgerBreakdown('${r.sabun}')">
+          <td>▸</td>
+          <td>${escapeHtml(r.sabun)}</td><td>${escapeHtml(r.name||'')}</td>
+          <td>${fmt(r.BW)}</td><td>${fmt(r.ledgerTotal)}</td>
+          <td style="font-weight:700;color:${r.ledgerDiff>0?'#6fe0a0':'#ff8f8f'};">${r.ledgerDiff>0?'+':''}${fmt(r.ledgerDiff)}</td>
+        </tr>
+        <tr class="pld-detail hidden" id="pldDetail_${escapeHtml(r.sabun)}">
+          <td colspan="6" style="background:var(--bg-card-2);">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:8px 4px;">
+              <div>
+                <div style="font-size:11px;font-weight:800;color:var(--text-soft);margin-bottom:6px;">급여내역(앱) 계산 항목</div>
+                ${appItems.length ? appItems.map(x=>`<div style="display:flex;justify-content:space-between;font-size:12px;padding:2px 0;"><span>${escapeHtml(x.label)}</span><b>${fmt(x.value)}</b></div>`).join('') : '<div style="font-size:12px;color:var(--text-faint);">표시할 항목 없음</div>'}
+              </div>
+              <div>
+                <div style="font-size:11px;font-weight:800;color:var(--text-soft);margin-bottom:6px;">급여대장 지급 항목 (0원 제외)</div>
+                ${ledgerItems.length ? ledgerItems.map(x=>`<div style="display:flex;justify-content:space-between;font-size:12px;padding:2px 0;"><span>${escapeHtml(x.label)}</span><b>${fmt(x.value)}</b></div>`).join('') : '<div style="font-size:12px;color:var(--text-faint);">표시할 항목 없음</div>'}
+              </div>
+            </div>
+          </td>
+        </tr>`;
+      }).join('')}
+      </tbody></table></div>`;
+    }
+    if(noAppMatch.length){
+      html += `<div class="duty-report-section-title">🔍 급여대장에 없는 사람 (${noAppMatch.length}명, 급여내역에만 존재)</div>
+      <div class="duty-table-scroll" style="max-height:200px;">
+      <table class="duty-table"><thead><tr><th>사번</th><th>이름</th><th>급여내역 합계</th></tr></thead><tbody>
+      ${noAppMatch.map(r=>`<tr><td>${escapeHtml(r.sabun)}</td><td>${escapeHtml(r.name||'')}</td><td>${fmt(r.BW)}</td></tr>`).join('')}
+      </tbody></table></div>`;
+    }
+    if(diffResult.unmatchedLedger.length){
+      html += `<div class="duty-report-section-title">🔍 급여내역에 없는 사람 (${diffResult.unmatchedLedger.length}명, 급여대장에만 존재)</div>
+      <div class="duty-table-scroll" style="max-height:200px;">
+      <table class="duty-table"><thead><tr><th>사번</th><th>이름</th><th>지급금액</th></tr></thead><tbody>
+      ${diffResult.unmatchedLedger.map(r=>`<tr><td>${escapeHtml(r.sabun)}</td><td>${escapeHtml(r.name||'')}</td><td>${fmt(r.total)}</td></tr>`).join('')}
+      </tbody></table></div>`;
+    }
+    body.innerHTML = html;
+  }
+  document.getElementById('payLedgerDiffModalOverlay').classList.remove('hidden');
+}
+function closePayLedgerDiffModal(){
+  document.getElementById('payLedgerDiffModalOverlay').classList.add('hidden');
+}
+
 const SALARY_UNPAID_CATEGORIES = ['결근','가족돌봄','보건','병가','휴직'];
+function isSalaryMidMonthLeaver(leaveDate, monthLabel, daysInMonth){
+  if(!leaveDate) return false;
+  const parts = String(monthLabel).split('.').map(Number);
+  const my = parts[0], mm = parts[1];
+  const d = new Date(leaveDate);
+  if(isNaN(d.getTime())) return false;
+  if(d.getFullYear() !== my || (d.getMonth()+1) !== mm) return false;
+  return d.getDate() < daysInMonth; /* 말일 퇴사는 사실상 만근이므로 중도퇴사로 보지 않음 */
+}
 function computeSalaryRows(monthLabel, orgName){
   const snap = loadDutyMonthSnapshot(monthLabel, orgName);
   if(!snap || !snap.employees || !snap.employees.length) return {rows:[], daysInMonth:31};
@@ -3468,12 +3741,14 @@ function computeSalaryRows(monthLabel, orgName){
   const prelim = employees.map(e=>{
     const daily = e.daily || {};
     const grade = (e.items && e.items['호봉']) || '';
-    let filled=0, unpaidCore=0, muGeupHyuga=0, muGeupJoTway=0;
+    let filled=0, unpaidCore=0, muGeupHyuga=0, muGeupJoTway=0, actualWorkDays=0;
     for(let d=1; d<=daysInMonth; d++){
       const code = daily[d];
       if(code===undefined||code===null||code==='') continue;
       filled++;
-      if(SALARY_UNPAID_CATEGORIES.includes(code)) unpaidCore++;
+      if(code==='○') actualWorkDays += 1;
+      else if(code==='반차') actualWorkDays += 0.5;
+      if(SALARY_UNPAID_CATEGORIES.some(cat => code.includes(cat))) unpaidCore++;
       else if(code==='무급휴가') muGeupHyuga++;
       else if(code==='무급조퇴') muGeupJoTway++;
     }
@@ -3482,24 +3757,30 @@ function computeSalaryRows(monthLabel, orgName){
     const unpaidBase = unpaidCore + muGeupHyuga + muGeupJoTway/2;
     const BB = isSilhyo ? unpaidBase : (unpaidBase + blankCount);
     const BC = filled - unpaidBase;
-    return {e, grade, BA:filled, BB, BC};
+    const lastDayCode = daily[daysInMonth] || '';
+    const onLeaveOrSickAtMonthEnd = lastDayCode.includes('휴직') || lastDayCode.includes('병가');
+    return {e, grade, BA:filled, BB, BC, actualWorkDays, onLeaveOrSickAtMonthEnd};
   });
   const maxBC = Math.max(0, ...prelim.map(p=>p.BC));
   const payAdj = getPayAdjMonthOrg(monthLabel, orgName);
   const rows = prelim.map(p=>{
     const e = p.e;
     const salaryRow = findSalaryRow(p.grade, orgName);
-    const BD = salaryRow ? salaryRow.base : 0;
+    const gubun = (e.items && e.items['구분']) || '8H';
+    const BD = resolveSalaryBase(salaryRow, gubun);
     const BE = maxBC>0 ? -BD/maxBC*p.BB : 0;
     const BF = BD+BE;
     const BG = salaryRow ? salaryRow.jikmu : 0;
     const BH = salaryRow ? salaryRow.jikchaek : 0;
     const BI = salaryRow ? salaryRow.geunsok : 0;
-    const BJ = salaryRow ? salaryRow.sikbi : 0;
+    /* 당월 중도퇴사자 이거나, 실제 출근일이 5일 이하이거나, 월 말일에 휴직/병가 상태인 경우 급식비 미지급 */
+    const isMidMonthLeaver = isSalaryMidMonthLeaver(e.leaveDate, monthLabel, daysInMonth);
+    const noMealAllowance = isMidMonthLeaver || p.actualWorkDays <= 5 || p.onLeaveOrSickAtMonthEnd;
+    const BJ = (salaryRow && !noMealAllowance) ? salaryRow.sikbi : 0;
     const BK = salaryRow ? salaryRow.otHours : 0;
     const BL = salaryRow ? salaryRow.otAllowance : 0;
     const BM = (e.items && e.items['근무평가등급']) || '';
-    const BN = (salaryRow && salaryRow.achieve[BM]!==undefined) ? salaryRow.achieve[BM] : 0;
+    const BN = (salaryRow && salaryRow.achieve[BM]!==undefined) ? Math.round(salaryRow.achieve[BM] * salaryHoursRatio(gubun)) : 0;
     const BO = numOrNull(e.items && e.items['성과급_변동']) || 0;
     const BP = totalDutyOvertimeHours(e);
     const BQ = salaryRow ? BP*salaryRow.otPay : 0;
@@ -3507,7 +3788,7 @@ function computeSalaryRows(monthLabel, orgName){
     const BS = salaryRow ? BR*salaryRow.leavePay : 0;
     const adj = payAdj[e.sabun] || {prevUnpaid:0,retroactive:0,bonus:0};
     const BT = adj.prevUnpaid||0, BU = adj.retroactive||0, BV = adj.bonus||0;
-    const BW = BF+BG+BH+BI+BJ+BL+BN+BO+BQ+BS+BT+BU+BV;
+    const BW = BF+BG+BH+BI+BJ+BL+BN+BO+BQ+BS+BT+BU; /* 기타포상비(BV)는 보여주기용으로만 표시하고 합계 계산에서는 제외 */
     return {
       sabun:e.sabun, name:e.name, grade:p.grade, daily:e.daily,
       hireDate:e.hireDate, transferDate:e.transferDate, leaveDate:e.leaveDate,
@@ -3531,9 +3812,11 @@ function displayGradeShort(grade, orgName){
   const prefix = (orgName||'') + '_';
   return grade.startsWith(prefix) ? grade.slice(prefix.length) : grade;
 }
-function renderSalaryPreviewTable(rows, orgName){
+function renderSalaryPreviewTable(rows, orgName, monthLabel){
   const isAggregate = orgName===null;
+  const ledger = (!isAggregate && monthLabel) ? getPayLedgerMonthOrg(monthLabel, orgName) : null;
   const header = isAggregate ? ['센터', ...buildSalaryHeaderRow()] : buildSalaryHeaderRow();
+  if(ledger) header.push('급여대장 차이');
   const uploadColHtml = (fieldKey, label)=>`<th>
     <div>${escapeHtml(label)}</div>
     <input type="file" id="salaryUpload_${fieldKey}" accept=".xlsx,.xls" style="display:none;" onchange="onSalaryFieldUpload(event,'${fieldKey}')">
@@ -3553,6 +3836,17 @@ function renderSalaryPreviewTable(rows, orgName){
     String(r.grade||'').toLowerCase().includes(query)
   ) : rows;
   const bodyHtml = filteredRows.map((r,idx)=>{
+    let ledgerCell = '';
+    if(ledger){
+      const entry = ledger.bySabun[r.sabun];
+      if(!entry){
+        ledgerCell = `<td style="color:var(--text-faint);">매칭없음</td>`;
+      }else{
+        const diff = entry.total - r.BW;
+        if(Math.abs(diff)<PAY_LEDGER_TOLERANCE) ledgerCell = `<td style="color:#6fe0a0;font-weight:700;">일치</td>`;
+        else ledgerCell = `<td style="font-weight:700;color:${diff>0?'#6fe0a0':'#ff8f8f'};">${diff>0?'+':''}${fmt(diff)}</td>`;
+      }
+    }
     return `<tr>
       ${isAggregate?`<td style="white-space:nowrap;">${escapeHtml(r._org||'')}</td>`:''}
       <td>${idx+1}</td>
@@ -3571,6 +3865,7 @@ function renderSalaryPreviewTable(rows, orgName){
       <td>${fmt(r.BR)}</td><td>${fmt(r.BS)}</td>
       <td>${fmt(r.BT)}</td><td>${fmt(r.BU)}</td><td>${fmt(r.BV)}</td>
       <td style="font-weight:700;">${fmt(r.BW)}</td>
+      ${ledgerCell}
     </tr>`;
   }).join('');
   const warnCount = rows.filter(r=>!r.hasSalaryRow).length;
@@ -3616,13 +3911,16 @@ function renderSalaryView(){
       </label>
       <button class="btn-secondary" onclick="onDutyGroupSelectionChange()">조회</button>
       <button class="btn-secondary" onclick="openSalaryTableModal()">💰 급여테이블 보기</button>
+      <input type="file" id="payLedgerUploadInput" accept=".xlsx,.xls" style="display:none;" onchange="onPayLedgerUpload(event)">
+      <button class="btn-secondary" onclick="document.getElementById('payLedgerUploadInput').click()">📤 급여대장 업로드</button>
+      <button class="btn-secondary" onclick="openPayLedgerDiffModal()">🔍 급여대장 차이 확인</button>
       <span class="duty-month-hint">연월·센터는 복무입력/복무관리/급여내역에서 공통으로 사용돼요. 금액은 급여테이블 기준으로 자동 계산돼요.</span>
     </div>`;
   html += renderDutyProgressSummary(sel.monthLabel);
   if(!rows.length){
     html += `<div class="empty-state" style="padding:60px 0;">${escapeHtml(sel.monthLabel)} · ${dutyGroupAllCenters?'전체 센터':escapeHtml(sel.orgName)}에 저장된 복무입력 데이터가 없어요. 먼저 복무입력 탭에서 근태관리 파일을 올려주세요.</div>`;
   }else{
-    html += renderSalaryPreviewTable(rows, dutyGroupAllCenters ? null : sel.orgName);
+    html += renderSalaryPreviewTable(rows, dutyGroupAllCenters ? null : sel.orgName, sel.monthLabel);
     html += `<div class="duty-actions">
       <button class="btn-primary" onclick="generateSalaryExcel()">📥 급여내역 엑셀 다운로드</button>
     </div>`;
@@ -6412,6 +6710,44 @@ const DOCUBE_STAFF_ROLES = [
   { key:'qa',             label:'QA',      priceKey:'qa' },
 ];
 
+/* ---- 기간별 단가/항목 체계 ----
+   2026년 3월까지: CSR을 경력 2년이상/미만으로 나누고, 이재배서·ASP 항목이 있으며 KM·강사는 없음.
+   2026년 4월부터: 지금 쓰는 체계(CSR 단일 + 센터장/상담팀장/특화상담/KM/강사/QA). */
+const DOCUBE_PERIOD_CONFIGS = {
+  old: {
+    label: '2026년 3월 이전 단가',
+    csrTiers: [
+      { key:'csr_senior', label:'CSR (2년이상)', priceKey:'csrSenior' },
+      { key:'csr_junior', label:'CSR (2년미만)', priceKey:'csrJunior' },
+    ],
+    staffRoles: [
+      { key:'centerHead_old',     label:'센터장',   priceKey:'centerHeadOld' },
+      { key:'claimClerk',         label:'이재배서', priceKey:'claimClerk' },
+      { key:'teamLeader_old',     label:'상담팀장', priceKey:'teamLeaderOld' },
+      { key:'specialCounsel_old', label:'특화상담', priceKey:'specialCounselOld' },
+      { key:'qa_old',             label:'QA',      priceKey:'qaOld' },
+      { key:'aspGeneral',         label:'ASP 일반', priceKey:'aspGeneral' },
+      { key:'aspTrainee',         label:'ASP 교육생', priceKey:'aspTrainee' },
+    ],
+    traineePriceKey: 'traineeFullOld',
+  },
+  new: {
+    label: '2026년 4월부터 단가',
+    csrTiers: [
+      { key:'csr', label:'CSR', priceKey:'counselor' },
+    ],
+    staffRoles: DOCUBE_STAFF_ROLES,
+    traineePriceKey: 'traineeFull',
+  },
+};
+function docubePeriodKeyFor(y, m){
+  /* m은 0-indexed. 2026년 4월(=3) 이전이면 old, 그 이후면 new */
+  return (y < 2026 || (y === 2026 && m < 3)) ? 'old' : 'new';
+}
+function docubeConfigFor(y, m){
+  return DOCUBE_PERIOD_CONFIGS[docubePeriodKeyFor(y, m)];
+}
+
 function docubeFormatWon(n){
   if(n === null || n === undefined || isNaN(n)) n = 0;
   return Math.round(n).toLocaleString('ko-KR') + '원';
@@ -6427,10 +6763,11 @@ function docubeFormatCountWhole(n){
 }
 function docubeCalcVat(supply){ return Math.round(supply * 0.1); }
 function docubeMonthKey(y,m){ return `${y}-${m+1}`; }
-function docubeComputeTraineePay(t, priceSet){
+function docubeComputeTraineePay(t, priceSet, priceKey){
+  priceKey = priceKey || 'traineeFull';
   const stdDays = t.stdDays > 0 ? t.stdDays : 23;
   const actualDays = t.actualDays > 0 ? t.actualDays : 1;
-  const dailyRate = priceSet.traineeFull / stdDays;
+  const dailyRate = priceSet[priceKey] / stdDays;
   const raw = t.passed ? (dailyRate * actualDays) : (dailyRate * actualDays / 2);
   return Math.round(raw / 100) * 100; // 백원 단위 반올림
 }
@@ -6448,12 +6785,16 @@ function docubeCsrCountFromNote(note){
   return Math.round(sum);
 }
 function docubeRecordTotals(rec){
-  const csrCount = rec.csrCount || 0;
-  const cSupply = csrCount * rec.prices.counselor;
-  const cCount = csrCount;
-  const sSupply = DOCUBE_STAFF_ROLES.reduce((a,r)=>a+(rec.staffCounts[r.key]||0)*rec.prices[r.priceKey],0);
-  const sCount = DOCUBE_STAFF_ROLES.reduce((a,r)=>a+(rec.staffCounts[r.key]||0),0);
-  const tSupply = (rec.trainees||[]).reduce((a,t)=>a+docubeComputeTraineePay(t, rec.prices),0);
+  const cfg = docubeConfigFor(rec.year, rec.month);
+  let cSupply = 0, cCount = 0;
+  cfg.csrTiers.forEach(tier=>{
+    const st = (rec.csrTiers && rec.csrTiers[tier.key]) || {};
+    cSupply += (st.count||0) * rec.prices[tier.priceKey];
+    cCount += (st.count||0);
+  });
+  const sSupply = cfg.staffRoles.reduce((a,r)=>a+(rec.staffCounts[r.key]||0)*rec.prices[r.priceKey],0);
+  const sCount = cfg.staffRoles.reduce((a,r)=>a+(rec.staffCounts[r.key]||0),0);
+  const tSupply = (rec.trainees||[]).reduce((a,t)=>a+docubeComputeTraineePay(t, rec.prices, cfg.traineePriceKey),0);
   const teSupply = rec.telecom.supply||0;
   const teVat = rec.telecom.vat||0;
   const cVat = docubeCalcVat(cSupply), sVat = docubeCalcVat(sSupply), tVat = docubeCalcVat(tSupply);
@@ -6491,7 +6832,10 @@ function renderDocubeInputView(){
     <div class="stat-toolbar">
       <div class="cal-nav">
         <div class="cal-nav-btn" id="revPrev">‹</div>
-        <div class="cal-month-label" id="revMonthLabel">-</div>
+        <div class="cal-month-label-wrap" style="position:relative;">
+          <div class="cal-month-label cal-month-label-clickable" id="revMonthLabel">-</div>
+          <div class="rev-month-picker hidden" id="revMonthPicker"></div>
+        </div>
         <div class="cal-nav-btn" id="revNext">›</div>
       </div>
       <div style="display:flex; align-items:center; gap:10px;">
@@ -6589,9 +6933,8 @@ function initDocubeInputView(){
   if(!root) return;
 
   let prices = { ...docubeStore.prices };
-  let csrCount = 0;
-  let csrNote = {}; DOCUBE_CSR_NOTE_ROLES.forEach(r=>csrNote[r.key]=0);
-  let staffCounts = {}; DOCUBE_STAFF_ROLES.forEach(r=>staffCounts[r.key]=0);
+  let csrTiers = {}; /* { tierKey: { count, note } } - 기간(연/월)에 따라 CSR 항목 구성이 달라짐 */
+  let staffCounts = {};
   let trainees = [];
   let nextTraineeId = 1;
   let telecom = { supply:0, vat:0 };
@@ -6600,11 +6943,12 @@ function initDocubeInputView(){
   let seeded = false;
   if(Object.keys(docubeStore.records).length === 0){
     docubeStore.records[docubeMonthKey(2026,6)] = {
-      year: 2026, month: 6, // 7월 (0-indexed)
-      csrCount: 147,
-      csrNote: {
-        cs_counsel: 33.4, cs_support: 11, acc: 90.4,
-        contract: 6.5, valid_ob: 1.8, chat: 4,
+      year: 2026, month: 6, // 7월 (0-indexed, 2026년 4월 이후 단가체계)
+      csrTiers: {
+        csr: {
+          count: 147,
+          note: { cs_counsel: 33.4, cs_support: 11, acc: 90.4, contract: 6.5, valid_ob: 1.8, chat: 4 },
+        },
       },
       staffCounts: { centerHead: 1, teamLeader: 12, specialCounsel: 2, km: 2, instructor: 2, qa: 7 },
       trainees: [
@@ -6657,27 +7001,31 @@ function initDocubeInputView(){
   const billingTotalEl = document.getElementById('revBillingTotal');
 
   function renderBillingRows(){
-    const csrNoteHtml = DOCUBE_CSR_NOTE_ROLES.map(r => `
-      <label>${r.label}<input type="number" step="0.1" min="0" class="csr-note-input" data-note="${r.key}" value="${csrNote[r.key] || ''}" placeholder="0"></label>
-    `).join('');
+    const cfg = docubeConfigFor(revYear, revMonth);
 
-    const csrRow = `
-      <tr class="billing-row" data-row="csr">
-        <td class="bt-item">CSR</td>
-        <td class="bt-count">
-          <div class="bt-count-value" id="csrCountCell" title="세부 업무별 인원 합계를 반올림한 값 (자동 계산)">${docubeFormatCountWhole(csrCount)}</div>
-        </td>
-        <td class="bt-amount">
-          <div class="bt-amount-value" id="csrAmountCell">0원</div>
-          <div class="bt-unit-price" data-pricekey="counselor" title="더블클릭하여 단가 수정">@${docubeFormatWon(prices.counselor)}</div>
-        </td>
-        <td class="bt-note">
-          <div class="csr-note-grid">${csrNoteHtml}</div>
-        </td>
-      </tr>
-    `;
+    const csrRowsHtml = cfg.csrTiers.map(tier=>{
+      const st = csrTiers[tier.key] || { count:0, note:{} };
+      const noteHtml = DOCUBE_CSR_NOTE_ROLES.map(r => `
+        <label>${r.label}<input type="number" step="0.1" min="0" class="csr-note-input" data-tier="${tier.key}" data-note="${r.key}" value="${st.note[r.key] || ''}" placeholder="0"></label>
+      `).join('');
+      return `
+        <tr class="billing-row" data-row="${tier.key}">
+          <td class="bt-item">${tier.label}</td>
+          <td class="bt-count">
+            <div class="bt-count-value" data-csr-count="${tier.key}" title="세부 업무별 인원 합계를 반올림한 값 (자동 계산)">${docubeFormatCountWhole(st.count)}</div>
+          </td>
+          <td class="bt-amount">
+            <div class="bt-amount-value" data-csr-amount="${tier.key}">0원</div>
+            <div class="bt-unit-price" data-pricekey="${tier.priceKey}" title="더블클릭하여 단가 수정">@${docubeFormatWon(prices[tier.priceKey])}</div>
+          </td>
+          <td class="bt-note">
+            <div class="csr-note-grid">${noteHtml}</div>
+          </td>
+        </tr>
+      `;
+    }).join('');
 
-    const staffRows = DOCUBE_STAFF_ROLES.map(r => `
+    const staffRows = cfg.staffRoles.map(r => `
       <tr class="billing-row" data-row="${r.key}">
         <td class="bt-item">${r.label}</td>
         <td class="bt-count">
@@ -6691,14 +7039,16 @@ function initDocubeInputView(){
       </tr>
     `).join('');
 
-    billingRowsEl.innerHTML = csrRow + staffRows;
+    billingRowsEl.innerHTML = csrRowsHtml + staffRows;
 
     billingRowsEl.querySelectorAll('.csr-note-input').forEach(inp=>{
       inp.addEventListener('input', ()=>{
-        csrNote[inp.dataset.note] = Number(inp.value) || 0;
-        csrCount = docubeCsrCountFromNote(csrNote);
-        const csrCountCell = document.getElementById('csrCountCell');
-        if(csrCountCell) csrCountCell.textContent = docubeFormatCountWhole(csrCount);
+        const tierKey = inp.dataset.tier;
+        if(!csrTiers[tierKey]) csrTiers[tierKey] = { count:0, note:{} };
+        csrTiers[tierKey].note[inp.dataset.note] = Number(inp.value) || 0;
+        csrTiers[tierKey].count = docubeCsrCountFromNote(csrTiers[tierKey].note);
+        const countCell = billingRowsEl.querySelector(`[data-csr-count="${tierKey}"]`);
+        if(countCell) countCell.textContent = docubeFormatCountWhole(csrTiers[tierKey].count);
         updateBillingSection();
         syncCurrentMonth();
       });
@@ -6727,12 +7077,20 @@ function initDocubeInputView(){
   }
 
   function updateBillingSection(){
-    const csrAmount = csrCount * prices.counselor;
-    const csrAmountCell = document.getElementById('csrAmountCell');
-    if(csrAmountCell) csrAmountCell.textContent = docubeFormatWon(csrAmount);
+    const cfg = docubeConfigFor(revYear, revMonth);
+
+    let csrTotal = 0, csrCount = 0;
+    cfg.csrTiers.forEach(tier=>{
+      const st = csrTiers[tier.key] || { count:0 };
+      const amt = (st.count||0) * prices[tier.priceKey];
+      csrTotal += amt;
+      csrCount += (st.count||0);
+      const cell = billingRowsEl.querySelector(`[data-csr-amount="${tier.key}"]`);
+      if(cell) cell.textContent = docubeFormatWon(amt);
+    });
 
     let staffTotal = 0, staffCount = 0;
-    DOCUBE_STAFF_ROLES.forEach(r=>{
+    cfg.staffRoles.forEach(r=>{
       const cnt = staffCounts[r.key] || 0;
       staffCount += cnt;
       const amt = cnt * prices[r.priceKey];
@@ -6742,7 +7100,7 @@ function initDocubeInputView(){
     });
 
     const totalCount = csrCount + staffCount;
-    const totalSupply = csrAmount + staffTotal;
+    const totalSupply = csrTotal + staffTotal;
     const vat = docubeCalcVat(totalSupply);
 
     billingCountTotalEl.textContent = docubeFormatCountWhole(totalCount);
@@ -6752,9 +7110,16 @@ function initDocubeInputView(){
     billingTotalEl.textContent = docubeFormatWon(totalSupply + vat);
   }
   function billingGrandTotal(){
-    const csrAmount = csrCount * prices.counselor;
-    const staffTotal = DOCUBE_STAFF_ROLES.reduce((a,r)=>a+(staffCounts[r.key]||0)*prices[r.priceKey],0);
-    return csrAmount + staffTotal;
+    const cfg = docubeConfigFor(revYear, revMonth);
+    let total = 0;
+    cfg.csrTiers.forEach(tier=>{
+      const st = csrTiers[tier.key] || { count:0 };
+      total += (st.count||0) * prices[tier.priceKey];
+    });
+    cfg.staffRoles.forEach(r=>{
+      total += (staffCounts[r.key]||0) * prices[r.priceKey];
+    });
+    return total;
   }
 
   /* ---------- 교육생 섹션 ---------- */
@@ -6769,7 +7134,7 @@ function initDocubeInputView(){
   const traineeVatEl = document.getElementById('revTraineeVat');
   const traineeTotalEl = document.getElementById('revTraineeTotal');
 
-  function computeTraineePay(t){ return docubeComputeTraineePay(t, prices); }
+  function computeTraineePay(t){ return docubeComputeTraineePay(t, prices, docubeConfigFor(revYear, revMonth).traineePriceKey); }
 
   traineeAddBtn.addEventListener('click', ()=>{
     const headcount = Number(traineeCountInput.value) || 1;
@@ -6874,8 +7239,8 @@ function initDocubeInputView(){
   const savedBadgeEl = document.getElementById('revSavedBadge');
 
   function hasMeaningfulData(){
-    const anyCsr = csrCount > 0;
-    const anyStaff = DOCUBE_STAFF_ROLES.some(r=>(staffCounts[r.key]||0) > 0);
+    const anyCsr = Object.values(csrTiers).some(t=>(t && t.count||0) > 0);
+    const anyStaff = Object.values(staffCounts).some(c=>(c||0) > 0);
     return anyCsr || anyStaff || trainees.length > 0 || telecom.supply > 0 || telecom.vat > 0;
   }
 
@@ -6885,8 +7250,7 @@ function initDocubeInputView(){
     if(hasMeaningfulData()){
       revenueRecords.set(key, {
         year: revYear, month: revMonth,
-        csrCount: csrCount,
-        csrNote: { ...csrNote },
+        csrTiers: JSON.parse(JSON.stringify(csrTiers)),
         staffCounts: { ...staffCounts },
         trainees: trainees.map(t=>({ ...t })),
         telecom: { ...telecom },
@@ -6907,19 +7271,23 @@ function initDocubeInputView(){
     docubeSelectedYear = y; docubeSelectedMonth = m;
     monthLabelEl.textContent = `${y}년 ${m+1}월`;
     const rec = revenueRecords.get(docubeMonthKey(y,m));
+    const cfg = docubeConfigFor(y, m);
+
+    csrTiers = {};
+    cfg.csrTiers.forEach(tier=>{
+      const src = (rec && rec.csrTiers && rec.csrTiers[tier.key]) || {};
+      const note = {}; DOCUBE_CSR_NOTE_ROLES.forEach(r=>note[r.key] = (src.note && src.note[r.key]) || 0);
+      csrTiers[tier.key] = { count: src.count || 0, note };
+    });
+    staffCounts = {};
+    cfg.staffRoles.forEach(r=>{ staffCounts[r.key] = (rec && rec.staffCounts && rec.staffCounts[r.key]) || 0; });
 
     if(rec){
-      csrNote = { ...(rec.csrNote || {}) };
-      csrCount = docubeCsrCountFromNote(csrNote);
-      staffCounts = { ...rec.staffCounts };
       trainees = rec.trainees.map(t=>({ ...t }));
       telecom = { ...rec.telecom };
       savedBadgeEl.textContent = '입력됨';
       savedBadgeEl.classList.add('on');
     } else {
-      csrCount = 0;
-      DOCUBE_CSR_NOTE_ROLES.forEach(r=>csrNote[r.key]=0);
-      DOCUBE_STAFF_ROLES.forEach(r=>staffCounts[r.key]=0);
       trainees = [];
       telecom = { supply:0, vat:0 };
       savedBadgeEl.textContent = '미입력';
@@ -6976,6 +7344,57 @@ function initDocubeInputView(){
   document.getElementById('revTodayBtn').addEventListener('click', ()=>{
     loadMonth(today0b.getFullYear(), today0b.getMonth());
   });
+
+  /* ---------- 월 선택 팝오버 (캘린더 형식으로 바로 이동) ---------- */
+  const monthPickerEl = document.getElementById('revMonthPicker');
+  let pickerYear = revYear;
+
+  function renderMonthPicker(){
+    const monthNames = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+    const cells = monthNames.map((label, idx)=>{
+      const hasData = revenueRecords.has(docubeMonthKey(pickerYear, idx));
+      const isCurrent = pickerYear === revYear && idx === revMonth;
+      return `<div class="rmp-cell ${isCurrent?'current':''} ${hasData?'has-data':''}" data-y="${pickerYear}" data-m="${idx}">${label}</div>`;
+    }).join('');
+    monthPickerEl.innerHTML = `
+      <div class="rmp-year-nav">
+        <div class="rmp-year-btn" id="rmpYearPrev">‹</div>
+        <span>${pickerYear}년</span>
+        <div class="rmp-year-btn" id="rmpYearNext">›</div>
+      </div>
+      <div class="rmp-grid">${cells}</div>
+    `;
+    document.getElementById('rmpYearPrev').addEventListener('click', ()=>{ pickerYear--; renderMonthPicker(); });
+    document.getElementById('rmpYearNext').addEventListener('click', ()=>{ pickerYear++; renderMonthPicker(); });
+    monthPickerEl.querySelectorAll('.rmp-cell').forEach(cell=>{
+      cell.addEventListener('click', ()=>{
+        loadMonth(Number(cell.dataset.y), Number(cell.dataset.m));
+        monthPickerEl.classList.add('hidden');
+      });
+    });
+  }
+
+  document.getElementById('revMonthLabel').addEventListener('click', (e)=>{
+    e.stopPropagation();
+    const isHidden = monthPickerEl.classList.contains('hidden');
+    if(isHidden){
+      pickerYear = revYear;
+      renderMonthPicker();
+      monthPickerEl.classList.remove('hidden');
+    } else {
+      monthPickerEl.classList.add('hidden');
+    }
+  });
+  if(window.__docubeMonthPickerOutsideClick){
+    document.removeEventListener('click', window.__docubeMonthPickerOutsideClick);
+  }
+  window.__docubeMonthPickerOutsideClick = (e)=>{
+    if(!monthPickerEl.contains(e.target) && e.target.id !== 'revMonthLabel'){
+      monthPickerEl.classList.add('hidden');
+    }
+  };
+  document.addEventListener('click', window.__docubeMonthPickerOutsideClick);
+
   /* 초기 렌더: 저장된 마지막(또는 최신) 월 입력 화면 */
   loadMonth(revYear, revMonth);
 }
@@ -7041,10 +7460,15 @@ function initDocubeDetailView(){
         const prevRec = revenueRecords.get(docubePrevMonthKey(rec.year, rec.month));
         const pt = prevRec ? docubeRecordTotals(prevRec) : null;
 
+        const cfg = docubeConfigFor(rec.year, rec.month);
         const detailCols = [
           { title:'청구 인원', rows: [
-              { label: `CSR${docubeCsrNoteSummary(rec.csrNote) ? ` (${docubeCsrNoteSummary(rec.csrNote)})` : ''}`, count: rec.csrCount||0, amt: (rec.csrCount||0)*rec.prices.counselor },
-              ...DOCUBE_STAFF_ROLES.map(r => ({ label:r.label, count:rec.staffCounts[r.key]||0, amt:(rec.staffCounts[r.key]||0)*rec.prices[r.priceKey] })),
+              ...cfg.csrTiers.map(tier=>{
+                const st = (rec.csrTiers && rec.csrTiers[tier.key]) || {};
+                const noteSummary = docubeCsrNoteSummary(st.note);
+                return { label: `${tier.label}${noteSummary ? ` (${noteSummary})` : ''}`, count: st.count||0, amt: (st.count||0)*rec.prices[tier.priceKey] };
+              }),
+              ...cfg.staffRoles.map(r => ({ label:r.label, count:rec.staffCounts[r.key]||0, amt:(rec.staffCounts[r.key]||0)*rec.prices[r.priceKey] })),
             ],
             footer: { supply:t.billingSupply, vat:t.billingVat, total:t.billingTotal } },
           { title:'교육생', rows: (rec.trainees||[]).length === 0
@@ -7059,7 +7483,7 @@ function initDocubeDetailView(){
                   return Array.from(groups.values()).map(g => ({
                     label: `교육 ${g.actualDays}일/표준 ${g.stdDays}일 (${g.passed?'수료':'미수료'})`,
                     count: g.count,
-                    amt: docubeComputeTraineePay({stdDays:g.stdDays, actualDays:g.actualDays, passed:g.passed}, rec.prices) * g.count,
+                    amt: docubeComputeTraineePay({stdDays:g.stdDays, actualDays:g.actualDays, passed:g.passed}, rec.prices, cfg.traineePriceKey) * g.count,
                   }));
                 })(),
             footer: { supply:t.tSupply, vat:t.tVat, total:t.tTotal } },
@@ -7204,6 +7628,9 @@ function renderDocubeLockModalBody(){
 }
 document.getElementById('docubeLockModalOverlay').addEventListener('click', (e)=>{
   if(e.target.id==='docubeLockModalOverlay') closeDocubeLockModal();
+});
+document.getElementById('payLedgerDiffModalOverlay').addEventListener('click', (e)=>{
+  if(e.target.id==='payLedgerDiffModalOverlay') closePayLedgerDiffModal();
 });
 </script>
 </body>
