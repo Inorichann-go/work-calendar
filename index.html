@@ -1650,7 +1650,7 @@ function startSyncPolling(){
       if(!res.ok) return;
       const rows = await res.json();
       const remoteUpdatedAt = rows[0] && rows[0].updated_at;
-      if(remoteUpdatedAt && remoteUpdatedAt !== syncLastUpdatedAt && !evalSaveTimer && !localSaveInFlight){
+      if(remoteUpdatedAt && remoteUpdatedAt !== syncLastUpdatedAt && !evalSaveTimer && !docubeSaveTimer && !localSaveInFlight){
         const row = await supabaseFetchRow();
         if(row){
           applySupabaseRow(row);
@@ -6428,10 +6428,10 @@ function docubeFormatCountWhole(n){
 function docubeCalcVat(supply){ return Math.round(supply * 0.1); }
 function docubeMonthKey(y,m){ return `${y}-${m+1}`; }
 function docubeComputeTraineePay(t, priceSet){
-  const base = t.passed ? priceSet.traineeFull : Math.round(priceSet.traineeFull/2);
   const stdDays = t.stdDays > 0 ? t.stdDays : 23;
   const actualDays = t.actualDays > 0 ? t.actualDays : 1;
-  const raw = (base/stdDays) * actualDays;
+  const dailyRate = priceSet.traineeFull / stdDays;
+  const raw = t.passed ? (dailyRate * actualDays) : (dailyRate * actualDays / 2);
   return Math.round(raw / 100) * 100; // 백원 단위 반올림
 }
 function docubeCsrNoteSummary(note){
@@ -6987,17 +6987,25 @@ function docubePrevMonthKey(y, m){
   return docubeMonthKey(py, pm);
 }
 
+function docubeFormatManwonDiff(diff){
+  const sign = diff > 0 ? '+' : (diff < 0 ? '-' : '');
+  const manwon = Math.abs(diff) / 10000;
+  const rounded = Math.round(manwon * 10) / 10;
+  const text = Number.isInteger(rounded) ? rounded.toString() : rounded.toFixed(1);
+  return `${sign}${text}만`;
+}
 function docubeDeltaBadge(cur, prev){
   if(prev === undefined || prev === null) return '<span class="delta none">전월 데이터 없음</span>';
+  const diff = cur - prev;
   if(prev === 0){
     if(cur === 0) return '<span class="delta flat">– 0%</span>';
-    return '<span class="delta up">▲ 신규</span>';
+    return `<span class="delta up">▲ 신규 (${docubeFormatManwonDiff(diff)})</span>`;
   }
-  const pct = ((cur - prev) / prev) * 100;
+  const pct = (diff / prev) * 100;
   if(Math.abs(pct) < 0.05) return '<span class="delta flat">– 0%</span>';
   const cls = pct > 0 ? 'up' : 'down';
   const arrow = pct > 0 ? '▲' : '▼';
-  return `<span class="delta ${cls}">${arrow} ${Math.abs(pct).toFixed(1)}%</span>`;
+  return `<span class="delta ${cls}">${arrow} ${Math.abs(pct).toFixed(1)}% (${docubeFormatManwonDiff(diff)})</span>`;
 }
 
 let docubeDetailOpenKey = null;
