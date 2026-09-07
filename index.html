@@ -885,6 +885,17 @@
 }
 .docube-scope .docube-lock-banner span{ font-size:11.5px; font-weight:600; color:#ff8f8f; }
 .docube-scope .docube-lock-banner .btn-secondary{ padding:4px 10px; font-size:11px; flex:none; }
+.docube-scope .att-code-badge{
+  display:inline-block; font-size:10.5px; font-weight:700; padding:2px 7px; border-radius:999px;
+  background:var(--bg-card-2); color:var(--ink-1); margin:1px 2px 1px 0;
+}
+.docube-scope .att-daily-table{ font-size:11px; }
+.docube-scope .att-daily-table th, .docube-scope .att-daily-table td{ padding:4px 3px; text-align:center; }
+.docube-scope .att-day-cell{
+  font-size:10px; font-weight:700; border-radius:4px; white-space:nowrap; min-width:26px;
+}
+.docube-scope .att-day-cell.deduct{ background:var(--danger-soft); color:#ff8f8f; }
+.docube-scope .att-day-cell.note-only{ background:var(--bg-card-2); color:var(--ink-2); }
 
 .docube-scope .rev-year-block{ margin-bottom:22px; }
 .docube-scope .rev-year-head{
@@ -990,6 +1001,7 @@
         <div class="nav-group-children hidden" id="docubeGroupChildren">
           <button class="tab tab-sub" data-view="docubeDetail" onclick="switchView('docubeDetail')"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 20V11M10 20V4.5M15.5 20v-6.5M2.5 20h19"/></svg></span><span class="label">산출세부</span></button>
           <button class="tab tab-sub" data-view="docubeInput" onclick="switchView('docubeInput')"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5v10.5M8.2 10.5 12 14.3l3.8-3.8"/><path d="M4.5 15v3.2a1.8 1.8 0 0 0 1.8 1.8h11.4a1.8 1.8 0 0 0 1.8-1.8V15"/></svg></span><span class="label">매출입력</span></button>
+          <button class="tab tab-sub" data-view="docubeAtt" onclick="switchView('docubeAtt')"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3.2v3.6M16 3.2v3.6M3.5 9.8h17"/><rect x="3.5" y="5" width="17" height="15.5" rx="2.2"/><path d="M7 13.5h3M7 16.5h6"/></svg></span><span class="label">근태현황</span></button>
         </div>
       </div>
     </nav>
@@ -1306,7 +1318,7 @@
 <div class="modal-overlay hidden" id="evalUnder80ModalOverlay">
   <div class="modal" style="width:460px;">
     <h2>⚠ 근무 80% 미만 근무자 (이번 주차)</h2>
-    <p style="font-size:11.5px;color:var(--text-soft);margin:-8px 0 12px;">등록된 사람은 CPD 점수 계산에서만 제외돼요 (Call Time은 포함).</p>
+    <p style="font-size:11.5px;color:var(--text-soft);margin:-8px 0 12px;">등록된 사람은 CPD·Call Time 점수 계산에서 모두 제외돼요.</p>
     <div id="evalUnder80ModalBody"></div>
     <div class="modal-actions" style="justify-content:flex-end;">
       <button type="button" class="btn-secondary" onclick="closeEvalUnder80Modal()">닫기</button>
@@ -1365,6 +1377,17 @@
     <div id="evalLockModalBody"></div>
     <div class="modal-actions" style="justify-content:flex-end;">
       <button type="button" class="btn-secondary" onclick="closeEvalLockModal()">닫기</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay hidden" id="docubeAttPreviewModalOverlay">
+  <div class="modal" style="width:760px;max-width:94vw;">
+    <h2>📥 일일현황 특이사항 미리보기</h2>
+    <div id="docubeAttPreviewModalBody"></div>
+    <div class="modal-actions" style="justify-content:flex-end;gap:8px;">
+      <button type="button" class="btn-secondary" onclick="closeDocubeAttPreviewModal()">취소</button>
+      <button type="button" class="btn-primary" onclick="applyDocubeAttParseResult()">이대로 반영</button>
     </div>
   </div>
 </div>
@@ -1784,6 +1807,7 @@ function applyLoadedPayload(parsed){
   docubeStore = (callStatsStore && callStatsStore.docube) ? callStatsStore.docube : defaultDocubeStore();
   if(!Array.isArray(docubeStore.lockedKeys)) docubeStore.lockedKeys = [];
   docubeStore.prices = { ...defaultDocubeStore().prices, ...(docubeStore.prices||{}) }; /* 새로 추가된 단가 키(예: 이전 단가체계)가 기존 저장 데이터에 없으면 기본값으로 채움 */
+  docubeAttStore = docubeStore.attendance || { monthly: {} };
   /* 이전(전역) 육아단축자 명단이 남아있으면, 아직 자체 명단이 없는 주차들에 1회 승계 */
   if(evalStore.reducedHoursNames && evalStore.reducedHoursNames.length){
     Object.keys(evalStore.weekly||{}).sort().forEach(k=>{
@@ -1797,6 +1821,7 @@ let localSaveInFlight = false;
 async function saveData(){
   localSaveInFlight = true;
   try{
+  docubeStore.attendance = docubeAttStore;
   callStatsStore.docube = docubeStore;
   payAdjStore.payLedger = payLedgerStore;
   const cleanPayload = JSON.parse(JSON.stringify({
@@ -1855,6 +1880,8 @@ function updateStorageStatus(){
 }
 function exportData(){
   payAdjStore.payLedger = payLedgerStore;
+  docubeStore.attendance = docubeAttStore;
+  callStatsStore.docube = docubeStore;
   const payload = JSON.stringify({
     events: state.events, notices: state.notices,
     centers: state.centers, noticeCategories: state.noticeCategories,
@@ -1899,7 +1926,7 @@ const DUTY_GROUP_VIEWS = ['duty','dutyReport','salary'];
 let callGroupExpanded = false;
 const CALL_GROUP_VIEWS = ['callSummary','callRank','callInput'];
 let docubeGroupExpanded = false;
-const DOCUBE_GROUP_VIEWS = ['docubeDetail','docubeInput'];
+const DOCUBE_GROUP_VIEWS = ['docubeDetail','docubeInput','docubeAtt'];
 function toggleCallGroupMenu(ev){
   if(ev) ev.stopPropagation();
   callGroupExpanded = !callGroupExpanded;
@@ -1980,6 +2007,7 @@ function render(){
   else if(state.view==='eval') vc.innerHTML = renderEvalView();
   else if(state.view==='docubeDetail'){ vc.innerHTML = renderDocubeDetailView(); initDocubeDetailView(); }
   else if(state.view==='docubeInput'){ vc.innerHTML = renderDocubeInputView(); initDocubeInputView(); }
+  else if(state.view==='docubeAtt'){ vc.innerHTML = renderDocubeAttView(); initDocubeAttView(); }
   else if(state.view==='callInput') vc.innerHTML = renderCallInputView();
   else if(state.view==='callSummary') vc.innerHTML = renderCallPlaceholder('종합현황');
   else if(state.view==='callRank') vc.innerHTML = renderCallPlaceholder('실적순위');
@@ -2013,6 +2041,8 @@ function updateTitle(){
     el.textContent = '도급비 현황 · 산출세부';
   }else if(state.view==='docubeInput'){
     el.textContent = '도급비 현황 · 매출입력';
+  }else if(state.view==='docubeAtt'){
+    el.textContent = '도급비 현황 · 근태현황';
   }else if(state.view==='callInput'){
     el.textContent = '실적입력';
   }else if(state.view==='callSummary'){
@@ -2096,7 +2126,6 @@ function renderMonth(){
         <span class="chip-title">${escapeHtml(e.title)}</span>
       </div>`;
     });
-    if(dayEvents.length>5) chips += `<div class="chip-more">스크롤해서 더보기 (총 ${dayEvents.length}개)</div>`;
     html += `<div class="day-cell ${inMonth?'':'dim'}" onclick="onDayCellClick('${dateStr}')"
       ondragover="onDayCellDragOver(event)" ondragleave="onDayCellDragLeave(event)" ondrop="onDayCellDrop(event,'${dateStr}')">
       <div class="day-num ${isToday?'today-num':''} ${numClass}">${cellDate.getDate()}</div>
@@ -3375,6 +3404,10 @@ function defaultDocubeStore(){
 let docubeStore = defaultDocubeStore(); /* 도급비 현황 전용 데이터, callStatsStore 안에 함께 저장(동기화)됨 */
 let docubeSelectedYear = null; /* 매출입력 탭에서 마지막으로 보고 있던 연/월 (재렌더링/동기화로 인해 화면이 되돌아가지 않도록 별도 보관) */
 let docubeSelectedMonth = null;
+/* 근태현황: 도급비 계산용 직원 명단 + 일자별 특이사항(연차/병가/결근/퇴사 등) 기록. 월 단위로 누적. */
+let docubeAttStore = { monthly: {} }; /* monthly['YYYY-M'] = { employees:[{id,name,org,task,hireDate,dailyHours,leaveDate}], daily:{empId:{day:{code,eventType,note}}} } */
+let docubeAttSelectedYear = null;
+let docubeAttSelectedMonth = null;
 let dutyUndoStack = [];
 let dutyRedoStack = [];
 const DUTY_UNDO_LIMIT = 20;
@@ -5322,6 +5355,18 @@ function evalDeltaHtml(diff, opts){
   const valStr = Math.abs(diff).toFixed(1);
   return `<span class="duty-delta ${cls}">${arrow} ${valStr}${suffix}</span>`;
 }
+/* Call Time처럼 초 단위 값의 증감은 숫자가 아니라 시:분:초 형식으로 표시 */
+function evalDeltaTimeHtml(diffSeconds, opts){
+  opts = opts || {};
+  const invertColor = !!opts.invert;
+  if(Math.abs(diffSeconds)<0.5 || !isFinite(diffSeconds)) return `<span class="duty-delta duty-delta-flat">± 00:00:00</span>`;
+  const isUp = diffSeconds>0;
+  const goodColor = invertColor ? !isUp : isUp;
+  const cls = goodColor ? 'duty-delta-up' : 'duty-delta-down';
+  const arrow = isUp ? '▲' : '▼';
+  const valStr = evalFmtSeconds(Math.abs(diffSeconds));
+  return `<span class="duty-delta ${cls}">${arrow} ${valStr}</span>`;
+}
 const DUTY_GRADE_PALETTE = [
   {bg:'#E9F7EF',fg:'#1F8A4C'}, {bg:'#EAF1FF',fg:'#3D6BE0'}, {bg:'#FDF1E7',fg:'#C9762B'},
   {bg:'#FDEAEA',fg:'#D64545'}, {bg:'#F5EBFC',fg:'#8434C4'}, {bg:'#F0F0EE',fg:'#6B6A66'}
@@ -5644,11 +5689,23 @@ async function onEvalCallDataUpload(ev){
         if(sameMonth) carriedResigned = (latestPrior.resigned || []);
       }
     }
+    /* 80% 미만 근무자 명단: 퇴사자 명단과 동일하게 같은 달(YYYY-MM)끼리만 승계, 달이 바뀌면 초기화 */
+    let carriedUnder80 = [];
+    if(prior && prior.under80List){
+      carriedUnder80 = prior.under80List;
+    }else{
+      const priorKeys = Object.keys(evalStore.weekly).filter(k=>k<dateKey).sort();
+      if(priorKeys.length){
+        const latestPrior = evalStore.weekly[priorKeys[priorKeys.length-1]];
+        const sameMonth = latestPrior && latestPrior.dateKey && latestPrior.dateKey.slice(0,7)===dateKey.slice(0,7);
+        if(sameMonth) carriedUnder80 = (latestPrior.under80List || []);
+      }
+    }
     evalStore.weekly[dateKey] = {
       dateKey, sourceFileName: file.name, employees,
       teamMetrics: (prior && prior.teamMetrics) || {},
       resigned: carriedResigned.slice(),
-      under80List: (prior && prior.under80List) || [],
+      under80List: carriedUnder80.slice(),
       reducedHoursNames: carriedReducedNames.slice()
     };
     evalSelectedWeek = dateKey;
@@ -5890,7 +5947,7 @@ function computeEvalSummary(dateKey){
     months: dutyMonthsBetween(e.hireDate, new Date()),
     isReduced: reducedNames.includes(e.name)
   }));
-  const eligible = withTenure.filter(e=> e.months>3);
+  const eligible = withTenure.filter(e=> e.months>=3);
   const results = EVAL_TEAMS.map(team=>{
     const teamList = eligible.filter(e=>e.team===team);
     const cpdList = teamList.filter(e=>!isEvalUnder80(week, e.name, e.team));
@@ -5900,7 +5957,7 @@ function computeEvalSummary(dateKey){
     const cpdTarget = EVAL_CRITERIA.cpdTarget[cat] || 90;
     const cpdScore = Math.min(EVAL_CRITERIA.cpdWeight, cpdAvg/cpdTarget*EVAL_CRITERIA.cpdWeight);
 
-    const ctVals = teamList.map(e=> e.isReduced ? e.ctTotal*2 : e.ctTotal).filter(v=>v>0);
+    const ctVals = cpdList.map(e=> e.isReduced ? e.ctTotal*2 : e.ctTotal).filter(v=>v>0);
     const ctAvg = ctVals.length ? ctVals.reduce((a,b)=>a+b,0)/ctVals.length : 0;
     const ctScore = Math.min(EVAL_CRITERIA.ctWeight, ctAvg/EVAL_CRITERIA.ctTargetSeconds*EVAL_CRITERIA.ctWeight);
 
@@ -6062,7 +6119,7 @@ function renderEvalSummaryDashboard(dateKey){
     <td>${r.cpdAvg.toFixed(1)}<br><span style="color:var(--text-faint);">${r.cpdScore.toFixed(1)}점</span>${p?gap(r.cpdAvg,p.cpdAvg):''}</td>
     <td>${r.top2}<br><span style="color:var(--text-faint);">${r.top2Score.toFixed(1)}점${r.outboundPenalty?` (발신 ${r.outboundPenalty/2})`:''}</span>${p?gap(r.top2,p.top2):''}</td>
     <td>${r.nps}<br><span style="color:var(--text-faint);">${r.npsScore.toFixed(1)}점${r.outboundPenalty?` (발신 ${r.outboundPenalty})`:''}</span>${p?gap(r.nps,p.nps):''}</td>
-    <td>${evalFmtSeconds(r.ctAvg)}<br><span style="color:var(--text-faint);">${r.ctScore.toFixed(1)}점</span>${p?gap(r.ctAvg,p.ctAvg):''}</td>
+    <td>${evalFmtSeconds(r.ctAvg)}<br><span style="color:var(--text-faint);">${r.ctScore.toFixed(1)}점</span>${p?`<br>${evalDeltaTimeHtml(r.ctAvg-p.ctAvg)}`:''}</td>
     <td>${r.complaintPenalty}점</td>
     <td>${r.resignCount}명 (${r.resignPenalty}점)</td>
     <td style="font-weight:800;">${r.total.toFixed(1)}점${p?gap(r.total,p.total):''}</td>
@@ -6192,7 +6249,7 @@ function renderEvalEmployeeTable(week, locked){
   const rows = filtered.map(({e,idx})=>{
     const months = dutyMonthsBetween(e.hireDate, new Date());
     const isReduced = reducedNames.includes(e.name);
-    const excludedTenure = months<=3;
+    const excludedTenure = months<3;
     const isUnder80 = isEvalUnder80(week, e.name, e.team);
     const isResigned = (week.resigned||[]).some(r=>r.name===e.name && r.team===e.team);
     const badges = `${isReduced?' <span class="eval-badge eval-badge-blue">육단</span>':''}${isResigned?' <span class="eval-badge eval-badge-gray">퇴사</span>':''}`;
@@ -6747,6 +6804,40 @@ function docubePeriodKeyFor(y, m){
 function docubeConfigFor(y, m){
   return DOCUBE_PERIOD_CONFIGS[docubePeriodKeyFor(y, m)];
 }
+function docubeAttDefaultBaseDays(y,m){
+  const days = new Date(y, m+1, 0).getDate();
+  let count=0;
+  for(let d=1; d<=days; d++){ const wd = new Date(y,m,d).getDay(); if(wd!==0 && wd!==6) count++; }
+  return count;
+}
+/* 근태현황 탭에 입력된 그 달 데이터로 업무(직무)별 인원환산 합계를 계산.
+   CSR 세부업무(제휴상담 등)는 경력 2년 기준(입사일)으로 senior/junior도 함께 나눠서 반환. */
+function docubeAttHeadcountByTask(y, m){
+  const attMonth = docubeAttStore.monthly[docubeMonthKey(y,m)];
+  if(!attMonth || !attMonth.employees.length) return null;
+  const baseDays = attMonth.baseDays || docubeAttDefaultBaseDays(y,m);
+  const daily = attMonth.daily || {};
+  const byTask = {}, byTaskSenior = {}, byTaskJunior = {};
+  const cutoff = new Date(y, m, 1); cutoff.setFullYear(cutoff.getFullYear()-2);
+  const csrLabels = new Set(DOCUBE_CSR_NOTE_ROLES.map(r=>r.label));
+  attMonth.employees.forEach(emp=>{
+    const empDaily = daily[emp.id] || {};
+    let deductCount = 0;
+    Object.values(empDaily).forEach(d=>{ if(DOCUBE_ATT_DEDUCTION_CODES.includes(d.code)) deductCount++; });
+    const workedDays = Math.max(0, baseDays - deductCount);
+    const headcount = baseDays>0 ? (workedDays/baseDays)*((emp.dailyHours||8)/8) : 0;
+    const task = (emp.task||'').trim();
+    if(!task || headcount<=0) return;
+    byTask[task] = (byTask[task]||0) + headcount;
+    if(csrLabels.has(task)){
+      const hire = emp.hireDate ? new Date(emp.hireDate) : null;
+      const isSenior = hire && !isNaN(hire.getTime()) && hire <= cutoff;
+      if(isSenior) byTaskSenior[task] = (byTaskSenior[task]||0) + headcount;
+      else byTaskJunior[task] = (byTaskJunior[task]||0) + headcount;
+    }
+  });
+  return { byTask, byTaskSenior, byTaskJunior, baseDays };
+}
 
 function docubeFormatWon(n){
   if(n === null || n === undefined || isNaN(n)) n = 0;
@@ -6854,8 +6945,11 @@ function renderDocubeInputView(){
     </div>
 
     <div class="rev-section rev-billing-section">
-      <div class="rev-section-title">청구 인원</div>
-      <div class="rev-section-sub">CSR 인원은 비고란의 업무별 세부 인원을 모두 더한 값을 반올림해서 자동으로 계산돼요 (청구액도 이 반올림된 인원수 기준으로 계산됩니다). 단가는 항목별 금액 아래 숫자를 더블클릭하면 수정할 수 있어요.</div>
+      <div class="rev-section-title" style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+        <span>청구 인원</span>
+        <button type="button" class="btn-secondary" id="attPullBtn" style="font-size:11.5px; padding:6px 10px;">📊 근태현황에서 인원 가져오기</button>
+      </div>
+      <div class="rev-section-sub">CSR 인원은 비고란의 업무별 세부 인원을 모두 더한 값을 반올림해서 자동으로 계산돼요 (청구액도 이 반올림된 인원수 기준으로 계산됩니다). 단가는 항목별 금액 아래 숫자를 더블클릭하면 수정할 수 있어요. "근태현황에서 인원 가져오기"를 누르면 근태현황 탭에 입력된 이번 달 데이터로 인원이 자동 채워져요.</div>
       <div class="billing-table-wrap">
         <table class="billing-table">
           <thead>
@@ -7329,6 +7423,8 @@ function initDocubeInputView(){
       el.style.pointerEvents = locked ? 'none' : '';
       el.style.opacity = locked ? '0.6' : '';
     });
+    const pullBtn = document.getElementById('attPullBtn');
+    if(pullBtn){ pullBtn.disabled = locked; pullBtn.style.opacity = locked ? '0.45' : ''; }
   }
 
   document.getElementById('revPrev').addEventListener('click', ()=>{
@@ -7343,6 +7439,47 @@ function initDocubeInputView(){
   });
   document.getElementById('revTodayBtn').addEventListener('click', ()=>{
     loadMonth(today0b.getFullYear(), today0b.getMonth());
+  });
+  document.getElementById('attPullBtn').addEventListener('click', ()=>{
+    const result = docubeAttHeadcountByTask(revYear, revMonth);
+    if(!result){
+      alert(`${revYear}년 ${revMonth+1}월 근태현황 데이터가 없어요. 근태현황 탭에서 먼저 명단·특이사항을 입력해주세요.`);
+      return;
+    }
+    if(isDocubeMonthLocked(revYear, revMonth)){
+      alert('마감(잠금)된 달이라 반영할 수 없어요.');
+      return;
+    }
+    const cfg = docubeConfigFor(revYear, revMonth);
+    const round1 = n => Math.round((n||0)*10)/10;
+    if(cfg.csrTiers.length===1){
+      const tierKey = cfg.csrTiers[0].key;
+      const note = {};
+      DOCUBE_CSR_NOTE_ROLES.forEach(r=>{ note[r.key] = round1(result.byTask[r.label]); });
+      csrTiers[tierKey] = { count: docubeCsrCountFromNote(note), note };
+    }else{
+      const seniorTier = cfg.csrTiers.find(t=>t.key==='csr_senior');
+      const juniorTier = cfg.csrTiers.find(t=>t.key==='csr_junior');
+      const noteS = {}, noteJ = {};
+      DOCUBE_CSR_NOTE_ROLES.forEach(r=>{
+        noteS[r.key] = round1(result.byTaskSenior[r.label]);
+        noteJ[r.key] = round1(result.byTaskJunior[r.label]);
+      });
+      if(seniorTier) csrTiers[seniorTier.key] = { count: docubeCsrCountFromNote(noteS), note: noteS };
+      if(juniorTier) csrTiers[juniorTier.key] = { count: docubeCsrCountFromNote(noteJ), note: noteJ };
+    }
+    const missingStaffRoles = [];
+    cfg.staffRoles.forEach(r=>{
+      const val = result.byTask[r.label];
+      if(val===undefined) missingStaffRoles.push(r.label);
+      staffCounts[r.key] = round1(val);
+    });
+    renderBillingRows();
+    updateBillingSection();
+    syncCurrentMonth();
+    let msg = `근태현황 기준(기준일 ${result.baseDays}일)으로 인원을 반영했어요.`;
+    if(missingStaffRoles.length) msg += `\n\n다만 근태현황에 이 직무로 등록된 사람이 없어서 0으로 채워진 항목: ${missingStaffRoles.join(', ')} (필요하면 직접 입력해주세요.)`;
+    alert(msg);
   });
 
   /* ---------- 월 선택 팝오버 (캘린더 형식으로 바로 이동) ---------- */
@@ -7559,6 +7696,506 @@ function initDocubeDetailView(){
   renderDetailView();
 }
 
+/* ============ 도급비 현황 · 근태현황 (직원 명단 + 일일현황 특이사항 자동반영) ============ */
+function ensureDocubeAttMonth(y,m){
+  const key = docubeMonthKey(y,m);
+  if(!docubeAttStore.monthly[key]) docubeAttStore.monthly[key] = { employees:[], daily:{} };
+  return docubeAttStore.monthly[key];
+}
+const DOCUBE_ATT_EVENT_CODE = {
+  '연차':'연차', '반차':'반차',
+  '병가':'병가', '병가휴직':'병가',
+  '결근':'결근',
+  '무급':'무급휴가', '무급휴가':'무급휴가',
+  '가족돌봄':'가족돌봄', '가족돌봄휴직':'가족돌봄휴직',
+  '자가격리':'자가격리',
+  '퇴사':'퇴사',
+};
+/* 실제 인원환산(금액) 계산에 영향을 주는 코드 - 근태현황 원본 시트의 COUNTIF 분류(무급/병가/결근/퇴사/자가격리)와 동일 */
+const DOCUBE_ATT_DEDUCTION_CODES = ['병가','결근','무급휴가','가족돌봄','가족돌봄휴직','자가격리','퇴사','무'];
+/* 근무시간/재직상태 자체를 바꾸는 이벤트라 자동 반영하지 않고 확인용 메모로만 기록 */
+const DOCUBE_ATT_REVIEW_EVENTS = ['복직','휴직복직','육아단축','육아단축 종료','휴직'];
+
+function docubeAttSplitLabel(label){
+  const idx = label.indexOf('_');
+  if(idx===-1) return [label.trim(), null];
+  return [label.slice(0,idx).trim(), label.slice(idx+1).trim()];
+}
+function docubeAttFindColon(s){
+  const i1 = s.indexOf(':'); const i2 = s.indexOf('：');
+  if(i1===-1) return i2;
+  if(i2===-1) return i1;
+  return Math.min(i1,i2);
+}
+/* 일일현황 파일의 '특이사항' 셀(자유 서술형 텍스트)을 이벤트 단위로 분해 */
+function docubeAttParseAEText(text){
+  const lines = String(text||'').split(/\r?\n/);
+  const entries = [];
+  let currentEventType = null;
+  for(const raw of lines){
+    const line = raw.trim();
+    if(!line) continue;
+    const itemMatch = line.match(/^(\d+)\)\s*(.*)$/);
+    if(itemMatch){
+      const rest = itemMatch[2];
+      const ci = docubeAttFindColon(rest);
+      if(ci>=0){
+        const label = rest.slice(0,ci).trim();
+        const value = rest.slice(ci+1).trim();
+        const [eventType, dept] = docubeAttSplitLabel(label);
+        currentEventType = eventType;
+        entries.push({eventType, dept, rawNames:value, isNote: eventType.includes('교육')});
+      }else{
+        currentEventType = rest.split('_')[0].trim();
+        entries.push({eventType: currentEventType, dept:null, rawNames:'', desc: rest, isNote:true});
+      }
+    }else{
+      const ci = docubeAttFindColon(line);
+      if(ci>=0){
+        const label = line.slice(0,ci).trim();
+        const value = line.slice(ci+1).trim();
+        if(currentEventType && currentEventType.includes('교육')){
+          if(entries.length) entries[entries.length-1].desc = (entries[entries.length-1].desc||'') + ' / ' + line;
+          continue;
+        }
+        entries.push({eventType: currentEventType, dept: label, rawNames: value, isNote:false});
+      }else{
+        if(entries.length){
+          const last = entries[entries.length-1];
+          if(last.isNote) last.desc = (last.desc||'') + ' ' + line;
+          else last.rawNames = (last.rawNames ? last.rawNames + '.' : '') + line;
+        }
+      }
+    }
+  }
+  return entries;
+}
+function docubeAttSplitNames(rawNames){
+  const str = String(rawNames||'');
+  /* 괄호 안(예: 날짜 메모 "8.19 ~", "8.25-11.22")의 마침표는 이름 구분자로 취급하지 않음 */
+  const tokens = [];
+  let depth = 0, current = '';
+  for(const ch of str){
+    if(ch==='('||ch==='（'){ depth++; current+=ch; continue; }
+    if(ch===')'||ch==='）'){ depth=Math.max(0,depth-1); current+=ch; continue; }
+    if((ch==='.'||ch===','||ch==='、') && depth===0){ tokens.push(current); current=''; continue; }
+    current += ch;
+  }
+  if(current) tokens.push(current);
+  return tokens
+    .map(s=>s.trim())
+    .filter(Boolean)
+    .map(s=>{
+      const m = s.match(/^([^(（]+)[(（]?(.*)$/);
+      const name = (m?m[1]:s).trim();
+      const note = (m && m[2]) ? m[2].replace(/[)）]\s*$/,'').trim() : '';
+      return {name, note};
+    })
+    .filter(x=>x.name);
+}
+let docubeAttParseResults = [];
+async function onDocubeAttRosterUpload(ev){
+  const file = ev.target.files[0]; if(!file) return;
+  try{
+    const wb = await readWorkbookFromFile(file);
+    const sheetName = wb.SheetNames.find(n=>n.includes('근태현황')) || wb.SheetNames[0];
+    const ws = wb.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:null});
+    let headerRowIdx=-1, colName=-1, colOrg=-1, colHire=-1, colHours=-1, colTask=-1;
+    for(let r=0;r<Math.min(rows.length,10);r++){
+      const row = rows[r]||[];
+      const norm = row.map(normalizeHeader);
+      const ni = norm.indexOf('성명');
+      if(ni!==-1){
+        headerRowIdx=r; colName=ni;
+        colOrg = norm.indexOf('근무지');
+        colHire = norm.indexOf('입사일');
+        colHours = norm.findIndex(h=>h==='일근무시간'||h==='근무시간');
+        colTask = norm.findIndex(h=>h==='기본직무'||h==='직무');
+        break;
+      }
+    }
+    if(headerRowIdx===-1){
+      alert('"성명" 열을 찾을 수 없어요. 근태현황 시트 형식인지 확인해주세요.');
+      ev.target.value=''; return;
+    }
+    const y = docubeAttSelectedYear, m = docubeAttSelectedMonth;
+    const attMonth = ensureDocubeAttMonth(y,m);
+    const existingByName = {};
+    attMonth.employees.forEach(e=>{ existingByName[e.name]=e; });
+    const newRoster = [];
+    let nextId = 1;
+    for(let r=headerRowIdx+1;r<rows.length;r++){
+      const row = rows[r]; if(!row) continue;
+      const name = row[colName] ? String(row[colName]).trim() : '';
+      if(!name || name==='합계') continue;
+      const hireVal = colHire!==-1 ? row[colHire] : null;
+      const hireDate = (hireVal instanceof Date) ? toISODate(hireVal) : (hireVal||null);
+      const existing = existingByName[name];
+      newRoster.push({
+        id: existing ? existing.id : `att${nextId++}_${Date.now()}`,
+        name,
+        org: colOrg!==-1 ? (row[colOrg]||'') : '',
+        task: colTask!==-1 ? (row[colTask]||'') : '',
+        hireDate,
+        dailyHours: colHours!==-1 ? (Number(row[colHours])||8) : 8,
+        leaveDate: existing ? existing.leaveDate : null,
+      });
+    }
+    attMonth.employees = newRoster;
+    saveDocubeData();
+    if(state.view==='docubeAtt'){ document.getElementById('viewContainer').innerHTML = renderDocubeAttView(); initDocubeAttView(); }
+    alert(`직원 명단 ${newRoster.length}명을 불러왔어요.`);
+  }catch(err){
+    console.error(err);
+    alert('명단 파일을 읽는 중 문제가 발생했어요.');
+  }
+  ev.target.value='';
+}
+function carryForwardDocubeAttRoster(){
+  const y = docubeAttSelectedYear, m = docubeAttSelectedMonth;
+  let py=y, pm=m-1; if(pm<0){pm=11;py--;}
+  const prevMonth = docubeAttStore.monthly[docubeMonthKey(py,pm)];
+  if(!prevMonth || !prevMonth.employees.length){
+    alert(`${py}년 ${pm+1}월 명단이 없어요.`);
+    return;
+  }
+  if(!confirm(`${py}년 ${pm+1}월 명단(퇴사자 제외)을 ${y}년 ${m+1}월로 가져올까요? 현재 달에 이미 있는 명단은 덮어써요.`)) return;
+  const attMonth = ensureDocubeAttMonth(y,m);
+  attMonth.employees = prevMonth.employees.filter(e=>!e.leaveDate).map(e=>({...e}));
+  attMonth.daily = {};
+  saveDocubeData();
+  document.getElementById('viewContainer').innerHTML = renderDocubeAttView();
+  initDocubeAttView();
+}
+function docubeAttParseManualPaste(text){
+  const y = docubeAttSelectedYear, m = docubeAttSelectedMonth;
+  const attMonth = docubeAttStore.monthly[docubeMonthKey(y,m)];
+  const roster = attMonth ? attMonth.employees : [];
+  const results = [];
+  String(text||'').split(/\r?\n/).forEach(line=>{
+    if(!line.trim()) return;
+    const cols = line.split('\t');
+    if(cols.length<5) return; // 날짜/이름/사번/부서/근태 최소 5칸 필요
+    const dateStr = (cols[0]||'').trim();
+    const name = (cols[1]||'').trim();
+    const eventType = (cols[4]||'').trim();
+    const note = (cols[5]||'').trim();
+    const dm = dateStr.match(/(\d{4})[./-](\d{1,2})[./-](\d{1,2})/);
+    if(!dm || !name || !eventType) return;
+    const yy = Number(dm[1]), mm = Number(dm[2])-1, dd = Number(dm[3]);
+    if(yy!==y || mm!==m) return; /* 지금 보고 있는 달과 다른 날짜는 건너뜀 */
+    const emp = roster.find(e=>e.name===name);
+    results.push({
+      day: dd, eventType, dept:null, name, note,
+      matchedEmpId: emp?emp.id:null,
+      code: DOCUBE_ATT_EVENT_CODE[eventType] || eventType,
+      needsReview: DOCUBE_ATT_REVIEW_EVENTS.includes(eventType),
+    });
+  });
+  return results;
+}
+function onDocubeAttManualPastePreview(){
+  const text = document.getElementById('attManualPasteBox').value;
+  const results = docubeAttParseManualPaste(text);
+  if(!results.length){
+    alert('인식된 줄이 없어요. 날짜·이름·사번·부서·근태 순서(탭으로 구분)로 붙여넣었는지, 지금 보고 있는 연월과 날짜가 맞는지 확인해주세요.');
+    return;
+  }
+  docubeAttParseResults = results;
+  openDocubeAttPreviewModal();
+}
+async function onDocubeAttDailyUpload(ev){
+  const file = ev.target.files[0]; if(!file) return;
+  const y = docubeAttSelectedYear, m = docubeAttSelectedMonth;
+  const attMonth = docubeAttStore.monthly[docubeMonthKey(y,m)];
+  if(!attMonth || !attMonth.employees.length){
+    alert('먼저 이 달의 직원 명단을 업로드하거나 지난달 명단을 가져와주세요.');
+    ev.target.value=''; return;
+  }
+  try{
+    const wb = await readWorkbookFromFile(file);
+    const sheetCode = String(y).slice(2) + String(m+1).padStart(2,'0');
+    const ws = wb.Sheets[sheetCode];
+    if(!ws){
+      alert(`이 파일에서 ${y}년 ${m+1}월 시트("${sheetCode}")를 찾을 수 없어요. 시트명을 확인해주세요. (있는 시트: ${wb.SheetNames.join(', ')})`);
+      ev.target.value=''; return;
+    }
+    const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:null});
+    const roster = attMonth.employees;
+    const results = [];
+    rows.forEach(row=>{
+      const dateVal = row[2];
+      const aeVal = row[30];
+      if(!aeVal) return;
+      let dateObj = (dateVal instanceof Date) ? dateVal : null;
+      if(!dateObj || isNaN(dateObj.getTime())) return;
+      if(dateObj.getFullYear()!==y || dateObj.getMonth()!==m) return;
+      const day = dateObj.getDate();
+      const entries = docubeAttParseAEText(String(aeVal));
+      entries.forEach(entry=>{
+        if(entry.isNote){
+          results.push({day, eventType:entry.eventType, isNote:true, desc:entry.desc||entry.rawNames});
+          return;
+        }
+        docubeAttSplitNames(entry.rawNames).forEach(n=>{
+          const emp = roster.find(e=>e.name===n.name);
+          results.push({
+            day, eventType:entry.eventType, dept:entry.dept, name:n.name, note:n.note,
+            matchedEmpId: emp?emp.id:null,
+            code: DOCUBE_ATT_EVENT_CODE[entry.eventType] || null,
+            needsReview: DOCUBE_ATT_REVIEW_EVENTS.includes(entry.eventType),
+          });
+        });
+      });
+    });
+    /* 복직(휴직복직) 전날까지는 근태 '무'로 자동 채움 (예: 8/5 복직이면 8/1~8/4는 '무') */
+    const explicitKeys = new Set(results.filter(r=>!r.isNote && r.matchedEmpId).map(r=>`${r.matchedEmpId}_${r.day}`));
+    const derived = [];
+    results.filter(r=>!r.isNote && (r.eventType==='복직'||r.eventType==='휴직복직') && r.matchedEmpId).forEach(r=>{
+      for(let d=1; d<r.day; d++){
+        const key = `${r.matchedEmpId}_${d}`;
+        if(explicitKeys.has(key)) continue;
+        explicitKeys.add(key);
+        derived.push({
+          day:d, eventType:'무(복직 전 자동채움)', dept:r.dept, name:r.name, note:'',
+          matchedEmpId:r.matchedEmpId, code:'무', needsReview:false,
+        });
+      }
+    });
+    results.push(...derived);
+    docubeAttParseResults = results;
+    openDocubeAttPreviewModal();
+  }catch(err){
+    console.error(err);
+    alert('일일현황 파일을 읽는 중 문제가 발생했어요.');
+  }
+  ev.target.value='';
+}
+function openDocubeAttPreviewModal(){
+  renderDocubeAttPreviewBody();
+  document.getElementById('docubeAttPreviewModalOverlay').classList.remove('hidden');
+}
+function closeDocubeAttPreviewModal(){
+  document.getElementById('docubeAttPreviewModalOverlay').classList.add('hidden');
+}
+function docubeAttLevenshtein(a, b){
+  const m = a.length, n = b.length;
+  const dp = Array.from({length:m+1}, ()=>new Array(n+1).fill(0));
+  for(let i=0;i<=m;i++) dp[i][0]=i;
+  for(let j=0;j<=n;j++) dp[0][j]=j;
+  for(let i=1;i<=m;i++){
+    for(let j=1;j<=n;j++){
+      dp[i][j] = a[i-1]===b[j-1] ? dp[i-1][j-1] : 1+Math.min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1]);
+    }
+  }
+  return dp[m][n];
+}
+function docubeAttSuggestNames(name, roster){
+  return roster
+    .map(e=>({emp:e, dist: docubeAttLevenshtein(name, e.name)}))
+    .sort((a,b)=>a.dist-b.dist || a.emp.name.localeCompare(b.emp.name));
+}
+function docubeAttSetMatch(idx, empId){
+  const r = docubeAttParseResults[idx];
+  if(!r) return;
+  r.matchedEmpId = empId || null;
+  if(empId){
+    const attMonth = docubeAttStore.monthly[docubeMonthKey(docubeAttSelectedYear, docubeAttSelectedMonth)];
+    const emp = attMonth ? attMonth.employees.find(e=>e.id===empId) : null;
+    if(emp) r.name = emp.name;
+  }
+  renderDocubeAttPreviewBody();
+}
+function renderDocubeAttPreviewBody(){
+  const body = document.getElementById('docubeAttPreviewModalBody');
+  const attMonth = docubeAttStore.monthly[docubeMonthKey(docubeAttSelectedYear, docubeAttSelectedMonth)];
+  const roster = attMonth ? attMonth.employees : [];
+  const named = docubeAttParseResults.filter(r=>!r.isNote);
+  const matched = named.filter(r=>r.matchedEmpId && !r.needsReview);
+  const unmatched = named.filter(r=>!r.matchedEmpId);
+  const reviewNeeded = named.filter(r=>r.matchedEmpId && r.needsReview);
+  const notes = docubeAttParseResults.filter(r=>r.isNote);
+  let html = `<div style="font-size:12.5px;color:var(--text-soft);margin-bottom:10px;">총 ${named.length}건 인식됨 · 자동반영 ${matched.length}건 · 확인필요 ${reviewNeeded.length}건 · <span style="color:#ff8f8f;font-weight:700;">매칭 실패 ${unmatched.length}건</span></div>`;
+  if(unmatched.length){
+    html += `<div class="duty-report-section-title" style="margin-top:0;color:#ff8f8f;">⚠ 명단에서 이름을 찾을 수 없음 (${unmatched.length}건) · 오타이거나 명단에 없는 사람이에요</div>
+    <div style="font-size:11px;color:var(--text-faint);margin:-4px 0 8px;">비슷한 이름이 목록 위쪽에 먼저 나와요. 맞는 사람을 고르면 바로 "자동 반영될 항목"으로 넘어가요.</div>
+    <div class="duty-table-scroll" style="max-height:220px;">
+    <table class="duty-table"><thead><tr><th>일자</th><th>이벤트</th><th>구분</th><th>인식된 이름</th><th>명단에서 선택</th></tr></thead><tbody>
+    ${unmatched.map(r=>{
+      const idx = docubeAttParseResults.indexOf(r);
+      const suggestions = docubeAttSuggestNames(r.name, roster);
+      const options = suggestions.map(s=>`<option value="${escapeHtml(s.emp.id)}">${escapeHtml(s.emp.name)}${s.emp.org?' · '+escapeHtml(s.emp.org):''}</option>`).join('');
+      return `<tr>
+        <td>${r.day}일</td><td>${escapeHtml(r.eventType||'')}</td><td>${escapeHtml(r.dept||'')}</td>
+        <td style="color:#ff8f8f;font-weight:700;">${escapeHtml(r.name)}${r.note?` (${escapeHtml(r.note)})`:''}</td>
+        <td>
+          <select onchange="docubeAttSetMatch(${idx}, this.value)" style="font-size:11px;padding:4px 6px;border-radius:6px;border:1px solid var(--border-light);background:var(--bg-card);color:var(--ink-0);max-width:180px;">
+            <option value="">-- 선택 안 함 --</option>
+            ${options}
+          </select>
+        </td>
+      </tr>`;
+    }).join('')}
+    </tbody></table></div>`;
+  }
+  if(reviewNeeded.length){
+    html += `<div class="duty-report-section-title" style="color:#e0b34e;">🔎 자동 반영 안 됨, 직접 확인 필요 (${reviewNeeded.length}건)</div>
+    <div class="duty-table-scroll" style="max-height:180px;">
+    <table class="duty-table"><thead><tr><th>일자</th><th>이벤트</th><th>이름</th><th>메모</th></tr></thead><tbody>
+    ${reviewNeeded.map(r=>`<tr><td>${r.day}일</td><td>${escapeHtml(r.eventType)}</td><td>${escapeHtml(r.name)}</td><td>${escapeHtml(r.note||'')}</td></tr>`).join('')}
+    </tbody></table></div>
+    <div style="font-size:11px;color:var(--text-faint);margin:-4px 0 10px;">육아단축·복직·휴직 시작처럼 근무시간이나 재직상태 자체를 바꾸는 항목은 자동 반영하지 않아요. 확인 후 명단에서 직접 반영해주세요.</div>`;
+  }
+  if(matched.length){
+    html += `<div class="duty-report-section-title">✅ 자동 반영될 항목 (${matched.length}건)</div>
+    <div class="duty-table-scroll" style="max-height:220px;">
+    <table class="duty-table"><thead><tr><th>일자</th><th>이벤트</th><th>이름</th><th>기록될 코드</th></tr></thead><tbody>
+    ${matched.map(r=>`<tr><td>${r.day}일</td><td>${escapeHtml(r.eventType)}</td><td>${escapeHtml(r.name)}</td><td>${escapeHtml(r.code||r.eventType)}</td></tr>`).join('')}
+    </tbody></table></div>`;
+  }
+  if(notes.length){
+    html += `<div class="duty-report-section-title">📝 일반 메모 (${notes.length}건, 개인별 기록에는 반영 안 함)</div>
+    <div style="font-size:12px;color:var(--text-soft);max-height:120px;overflow:auto;">${notes.map(r=>`<div>${r.day}일 · ${escapeHtml(r.eventType)}: ${escapeHtml(r.desc||'')}</div>`).join('')}</div>`;
+  }
+  if(!named.length && !notes.length){
+    html += `<div class="empty-state" style="padding:24px 0;">이 달에서 인식된 특이사항이 없어요.</div>`;
+  }
+  body.innerHTML = html;
+}
+function applyDocubeAttParseResult(){
+  const y = docubeAttSelectedYear, m = docubeAttSelectedMonth;
+  const attMonth = ensureDocubeAttMonth(y,m);
+  attMonth.daily = attMonth.daily || {};
+  let count=0;
+  docubeAttParseResults.forEach(r=>{
+    if(r.isNote || !r.matchedEmpId || r.needsReview) return;
+    attMonth.daily[r.matchedEmpId] = attMonth.daily[r.matchedEmpId] || {};
+    attMonth.daily[r.matchedEmpId][r.day] = {
+      code: r.code || r.eventType, eventType: r.eventType, note: r.note||'',
+      deduction: DOCUBE_ATT_DEDUCTION_CODES.includes(r.code)
+    };
+    if(r.eventType==='퇴사'){
+      const emp = attMonth.employees.find(e=>e.id===r.matchedEmpId);
+      if(emp) emp.leaveDate = `${y}-${String(m+1).padStart(2,'0')}-${String(r.day).padStart(2,'0')}`;
+    }
+    count++;
+  });
+  saveDocubeData();
+  closeDocubeAttPreviewModal();
+  document.getElementById('viewContainer').innerHTML = renderDocubeAttView();
+  initDocubeAttView();
+  alert(`${count}건 반영했어요.`);
+}
+function renderDocubeAttView(){
+  return `
+  <div class="docube-scope">
+    <div class="stat-toolbar">
+      <div class="cal-nav">
+        <div class="cal-nav-btn" id="attPrev">‹</div>
+        <div class="cal-month-label" id="attMonthLabel">-</div>
+        <div class="cal-nav-btn" id="attNext">›</div>
+      </div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+        <input type="file" id="attRosterUploadInput" accept=".xlsx,.xls" style="display:none;" onchange="onDocubeAttRosterUpload(event)">
+        <button class="btn-secondary" onclick="document.getElementById('attRosterUploadInput').click()">📤 명단 엑셀 업로드</button>
+        <button class="btn-secondary" onclick="carryForwardDocubeAttRoster()">📋 지난달 명단 가져오기</button>
+        <input type="file" id="attDailyUploadInput" accept=".xlsx,.xls" style="display:none;" onchange="onDocubeAttDailyUpload(event)">
+        <button class="btn-primary gold" onclick="document.getElementById('attDailyUploadInput').click()">📥 일일현황 업로드</button>
+      </div>
+    </div>
+    <div class="rev-section-sub" style="margin-bottom:14px;">직원 명단을 먼저 올린 뒤, 일일현황 엑셀을 업로드하면 특이사항(연차·병가·결근·퇴사 등)을 이름으로 매칭해서 자동으로 채워줘요. 반영 전에 미리보기로 확인할 수 있고, 연차·반차는 기록만 되고 금액 계산에는 영향을 주지 않아요.</div>
+
+    <div class="rev-section" style="margin-bottom:16px;">
+      <div class="rev-section-title">직접 추가·수정 (붙여넣기)</div>
+      <div class="rev-section-sub">엑셀에서 <b>날짜 · 이름 · 사번 · 부서 · 근태 · 비고</b> 순서로 된 표를 그대로 복사해서 붙여넣으세요. 날짜·이름·근태만 사용하고 나머지 열은 무시해요. 여러 명 한 번에 가능합니다.</div>
+      <textarea id="attManualPasteBox" rows="5" placeholder="2026/8/31(월)&#9;김소형&#9;2390517&#9;관리자&#9;반차&#9;오전반차
+2026/8/31(월)&#9;이은미&#9;2390619&#9;관리자&#9;교육&#9;해외연수" style="width:100%; padding:10px; border:1px solid var(--border-light); border-radius:8px; background:var(--bg-card); color:var(--ink-0); font-size:12px; font-family:inherit; resize:vertical;"></textarea>
+      <div style="margin-top:8px;">
+        <button class="btn-primary gold" onclick="onDocubeAttManualPastePreview()">미리보기</button>
+      </div>
+    </div>
+
+    <div id="attRosterTableWrap"></div>
+  </div>
+  `;
+}
+function initDocubeAttView(){
+  const today = new Date();
+  let y = docubeAttSelectedYear!==null ? docubeAttSelectedYear : today.getFullYear();
+  let m = docubeAttSelectedMonth!==null ? docubeAttSelectedMonth : today.getMonth();
+
+  function getBaseDays(attMonth){
+    if(attMonth.baseDays) return attMonth.baseDays;
+    const days = new Date(y, m+1, 0).getDate();
+    let count=0;
+    for(let d=1; d<=days; d++){ const wd = new Date(y,m,d).getDay(); if(wd!==0 && wd!==6) count++; }
+    return count;
+  }
+  function renderRosterTable(){
+    const attMonth = docubeAttStore.monthly[docubeMonthKey(y,m)];
+    const wrap = document.getElementById('attRosterTableWrap');
+    if(!attMonth || !attMonth.employees.length){
+      wrap.innerHTML = `<div class="rev-detail-empty-note">이 달에 등록된 명단이 없어요. 명단 엑셀을 업로드하거나 지난달 명단을 가져와주세요.</div>`;
+      return;
+    }
+    const daily = attMonth.daily || {};
+    const daysInMonth = new Date(y, m+1, 0).getDate();
+    const baseDays = getBaseDays(attMonth);
+    const dayHeaders = Array.from({length:daysInMonth}, (_,i)=>`<th>${i+1}</th>`).join('');
+    const rows = attMonth.employees.map(emp=>{
+      const empDaily = daily[emp.id] || {};
+      let deductCount = 0;
+      const dayCells = Array.from({length:daysInMonth}, (_,i)=>{
+        const d = empDaily[i+1];
+        if(!d) return `<td></td>`;
+        const isDeduction = DOCUBE_ATT_DEDUCTION_CODES.includes(d.code);
+        if(isDeduction) deductCount++;
+        return `<td class="att-day-cell ${isDeduction?'deduct':'note-only'}" title="${escapeHtml(d.eventType||d.code||'')}${d.note?' ('+escapeHtml(d.note)+')':''}">${escapeHtml(d.code||'')}</td>`;
+      }).join('');
+      const workedDays = Math.max(0, baseDays - deductCount);
+      const headcount = baseDays>0 ? (workedDays/baseDays)*((emp.dailyHours||8)/8) : 0;
+      return `<tr>
+        <td class="duty-name-cell">${escapeHtml(emp.name)}</td>
+        <td>${escapeHtml(emp.org||'')}</td>
+        <td>${escapeHtml(emp.task||'')}</td>
+        ${dayCells}
+        <td style="font-weight:700;">${deductCount}일</td>
+        <td>${workedDays}일</td>
+        <td style="font-weight:700;color:var(--gold);">${headcount.toFixed(2)}</td>
+        <td>${emp.leaveDate ? `<span style="color:#ff8f8f;font-weight:700;">퇴사 ${dutyFmtDate(emp.leaveDate)}</span>` : '재직'}</td>
+      </tr>`;
+    }).join('');
+    wrap.innerHTML = `
+      <div class="rev-detail-hint" style="margin-bottom:8px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+        <span>기준일(표준근무일수):</span>
+        <input type="number" id="attBaseDaysInput" value="${baseDays}" min="1" max="31" style="width:56px; padding:4px 6px; border:1px solid var(--border-light); border-radius:6px; background:var(--bg-card); color:var(--ink-0); text-align:center;">
+        <span style="color:var(--ink-2);">셀에 마우스를 올리면 이벤트 상세(메모 등)가 보여요. <span class="att-day-cell deduct" style="display:inline-block;padding:1px 6px;">결근</span> 계열은 인원 계산에 영향을 주고, <span class="att-day-cell note-only" style="display:inline-block;padding:1px 6px;">연차</span> 계열은 기록만 돼요.</span>
+      </div>
+      <div class="duty-table-scroll">
+        <table class="duty-table att-daily-table">
+          <thead><tr><th>이름</th><th>근무지</th><th>기본직무</th>${dayHeaders}<th>차감일수</th><th>총근무일</th><th>인원환산(명)</th><th>상태</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    `;
+    document.getElementById('attBaseDaysInput').addEventListener('change', (e)=>{
+      const v = Number(e.target.value);
+      if(v>0){ attMonth.baseDays = v; saveDocubeData(); renderRosterTable(); }
+    });
+  }
+  function load(yy, mm){
+    y=yy; m=mm; docubeAttSelectedYear=yy; docubeAttSelectedMonth=mm;
+    document.getElementById('attMonthLabel').textContent = `${yy}년 ${mm+1}월`;
+    renderRosterTable();
+  }
+
+  document.getElementById('attPrev').addEventListener('click', ()=>{ let mm=m-1,yy=y; if(mm<0){mm=11;yy--;} load(yy,mm); });
+  document.getElementById('attNext').addEventListener('click', ()=>{ let mm=m+1,yy=y; if(mm>11){mm=0;yy++;} load(yy,mm); });
+
+  load(y,m);
+}
+
 /* ---- 도급비마감(잠금) ---- */
 function getDocubeLockedKeys(){
   if(!Array.isArray(docubeStore.lockedKeys)) docubeStore.lockedKeys = [];
@@ -7631,6 +8268,9 @@ document.getElementById('docubeLockModalOverlay').addEventListener('click', (e)=
 });
 document.getElementById('payLedgerDiffModalOverlay').addEventListener('click', (e)=>{
   if(e.target.id==='payLedgerDiffModalOverlay') closePayLedgerDiffModal();
+});
+document.getElementById('docubeAttPreviewModalOverlay').addEventListener('click', (e)=>{
+  if(e.target.id==='docubeAttPreviewModalOverlay') closeDocubeAttPreviewModal();
 });
 </script>
 </body>
