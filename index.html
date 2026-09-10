@@ -896,6 +896,8 @@
 }
 .docube-scope .att-day-cell.deduct{ background:var(--danger-soft); color:#ff8f8f; }
 .docube-scope .att-day-cell.note-only{ background:var(--bg-card-2); color:var(--ink-2); }
+.docube-scope .att-day-cell-editable{ cursor:pointer; }
+.docube-scope .att-day-cell-editable:hover{ outline:1.5px solid var(--gold); outline-offset:-1px; }
 
 .docube-scope .rev-year-block{ margin-bottom:22px; }
 .docube-scope .rev-year-head{
@@ -1377,6 +1379,46 @@
     <div id="evalLockModalBody"></div>
     <div class="modal-actions" style="justify-content:flex-end;">
       <button type="button" class="btn-secondary" onclick="closeEvalLockModal()">닫기</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay hidden" id="attDayEditModalOverlay">
+  <div class="modal" style="width:380px;">
+    <h2>근태 수정</h2>
+    <p id="attDayEditSubtitle" style="font-size:12.5px;color:var(--text-soft);margin:-8px 0 14px;"></p>
+    <div class="field">
+      <label>근태 코드</label>
+      <select id="attDayEditCode">
+        <option value="">— (기록 없음 = 출근) —</option>
+        <option value="연차">연차</option>
+        <option value="반차">반차</option>
+        <option value="병가">병가</option>
+        <option value="결근">결근</option>
+        <option value="무급휴가">무급휴가</option>
+        <option value="무">무</option>
+        <option value="가족돌봄">가족돌봄</option>
+        <option value="가족돌봄휴직">가족돌봄휴직</option>
+        <option value="자가격리">자가격리</option>
+        <option value="퇴사">퇴사</option>
+        <option value="교육">교육</option>
+        <option value="__custom__">직접 입력...</option>
+      </select>
+    </div>
+    <div class="field" id="attDayEditCustomWrap" style="display:none;">
+      <label>직접 입력한 코드</label>
+      <input type="text" id="attDayEditCustomCode" placeholder="예: 특별휴가">
+    </div>
+    <div class="field">
+      <label>메모 (선택)</label>
+      <input type="text" id="attDayEditNote" placeholder="예: 8.19 ~">
+    </div>
+    <div class="modal-actions" style="justify-content:space-between;">
+      <button type="button" class="btn-secondary" style="color:#ff8f8f;" onclick="deleteAttDayEdit()">이 날짜 기록 삭제</button>
+      <div style="display:flex; gap:8px;">
+        <button type="button" class="btn-secondary" onclick="closeAttDayEditModal()">취소</button>
+        <button type="button" class="btn-primary" onclick="saveAttDayEdit()">저장</button>
+      </div>
     </div>
   </div>
 </div>
@@ -3408,6 +3450,9 @@ let docubeSelectedMonth = null;
 let docubeAttStore = { monthly: {} }; /* monthly['YYYY-M'] = { employees:[{id,name,org,task,hireDate,dailyHours,leaveDate}], daily:{empId:{day:{code,eventType,note}}} } */
 let docubeAttSelectedYear = null;
 let docubeAttSelectedMonth = null;
+let docubeAttSearchQuery = '';
+let docubeAttEditingEmpId = null;
+let docubeAttEditingDay = null;
 let dutyUndoStack = [];
 let dutyRedoStack = [];
 const DUTY_UNDO_LIMIT = 20;
@@ -6807,8 +6852,44 @@ function docubeConfigFor(y, m){
 function docubeAttDefaultBaseDays(y,m){
   const days = new Date(y, m+1, 0).getDate();
   let count=0;
-  for(let d=1; d<=days; d++){ const wd = new Date(y,m,d).getDay(); if(wd!==0 && wd!==6) count++; }
+  for(let d=1; d<=days; d++){
+    const wd = new Date(y,m,d).getDay();
+    if(wd===0 || wd===6) continue;
+    const dateStr = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    if(getHoliday(dateStr)) continue;
+    count++;
+  }
   return count;
+}
+/* 그 달의 영업일(토·일, 공휴일 제외) 날짜 목록 */
+function docubeAttBusinessDaysList(y,m){
+  const daysInMonth = new Date(y, m+1, 0).getDate();
+  const list = [];
+  for(let d=1; d<=daysInMonth; d++){
+    const wd = new Date(y,m,d).getDay();
+    if(wd===0 || wd===6) continue;
+    const dateStr = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    if(getHoliday(dateStr)) continue;
+    list.push(d);
+  }
+  return list;
+}
+/* 실효OB는 영업일 기준 4일째부터 10일만 근무하는 게 기본 스케줄이라, 명단에 처음 추가될 때 자동으로 채워줌 */
+const DOCUBE_ATT_SILHYO_OB_TASK = '실효OB';
+const DOCUBE_ATT_SILHYO_OB_START_INDEX = 3; /* 0-indexed: 영업일 4일째 */
+const DOCUBE_ATT_SILHYO_OB_WORK_DAYS = 10;
+function docubeAttSeedSilhyoOB(attMonth, emp, y, m, force){
+  if((emp.task||'').trim() !== DOCUBE_ATT_SILHYO_OB_TASK) return;
+  attMonth.daily = attMonth.daily || {};
+  if(!force && attMonth.daily[emp.id] && Object.keys(attMonth.daily[emp.id]).length) return; /* 이미 기록이 있으면 건드리지 않음 (재적용 시엔 덮어씀) */
+  const bdays = docubeAttBusinessDaysList(y, m);
+  const scheduled = new Set(bdays.slice(DOCUBE_ATT_SILHYO_OB_START_INDEX, DOCUBE_ATT_SILHYO_OB_START_INDEX + DOCUBE_ATT_SILHYO_OB_WORK_DAYS));
+  /* 출근일(빈칸=출근)은 기록을 남기지 않고, 그 외 영업일만 '무'로 표시 */
+  const dailyForEmp = {};
+  bdays.forEach(d=>{
+    if(!scheduled.has(d)) dailyForEmp[d] = { code:'무', eventType:'무', note:'실효OB 비근무일 자동 설정' };
+  });
+  attMonth.daily[emp.id] = dailyForEmp;
 }
 /* 근태현황 탭에 입력된 그 달 데이터로 업무(직무)별 인원환산 합계를 계산.
    CSR 세부업무(제휴상담 등)는 경력 2년 기준(입사일)으로 senior/junior도 함께 나눠서 반환. */
@@ -7843,6 +7924,7 @@ async function onDocubeAttRosterUpload(ev){
       });
     }
     attMonth.employees = newRoster;
+    newRoster.forEach(emp=>docubeAttSeedSilhyoOB(attMonth, emp, docubeAttSelectedYear, docubeAttSelectedMonth));
     saveDocubeData();
     if(state.view==='docubeAtt'){ document.getElementById('viewContainer').innerHTML = renderDocubeAttView(); initDocubeAttView(); }
     alert(`직원 명단 ${newRoster.length}명을 불러왔어요.`);
@@ -7864,9 +7946,54 @@ function carryForwardDocubeAttRoster(){
   const attMonth = ensureDocubeAttMonth(y,m);
   attMonth.employees = prevMonth.employees.filter(e=>!e.leaveDate).map(e=>({...e}));
   attMonth.daily = {};
+  attMonth.employees.forEach(emp=>docubeAttSeedSilhyoOB(attMonth, emp, y, m));
   saveDocubeData();
   document.getElementById('viewContainer').innerHTML = renderDocubeAttView();
   initDocubeAttView();
+}
+/* 입사일 반영: 일일현황 파일엔 입사 정보가 없어서 이름 검색 + 날짜로 직접 반영.
+   이 달 중간에 입사했으면 입사 전 영업일은 자동으로 '무'로 채움 (퇴사와 반대 방향) */
+function applyDocubeAttHireDate(){
+  const y = docubeAttSelectedYear, m = docubeAttSelectedMonth;
+  const attMonth = docubeAttStore.monthly[docubeMonthKey(y,m)];
+  if(!attMonth || !attMonth.employees.length){
+    alert('먼저 이 달의 직원 명단을 준비해주세요.');
+    return;
+  }
+  const nameInput = document.getElementById('attHireNameInput');
+  const dateInput = document.getElementById('attHireDateInput');
+  const inputValue = nameInput.value.trim();
+  const emp = attMonth.employees.find(e => docubeAttOptionLabel(e) === inputValue || e.name === inputValue);
+  if(!emp){
+    alert('명단에서 이름을 찾을 수 없어요. 검색 목록에 뜨는 항목을 선택해주세요.');
+    return;
+  }
+  const hireDateStr = dateInput.value;
+  if(!hireDateStr){
+    alert('입사일을 선택해주세요.');
+    return;
+  }
+  emp.hireDate = hireDateStr;
+  const hireDate = new Date(hireDateStr);
+  let filledCount = 0;
+  if(!isNaN(hireDate.getTime()) && hireDate.getFullYear()===y && hireDate.getMonth()===m){
+    const hireDay = hireDate.getDate();
+    const bdays = docubeAttBusinessDaysList(y, m);
+    attMonth.daily = attMonth.daily || {};
+    attMonth.daily[emp.id] = attMonth.daily[emp.id] || {};
+    bdays.filter(d=>d<hireDay).forEach(d=>{
+      if(!attMonth.daily[emp.id][d]){
+        attMonth.daily[emp.id][d] = { code:'무', eventType:'무', note:'입사 전 자동채움' };
+        filledCount++;
+      }
+    });
+  }
+  saveDocubeData();
+  nameInput.value = '';
+  dateInput.value = '';
+  document.getElementById('viewContainer').innerHTML = renderDocubeAttView();
+  initDocubeAttView();
+  alert(`${emp.name}님의 입사일을 ${hireDateStr}로 반영했어요.${filledCount?` (입사 전 영업일 ${filledCount}일 '무' 자동 채움)`:''}`);
 }
 function docubeAttParseManualPaste(text){
   const y = docubeAttSelectedYear, m = docubeAttSelectedMonth;
@@ -7895,6 +8022,37 @@ function docubeAttParseManualPaste(text){
   });
   return results;
 }
+/* 복직 전날까지, 퇴사 다음날부터 말일까지를 영업일 기준으로 자동 채움
+   (달력상 모든 날이 아니라 영업일만 채워야 기준일 대비 차감 계산이 맞음) */
+function docubeAttInjectDerivedFills(results, y, m){
+  const bdays = docubeAttBusinessDaysList(y, m);
+  const explicitKeys = new Set(results.filter(r=>!r.isNote && r.matchedEmpId).map(r=>`${r.matchedEmpId}_${r.day}`));
+  const derived = [];
+  results.filter(r=>!r.isNote && (r.eventType==='복직'||r.eventType==='휴직복직') && r.matchedEmpId).forEach(r=>{
+    bdays.filter(d=>d<r.day).forEach(d=>{
+      const key = `${r.matchedEmpId}_${d}`;
+      if(explicitKeys.has(key)) return;
+      explicitKeys.add(key);
+      derived.push({
+        day:d, eventType:'무(복직 전 자동채움)', dept:r.dept, name:r.name, note:'',
+        matchedEmpId:r.matchedEmpId, code:'무', needsReview:false,
+      });
+    });
+  });
+  results.filter(r=>!r.isNote && r.eventType==='퇴사' && r.matchedEmpId).forEach(r=>{
+    r.skipDayEntry = true; /* 퇴사 접수일(=마지막 근무일) 당일은 근태 기록을 남기지 않음(정상 근무한 날) */
+    bdays.filter(d=>d>r.day).forEach(d=>{
+      const key = `${r.matchedEmpId}_${d}`;
+      if(explicitKeys.has(key)) return;
+      explicitKeys.add(key);
+      derived.push({
+        day:d, eventType:'퇴사(자동채움)', dept:r.dept, name:r.name, note:'',
+        matchedEmpId:r.matchedEmpId, code:'퇴사', needsReview:false,
+      });
+    });
+  });
+  return derived;
+}
 function onDocubeAttManualPastePreview(){
   const text = document.getElementById('attManualPasteBox').value;
   const results = docubeAttParseManualPaste(text);
@@ -7902,6 +8060,7 @@ function onDocubeAttManualPastePreview(){
     alert('인식된 줄이 없어요. 날짜·이름·사번·부서·근태 순서(탭으로 구분)로 붙여넣었는지, 지금 보고 있는 연월과 날짜가 맞는지 확인해주세요.');
     return;
   }
+  results.push(...docubeAttInjectDerivedFills(results, docubeAttSelectedYear, docubeAttSelectedMonth));
   docubeAttParseResults = results;
   openDocubeAttPreviewModal();
 }
@@ -7949,21 +8108,7 @@ async function onDocubeAttDailyUpload(ev){
         });
       });
     });
-    /* 복직(휴직복직) 전날까지는 근태 '무'로 자동 채움 (예: 8/5 복직이면 8/1~8/4는 '무') */
-    const explicitKeys = new Set(results.filter(r=>!r.isNote && r.matchedEmpId).map(r=>`${r.matchedEmpId}_${r.day}`));
-    const derived = [];
-    results.filter(r=>!r.isNote && (r.eventType==='복직'||r.eventType==='휴직복직') && r.matchedEmpId).forEach(r=>{
-      for(let d=1; d<r.day; d++){
-        const key = `${r.matchedEmpId}_${d}`;
-        if(explicitKeys.has(key)) continue;
-        explicitKeys.add(key);
-        derived.push({
-          day:d, eventType:'무(복직 전 자동채움)', dept:r.dept, name:r.name, note:'',
-          matchedEmpId:r.matchedEmpId, code:'무', needsReview:false,
-        });
-      }
-    });
-    results.push(...derived);
+    results.push(...docubeAttInjectDerivedFills(results, y, m));
     docubeAttParseResults = results;
     openDocubeAttPreviewModal();
   }catch(err){
@@ -8007,6 +8152,94 @@ function docubeAttSetMatch(idx, empId){
   }
   renderDocubeAttPreviewBody();
 }
+function docubeAttOptionLabel(emp){
+  return `${emp.name}${emp.org ? ' · '+emp.org : ''}`;
+}
+function docubeAttSetMatchByInput(idx, inputValue){
+  const attMonth = docubeAttStore.monthly[docubeMonthKey(docubeAttSelectedYear, docubeAttSelectedMonth)];
+  const roster = attMonth ? attMonth.employees : [];
+  const emp = roster.find(e => docubeAttOptionLabel(e) === inputValue.trim());
+  if(!emp) return; /* 아직 완전히 일치하는 항목을 고르지 않은 상태(입력 중) - 그냥 대기 */
+  docubeAttSetMatch(idx, emp.id);
+}
+/* ---- 근태 개별 수정 팝업 ---- */
+const DOCUBE_ATT_KNOWN_CODES = ['연차','반차','병가','결근','무급휴가','무','가족돌봄','가족돌봄휴직','자가격리','퇴사','교육'];
+function openAttDayEditModal(empId, day){
+  const attMonth = docubeAttStore.monthly[docubeMonthKey(docubeAttSelectedYear, docubeAttSelectedMonth)];
+  if(!attMonth) return;
+  const emp = attMonth.employees.find(e=>e.id===empId);
+  if(!emp) return;
+  docubeAttEditingEmpId = empId;
+  docubeAttEditingDay = day;
+  const existing = (attMonth.daily && attMonth.daily[empId] && attMonth.daily[empId][day]) || null;
+  document.getElementById('attDayEditSubtitle').textContent = `${emp.name} · ${docubeAttSelectedYear}년 ${docubeAttSelectedMonth+1}월 ${day}일`;
+  const codeSelect = document.getElementById('attDayEditCode');
+  const customWrap = document.getElementById('attDayEditCustomWrap');
+  const customInput = document.getElementById('attDayEditCustomCode');
+  const noteInput = document.getElementById('attDayEditNote');
+  const currentCode = existing ? (existing.code||'') : '';
+  if(currentCode && !DOCUBE_ATT_KNOWN_CODES.includes(currentCode)){
+    codeSelect.value = '__custom__';
+    customWrap.style.display = '';
+    customInput.value = currentCode;
+  }else{
+    codeSelect.value = currentCode;
+    customWrap.style.display = 'none';
+    customInput.value = '';
+  }
+  noteInput.value = existing ? (existing.note||'') : '';
+  document.getElementById('attDayEditModalOverlay').classList.remove('hidden');
+}
+function closeAttDayEditModal(){
+  document.getElementById('attDayEditModalOverlay').classList.add('hidden');
+  docubeAttEditingEmpId = null;
+  docubeAttEditingDay = null;
+}
+function saveAttDayEdit(){
+  if(!docubeAttEditingEmpId || !docubeAttEditingDay) return;
+  const attMonth = docubeAttStore.monthly[docubeMonthKey(docubeAttSelectedYear, docubeAttSelectedMonth)];
+  if(!attMonth) return;
+  const codeSelect = document.getElementById('attDayEditCode');
+  const customInput = document.getElementById('attDayEditCustomCode');
+  const noteInput = document.getElementById('attDayEditNote');
+  let code = codeSelect.value;
+  if(code==='__custom__') code = customInput.value.trim();
+  attMonth.daily = attMonth.daily || {};
+  attMonth.daily[docubeAttEditingEmpId] = attMonth.daily[docubeAttEditingEmpId] || {};
+  if(!code){
+    delete attMonth.daily[docubeAttEditingEmpId][docubeAttEditingDay];
+  }else if(code==='퇴사'){
+    /* 퇴사 접수일(=마지막 근무일) 당일은 정상 근무한 날이라 근태 기록을 남기지 않고,
+       다음날부터 남은 영업일을 전부 퇴사로 채움 (이미 있는 기록도 덮어씀) */
+    const y = docubeAttSelectedYear, m = docubeAttSelectedMonth;
+    const emp = attMonth.employees.find(e=>e.id===docubeAttEditingEmpId);
+    if(emp) emp.leaveDate = `${y}-${String(m+1).padStart(2,'0')}-${String(docubeAttEditingDay).padStart(2,'0')}`;
+    delete attMonth.daily[docubeAttEditingEmpId][docubeAttEditingDay];
+    docubeAttBusinessDaysList(y, m).filter(d=>d>docubeAttEditingDay).forEach(d=>{
+      attMonth.daily[docubeAttEditingEmpId][d] = { code:'퇴사', eventType:'퇴사(자동채움)', note:'', deduction:true };
+    });
+  }else{
+    attMonth.daily[docubeAttEditingEmpId][docubeAttEditingDay] = {
+      code, eventType: code, note: noteInput.value.trim(),
+      deduction: DOCUBE_ATT_DEDUCTION_CODES.includes(code)
+    };
+  }
+  saveDocubeData();
+  closeAttDayEditModal();
+  document.getElementById('viewContainer').innerHTML = renderDocubeAttView();
+  initDocubeAttView();
+}
+function deleteAttDayEdit(){
+  if(!docubeAttEditingEmpId || !docubeAttEditingDay) return;
+  const attMonth = docubeAttStore.monthly[docubeMonthKey(docubeAttSelectedYear, docubeAttSelectedMonth)];
+  if(attMonth && attMonth.daily && attMonth.daily[docubeAttEditingEmpId]){
+    delete attMonth.daily[docubeAttEditingEmpId][docubeAttEditingDay];
+    saveDocubeData();
+  }
+  closeAttDayEditModal();
+  document.getElementById('viewContainer').innerHTML = renderDocubeAttView();
+  initDocubeAttView();
+}
 function renderDocubeAttPreviewBody(){
   const body = document.getElementById('docubeAttPreviewModalBody');
   const attMonth = docubeAttStore.monthly[docubeMonthKey(docubeAttSelectedYear, docubeAttSelectedMonth)];
@@ -8018,22 +8251,22 @@ function renderDocubeAttPreviewBody(){
   const notes = docubeAttParseResults.filter(r=>r.isNote);
   let html = `<div style="font-size:12.5px;color:var(--text-soft);margin-bottom:10px;">총 ${named.length}건 인식됨 · 자동반영 ${matched.length}건 · 확인필요 ${reviewNeeded.length}건 · <span style="color:#ff8f8f;font-weight:700;">매칭 실패 ${unmatched.length}건</span></div>`;
   if(unmatched.length){
+    const datalistOptions = roster.map(e=>`<option value="${escapeHtml(docubeAttOptionLabel(e))}">`).join('');
+    html += `<datalist id="attRosterDatalist">${datalistOptions}</datalist>`;
     html += `<div class="duty-report-section-title" style="margin-top:0;color:#ff8f8f;">⚠ 명단에서 이름을 찾을 수 없음 (${unmatched.length}건) · 오타이거나 명단에 없는 사람이에요</div>
-    <div style="font-size:11px;color:var(--text-faint);margin:-4px 0 8px;">비슷한 이름이 목록 위쪽에 먼저 나와요. 맞는 사람을 고르면 바로 "자동 반영될 항목"으로 넘어가요.</div>
+    <div style="font-size:11px;color:var(--text-faint);margin:-4px 0 8px;">이름을 입력해서 검색하고, 목록에서 맞는 사람을 고르면 바로 "자동 반영될 항목"으로 넘어가요.</div>
     <div class="duty-table-scroll" style="max-height:220px;">
-    <table class="duty-table"><thead><tr><th>일자</th><th>이벤트</th><th>구분</th><th>인식된 이름</th><th>명단에서 선택</th></tr></thead><tbody>
+    <table class="duty-table"><thead><tr><th>일자</th><th>이벤트</th><th>구분</th><th>인식된 이름</th><th>명단에서 검색</th></tr></thead><tbody>
     ${unmatched.map(r=>{
       const idx = docubeAttParseResults.indexOf(r);
-      const suggestions = docubeAttSuggestNames(r.name, roster);
-      const options = suggestions.map(s=>`<option value="${escapeHtml(s.emp.id)}">${escapeHtml(s.emp.name)}${s.emp.org?' · '+escapeHtml(s.emp.org):''}</option>`).join('');
+      const suggestions = docubeAttSuggestNames(r.name, roster).slice(0,1);
+      const placeholder = suggestions.length ? `혹시 "${suggestions[0].emp.name}"?` : '이름 검색';
       return `<tr>
         <td>${r.day}일</td><td>${escapeHtml(r.eventType||'')}</td><td>${escapeHtml(r.dept||'')}</td>
         <td style="color:#ff8f8f;font-weight:700;">${escapeHtml(r.name)}${r.note?` (${escapeHtml(r.note)})`:''}</td>
         <td>
-          <select onchange="docubeAttSetMatch(${idx}, this.value)" style="font-size:11px;padding:4px 6px;border-radius:6px;border:1px solid var(--border-light);background:var(--bg-card);color:var(--ink-0);max-width:180px;">
-            <option value="">-- 선택 안 함 --</option>
-            ${options}
-          </select>
+          <input type="text" list="attRosterDatalist" oninput="docubeAttSetMatchByInput(${idx}, this.value)" placeholder="${escapeHtml(placeholder)}"
+            style="font-size:11px;padding:4px 6px;border-radius:6px;border:1px solid var(--border-light);background:var(--bg-card);color:var(--ink-0);width:160px;">
         </td>
       </tr>`;
     }).join('')}
@@ -8051,7 +8284,7 @@ function renderDocubeAttPreviewBody(){
     html += `<div class="duty-report-section-title">✅ 자동 반영될 항목 (${matched.length}건)</div>
     <div class="duty-table-scroll" style="max-height:220px;">
     <table class="duty-table"><thead><tr><th>일자</th><th>이벤트</th><th>이름</th><th>기록될 코드</th></tr></thead><tbody>
-    ${matched.map(r=>`<tr><td>${r.day}일</td><td>${escapeHtml(r.eventType)}</td><td>${escapeHtml(r.name)}</td><td>${escapeHtml(r.code||r.eventType)}</td></tr>`).join('')}
+    ${matched.map(r=>`<tr><td>${r.day}일</td><td>${escapeHtml(r.eventType)}</td><td>${escapeHtml(r.name)}</td><td>${r.skipDayEntry ? '마지막 근무일 (기록 없음)' : escapeHtml(r.code||r.eventType)}</td></tr>`).join('')}
     </tbody></table></div>`;
   }
   if(notes.length){
@@ -8071,10 +8304,14 @@ function applyDocubeAttParseResult(){
   docubeAttParseResults.forEach(r=>{
     if(r.isNote || !r.matchedEmpId || r.needsReview) return;
     attMonth.daily[r.matchedEmpId] = attMonth.daily[r.matchedEmpId] || {};
-    attMonth.daily[r.matchedEmpId][r.day] = {
-      code: r.code || r.eventType, eventType: r.eventType, note: r.note||'',
-      deduction: DOCUBE_ATT_DEDUCTION_CODES.includes(r.code)
-    };
+    if(r.skipDayEntry){
+      delete attMonth.daily[r.matchedEmpId][r.day]; /* 마지막 근무일: 근태 기록 없음(=출근) */
+    }else{
+      attMonth.daily[r.matchedEmpId][r.day] = {
+        code: r.code || r.eventType, eventType: r.eventType, note: r.note||'',
+        deduction: DOCUBE_ATT_DEDUCTION_CODES.includes(r.code)
+      };
+    }
     if(r.eventType==='퇴사'){
       const emp = attMonth.employees.find(e=>e.id===r.matchedEmpId);
       if(emp) emp.leaveDate = `${y}-${String(m+1).padStart(2,'0')}-${String(r.day).padStart(2,'0')}`;
@@ -8104,7 +8341,18 @@ function renderDocubeAttView(){
         <button class="btn-primary gold" onclick="document.getElementById('attDailyUploadInput').click()">📥 일일현황 업로드</button>
       </div>
     </div>
-    <div class="rev-section-sub" style="margin-bottom:14px;">직원 명단을 먼저 올린 뒤, 일일현황 엑셀을 업로드하면 특이사항(연차·병가·결근·퇴사 등)을 이름으로 매칭해서 자동으로 채워줘요. 반영 전에 미리보기로 확인할 수 있고, 연차·반차는 기록만 되고 금액 계산에는 영향을 주지 않아요.</div>
+    <div class="rev-section-sub" style="margin-bottom:14px;">직원 명단을 먼저 올린 뒤, 일일현황 엑셀을 업로드하면 특이사항(연차·병가·결근·퇴사 등)을 이름으로 매칭해서 자동으로 채워줘요. 반영 전에 미리보기로 확인할 수 있고, 연차·반차는 기록만 되고 금액 계산에는 영향을 주지 않아요. 빈 칸은 출근한 것으로 처리돼요. 실효OB 직무는 영업일 4일째부터 10일만 출근이고 나머지는 자동으로 '무'가 채워져요.</div>
+
+    <div class="rev-section" style="margin-bottom:16px;">
+      <div class="rev-section-title">입사일 반영</div>
+      <div class="rev-section-sub">일일현황 파일에는 입사일이 나오지 않아서, 이름을 검색해서 입사일을 직접 반영해요. 입사일이 이 달 중간이면(예: 8/4), 입사 전 영업일(8/1~8/3)은 자동으로 '무'로 채워져요.</div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+        <input type="text" id="attHireNameInput" list="attHireNameDatalist" placeholder="이름 검색" style="width:180px; padding:8px 10px; border:1px solid var(--border-light); border-radius:8px; background:var(--bg-card); color:var(--ink-0); font-size:12.5px;">
+        <datalist id="attHireNameDatalist"></datalist>
+        <input type="date" id="attHireDateInput" style="padding:8px 10px; border:1px solid var(--border-light); border-radius:8px; background:var(--bg-card); color:var(--ink-0); font-size:12.5px;">
+        <button class="btn-primary gold" onclick="applyDocubeAttHireDate()">적용</button>
+      </div>
+    </div>
 
     <div class="rev-section" style="margin-bottom:16px;">
       <div class="rev-section-title">직접 추가·수정 (붙여넣기)</div>
@@ -8127,31 +8375,42 @@ function initDocubeAttView(){
 
   function getBaseDays(attMonth){
     if(attMonth.baseDays) return attMonth.baseDays;
-    const days = new Date(y, m+1, 0).getDate();
-    let count=0;
-    for(let d=1; d<=days; d++){ const wd = new Date(y,m,d).getDay(); if(wd!==0 && wd!==6) count++; }
-    return count;
+    return docubeAttDefaultBaseDays(y, m);
   }
-  function renderRosterTable(){
+  function renderRosterTableBody(){
     const attMonth = docubeAttStore.monthly[docubeMonthKey(y,m)];
-    const wrap = document.getElementById('attRosterTableWrap');
-    if(!attMonth || !attMonth.employees.length){
-      wrap.innerHTML = `<div class="rev-detail-empty-note">이 달에 등록된 명단이 없어요. 명단 엑셀을 업로드하거나 지난달 명단을 가져와주세요.</div>`;
-      return;
-    }
+    const tableWrap = document.getElementById('attTableInner');
+    if(!tableWrap) return;
     const daily = attMonth.daily || {};
     const daysInMonth = new Date(y, m+1, 0).getDate();
     const baseDays = getBaseDays(attMonth);
-    const dayHeaders = Array.from({length:daysInMonth}, (_,i)=>`<th>${i+1}</th>`).join('');
-    const rows = attMonth.employees.map(emp=>{
+    /* 영업일(토/일, 공휴일 제외)만 열로 표시 */
+    const businessDays = [];
+    for(let d=1; d<=daysInMonth; d++){
+      const wd = new Date(y, m, d).getDay();
+      if(wd===0 || wd===6) continue;
+      const dateStr = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      if(getHoliday(dateStr)) continue;
+      businessDays.push(d);
+    }
+    const dayHeaders = businessDays.map(d=>`<th>${d}</th>`).join('');
+    const query = (docubeAttSearchQuery||'').trim().toLowerCase();
+    const filteredEmployees = query
+      ? attMonth.employees.filter(e=>
+          String(e.name||'').toLowerCase().includes(query) ||
+          String(e.org||'').toLowerCase().includes(query) ||
+          String(e.task||'').toLowerCase().includes(query))
+      : attMonth.employees;
+    const rows = filteredEmployees.map(emp=>{
       const empDaily = daily[emp.id] || {};
       let deductCount = 0;
-      const dayCells = Array.from({length:daysInMonth}, (_,i)=>{
-        const d = empDaily[i+1];
-        if(!d) return `<td></td>`;
-        const isDeduction = DOCUBE_ATT_DEDUCTION_CODES.includes(d.code);
-        if(isDeduction) deductCount++;
-        return `<td class="att-day-cell ${isDeduction?'deduct':'note-only'}" title="${escapeHtml(d.eventType||d.code||'')}${d.note?' ('+escapeHtml(d.note)+')':''}">${escapeHtml(d.code||'')}</td>`;
+      const dayCells = businessDays.map(d=>{
+        const dd = empDaily[d];
+        const cellContent = dd ? escapeHtml(dd.code||'') : '';
+        const titleAttr = dd ? `${escapeHtml(dd.eventType||dd.code||'')}${dd.note?' ('+escapeHtml(dd.note)+')':''}` : '클릭해서 근태 입력';
+        if(dd && DOCUBE_ATT_DEDUCTION_CODES.includes(dd.code)) deductCount++;
+        const cls = dd ? (DOCUBE_ATT_DEDUCTION_CODES.includes(dd.code) ? 'deduct' : 'note-only') : '';
+        return `<td class="att-day-cell att-day-cell-editable ${cls}" title="${titleAttr}" onclick="openAttDayEditModal('${emp.id}', ${d})">${cellContent}</td>`;
       }).join('');
       const workedDays = Math.max(0, baseDays - deductCount);
       const headcount = baseDays>0 ? (workedDays/baseDays)*((emp.dailyHours||8)/8) : 0;
@@ -8166,12 +8425,7 @@ function initDocubeAttView(){
         <td>${emp.leaveDate ? `<span style="color:#ff8f8f;font-weight:700;">퇴사 ${dutyFmtDate(emp.leaveDate)}</span>` : '재직'}</td>
       </tr>`;
     }).join('');
-    wrap.innerHTML = `
-      <div class="rev-detail-hint" style="margin-bottom:8px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-        <span>기준일(표준근무일수):</span>
-        <input type="number" id="attBaseDaysInput" value="${baseDays}" min="1" max="31" style="width:56px; padding:4px 6px; border:1px solid var(--border-light); border-radius:6px; background:var(--bg-card); color:var(--ink-0); text-align:center;">
-        <span style="color:var(--ink-2);">셀에 마우스를 올리면 이벤트 상세(메모 등)가 보여요. <span class="att-day-cell deduct" style="display:inline-block;padding:1px 6px;">결근</span> 계열은 인원 계산에 영향을 주고, <span class="att-day-cell note-only" style="display:inline-block;padding:1px 6px;">연차</span> 계열은 기록만 돼요.</span>
-      </div>
+    tableWrap.innerHTML = `
       <div class="duty-table-scroll">
         <table class="duty-table att-daily-table">
           <thead><tr><th>이름</th><th>근무지</th><th>기본직무</th>${dayHeaders}<th>차감일수</th><th>총근무일</th><th>인원환산(명)</th><th>상태</th></tr></thead>
@@ -8179,15 +8433,69 @@ function initDocubeAttView(){
         </table>
       </div>
     `;
+  }
+  function renderRosterTable(){
+    const attMonth = docubeAttStore.monthly[docubeMonthKey(y,m)];
+    const wrap = document.getElementById('attRosterTableWrap');
+    if(!attMonth || !attMonth.employees.length){
+      wrap.innerHTML = `<div class="rev-detail-empty-note">이 달에 등록된 명단이 없어요. 명단 엑셀을 업로드하거나 지난달 명단을 가져와주세요.</div>`;
+      return;
+    }
+    /* 기본직무가 실효OB인데 아직 근태 기록이 없는 사람은, 버튼을 누르지 않아도 자동으로 기본 스케줄을 채워줌
+       (이미 기록이 있는 사람은 건드리지 않음 - 수동 수정한 내용을 덮어쓰지 않기 위해) */
+    let silhyoSeeded = false;
+    attMonth.employees.forEach(emp=>{
+      if((emp.task||'').trim()===DOCUBE_ATT_SILHYO_OB_TASK){
+        const before = attMonth.daily && attMonth.daily[emp.id] ? Object.keys(attMonth.daily[emp.id]).length : 0;
+        docubeAttSeedSilhyoOB(attMonth, emp, y, m);
+        const after = attMonth.daily && attMonth.daily[emp.id] ? Object.keys(attMonth.daily[emp.id]).length : 0;
+        if(after !== before) silhyoSeeded = true;
+      }
+    });
+    if(silhyoSeeded) saveDocubeData();
+    const baseDays = getBaseDays(attMonth);
+    const daysInMonth = new Date(y, m+1, 0).getDate();
+    let businessDayCount = 0;
+    for(let d=1; d<=daysInMonth; d++){
+      const wd = new Date(y, m, d).getDay();
+      if(wd===0 || wd===6) continue;
+      const dateStr = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      if(getHoliday(dateStr)) continue;
+      businessDayCount++;
+    }
+    /* 검색창 등 도구줄은 한 번만 만들고, 검색어 입력 시엔 아래 표 부분(#attTableInner)만 다시 그림.
+       (매 입력마다 검색창 자체를 새로 그리면 한글 조합 중 입력이 깨지는 문제가 있어 분리함) */
+    wrap.innerHTML = `
+      <div class="rev-detail-hint" style="margin-bottom:8px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+        <span>기준일(표준근무일수):</span>
+        <input type="number" id="attBaseDaysInput" value="${baseDays}" min="1" max="31" style="width:56px; padding:4px 6px; border:1px solid var(--border-light); border-radius:6px; background:var(--bg-card); color:var(--ink-0); text-align:center;">
+        <input type="text" id="attSearchInput" value="${escapeHtml(docubeAttSearchQuery||'')}" placeholder="🔍 이름·근무지·직무 검색" style="width:180px; padding:6px 10px; border:1px solid var(--border-light); border-radius:8px; background:var(--bg-card); color:var(--ink-0); font-size:12px;">
+        <span style="color:var(--ink-2);">영업일(토·일, 공휴일 제외) ${businessDayCount}일만 표시돼요. 날짜 칸을 클릭하면 그 사람의 그날 근태를 직접 수정할 수 있어요. <span class="att-day-cell deduct" style="display:inline-block;padding:1px 6px;">결근</span> 계열은 인원 계산에 영향을 주고, <span class="att-day-cell note-only" style="display:inline-block;padding:1px 6px;">연차</span> 계열은 기록만 돼요.</span>
+      </div>
+      <div id="attTableInner"></div>
+    `;
     document.getElementById('attBaseDaysInput').addEventListener('change', (e)=>{
       const v = Number(e.target.value);
-      if(v>0){ attMonth.baseDays = v; saveDocubeData(); renderRosterTable(); }
+      if(v>0){ attMonth.baseDays = v; saveDocubeData(); renderRosterTableBody(); }
     });
+    document.getElementById('attSearchInput').addEventListener('input', (e)=>{
+      docubeAttSearchQuery = e.target.value;
+      renderRosterTableBody();
+    });
+    renderRosterTableBody();
+  }
+  function populateHireDatalist(){
+    const attMonth = docubeAttStore.monthly[docubeMonthKey(y,m)];
+    const datalist = document.getElementById('attHireNameDatalist');
+    if(!datalist) return;
+    const roster = attMonth ? attMonth.employees : [];
+    datalist.innerHTML = roster.map(e=>`<option value="${escapeHtml(docubeAttOptionLabel(e))}">`).join('');
   }
   function load(yy, mm){
     y=yy; m=mm; docubeAttSelectedYear=yy; docubeAttSelectedMonth=mm;
     document.getElementById('attMonthLabel').textContent = `${yy}년 ${mm+1}월`;
     renderRosterTable();
+    populateHireDatalist();
   }
 
   document.getElementById('attPrev').addEventListener('click', ()=>{ let mm=m-1,yy=y; if(mm<0){mm=11;yy--;} load(yy,mm); });
@@ -8271,6 +8579,12 @@ document.getElementById('payLedgerDiffModalOverlay').addEventListener('click', (
 });
 document.getElementById('docubeAttPreviewModalOverlay').addEventListener('click', (e)=>{
   if(e.target.id==='docubeAttPreviewModalOverlay') closeDocubeAttPreviewModal();
+});
+document.getElementById('attDayEditModalOverlay').addEventListener('click', (e)=>{
+  if(e.target.id==='attDayEditModalOverlay') closeAttDayEditModal();
+});
+document.getElementById('attDayEditCode').addEventListener('change', (e)=>{
+  document.getElementById('attDayEditCustomWrap').style.display = (e.target.value==='__custom__') ? '' : 'none';
 });
 </script>
 </body>
