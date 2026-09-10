@@ -7794,8 +7794,13 @@ const DOCUBE_ATT_EVENT_CODE = {
 };
 /* 실제 인원환산(금액) 계산에 영향을 주는 코드 - 근태현황 원본 시트의 COUNTIF 분류(무급/병가/결근/퇴사/자가격리)와 동일 */
 const DOCUBE_ATT_DEDUCTION_CODES = ['병가','결근','무급휴가','가족돌봄','가족돌봄휴직','자가격리','퇴사','무'];
-/* 근무시간/재직상태 자체를 바꾸는 이벤트라 자동 반영하지 않고 확인용 메모로만 기록 */
-const DOCUBE_ATT_REVIEW_EVENTS = ['복직','휴직복직','육아단축','육아단축 종료','휴직'];
+/* 근무시간/재직상태 자체를 바꾸는 이벤트라 자동 반영하지 않고 확인용 메모로만 기록
+   (휴직 시작류는 제외 - 해당일부터 '무'로 자동 채우고 복직 전까지 이어감) */
+const DOCUBE_ATT_REVIEW_EVENTS = ['복직','휴직복직','육아단축','육아단축 종료'];
+/* '휴직'이 들어간 이벤트 중 시작을 의미하는 것(복직류 제외) - 예: 휴직, 육아휴직, 육아휴직(임신중), 가족돌봄휴직, 병가휴직 */
+function docubeAttIsLeaveStart(eventType){
+  return String(eventType||'').includes('휴직') && !String(eventType||'').includes('복직');
+}
 
 function docubeAttSplitLabel(label){
   const idx = label.indexOf('_');
@@ -8051,6 +8056,19 @@ function docubeAttInjectDerivedFills(results, y, m){
       });
     });
   });
+  results.filter(r=>!r.isNote && r.matchedEmpId && docubeAttIsLeaveStart(r.eventType)).forEach(r=>{
+    r.code = '무'; /* 휴직 시작일 당일부터 '무'로 처리 */
+    r.needsReview = false;
+    bdays.filter(d=>d>r.day).forEach(d=>{
+      const key = `${r.matchedEmpId}_${d}`;
+      if(explicitKeys.has(key)) return;
+      explicitKeys.add(key);
+      derived.push({
+        day:d, eventType:'무(휴직 중 자동채움)', dept:r.dept, name:r.name, note:'',
+        matchedEmpId:r.matchedEmpId, code:'무', needsReview:false,
+      });
+    });
+  });
   return derived;
 }
 function onDocubeAttManualPastePreview(){
@@ -8223,6 +8241,13 @@ function saveAttDayEdit(){
       code, eventType: code, note: noteInput.value.trim(),
       deduction: DOCUBE_ATT_DEDUCTION_CODES.includes(code)
     };
+    if(docubeAttIsLeaveStart(code)){
+      /* 휴직류를 선택하면 그날부터 말일까지 남은 영업일도 '무'로 채움 (복직 처리 전까지) */
+      const y = docubeAttSelectedYear, m = docubeAttSelectedMonth;
+      docubeAttBusinessDaysList(y, m).filter(d=>d>docubeAttEditingDay).forEach(d=>{
+        attMonth.daily[docubeAttEditingEmpId][d] = { code:'무', eventType:'무(휴직 중 자동채움)', note:'', deduction:true };
+      });
+    }
   }
   saveDocubeData();
   closeAttDayEditModal();
