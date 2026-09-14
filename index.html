@@ -644,49 +644,50 @@
   --bg-app:#15161a; --bg-card:#1c1e23; --border-light:#2b2d33;
   --ink-0:#e8e8ea; --ink-1:#9497a1; --ink-2:#6c6f7a;
 }
-.docube-scope .cal-nav{ display:flex; align-items:center; gap:10px; }
-.docube-scope .cal-nav-btn{
+.cal-nav{ display:flex; align-items:center; gap:10px; }
+.cal-nav-btn{
   width:30px; height:30px; border-radius:8px;
-  border:1px solid var(--border-light);
+  border:1px solid var(--border);
   background:var(--bg-card);
   display:flex; align-items:center; justify-content:center;
-  cursor:pointer; color:var(--ink-1);
+  cursor:pointer; color:var(--text-soft);
   font-size:15px; font-weight:700;
   transition: background .12s ease, border-color .12s ease;
 }
-.docube-scope .cal-nav-btn:hover{ background:var(--bg-card-2); border-color:#3a3d46; }
-.docube-scope .cal-month-label{
-  font-size:16px; font-weight:800; color:var(--ink-0);
+.cal-nav-btn:hover{ background:var(--bg-card-2); border-color:var(--border-strong); }
+.cal-month-label{
+  font-size:16px; font-weight:800; color:var(--text);
   min-width:112px; text-align:center;
 }
-.docube-scope .cal-month-label-clickable{ cursor:pointer; border-radius:8px; padding:4px 8px; }
-.docube-scope .cal-month-label-clickable:hover{ background:var(--bg-card-2); }
-.docube-scope .rev-month-picker{
+.cal-month-label-clickable{ cursor:pointer; border-radius:8px; padding:4px 8px; }
+.cal-month-label-clickable:hover{ background:var(--bg-card-2); }
+.rev-month-picker{
   position:absolute; top:calc(100% + 6px); left:50%; transform:translateX(-50%);
-  background:var(--bg-card); border:1px solid var(--border-light); border-radius:12px;
+  background:var(--bg-card); border:1px solid var(--border); border-radius:12px;
   box-shadow:0 10px 30px rgba(0,0,0,0.4); padding:12px; z-index:40; width:240px;
 }
-.docube-scope .rev-month-picker.hidden{ display:none; }
-.docube-scope .rmp-year-nav{
+.rev-month-picker.hidden{ display:none; }
+.rmp-year-nav{
   display:flex; align-items:center; justify-content:space-between;
-  margin-bottom:10px; font-size:13px; font-weight:800; color:var(--ink-0);
+  margin-bottom:10px; font-size:13px; font-weight:800; color:var(--text);
 }
-.docube-scope .rmp-year-nav .rmp-year-btn{
+.rmp-year-nav .rmp-year-btn{
   width:24px; height:24px; border-radius:6px; display:flex; align-items:center; justify-content:center;
-  cursor:pointer; color:var(--ink-2); font-weight:700;
+  cursor:pointer; color:var(--text-faint); font-weight:700;
 }
-.docube-scope .rmp-year-nav .rmp-year-btn:hover{ background:var(--bg-card-2); color:var(--ink-0); }
-.docube-scope .rmp-grid{ display:grid; grid-template-columns:repeat(4, 1fr); gap:6px; }
-.docube-scope .rmp-cell{
+.rmp-year-nav .rmp-year-btn:hover{ background:var(--bg-card-2); color:var(--text); }
+.rmp-grid{ display:grid; grid-template-columns:repeat(4, 1fr); gap:6px; }
+.rmp-grid.rmp-grid-narrow{ grid-template-columns:repeat(3, 1fr); }
+.rmp-cell{
   position:relative; padding:8px 0; border-radius:7px; text-align:center;
-  font-size:12.5px; font-weight:700; color:var(--ink-1); cursor:pointer;
+  font-size:12.5px; font-weight:700; color:var(--text-soft); cursor:pointer;
   border:1px solid transparent;
 }
-.docube-scope .rmp-cell:hover{ background:var(--bg-card-2); }
-.docube-scope .rmp-cell.current{ border-color:var(--gold); color:var(--ink-0); }
-.docube-scope .rmp-cell.has-data::after{
+.rmp-cell:hover{ background:var(--bg-card-2); }
+.rmp-cell.current{ border-color:var(--accent); color:var(--text); }
+.rmp-cell.has-data::after{
   content:""; position:absolute; bottom:3px; left:50%; transform:translateX(-50%);
-  width:4px; height:4px; border-radius:50%; background:var(--gold);
+  width:4px; height:4px; border-radius:50%; background:var(--accent);
 }
 .docube-scope .cal-today-btn{
   padding:6px 12px; border-radius:8px;
@@ -1379,6 +1380,16 @@
     <div id="evalLockModalBody"></div>
     <div class="modal-actions" style="justify-content:flex-end;">
       <button type="button" class="btn-secondary" onclick="closeEvalLockModal()">닫기</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay hidden" id="attCompareModalOverlay">
+  <div class="modal" style="width:760px;max-width:94vw;">
+    <h2>📊 엑셀과 인원환산 비교</h2>
+    <div id="attCompareModalBody"></div>
+    <div class="modal-actions" style="justify-content:flex-end;">
+      <button type="button" class="btn-secondary" onclick="closeAttCompareModal()">닫기</button>
     </div>
   </div>
 </div>
@@ -5763,8 +5774,58 @@ async function onEvalCallDataUpload(ev){
   }
   ev.target.value='';
 }
-function onEvalWeekChange(){
-  evalSelectedWeek = document.getElementById('evalWeekSelect').value;
+/* ---- 기준일(주차) 선택: 화살표 이동 + 달력형 팝업 ---- */
+let evalWeekPickerYear = null;
+function evalWeekNav(delta){
+  const weekKeys = Object.keys(evalStore.weekly).sort();
+  const sel = getEvalSelectedWeek();
+  const idx = weekKeys.indexOf(sel);
+  if(idx===-1) return;
+  const newIdx = idx + delta;
+  if(newIdx<0 || newIdx>=weekKeys.length) return;
+  evalSelectedWeek = weekKeys[newIdx];
+  renderEvalRefresh();
+}
+function toggleEvalWeekPicker(ev){
+  if(ev) ev.stopPropagation();
+  const picker = document.getElementById('evalWeekPicker');
+  if(!picker) return;
+  const isHidden = picker.classList.contains('hidden');
+  if(isHidden){
+    const sel = getEvalSelectedWeek();
+    evalWeekPickerYear = sel ? Number(sel.slice(0,4)) : new Date().getFullYear();
+    renderEvalWeekPickerBody();
+    picker.classList.remove('hidden');
+  }else{
+    picker.classList.add('hidden');
+  }
+}
+function evalWeekPickerYearNav(delta){
+  evalWeekPickerYear += delta;
+  renderEvalWeekPickerBody();
+}
+function renderEvalWeekPickerBody(){
+  const picker = document.getElementById('evalWeekPicker');
+  if(!picker) return;
+  const sel = getEvalSelectedWeek();
+  const weekKeys = Object.keys(evalStore.weekly).sort();
+  const yearKeys = weekKeys.filter(k=>k.startsWith(String(evalWeekPickerYear)));
+  const cells = yearKeys.map(k=>{
+    const mmdd = k.slice(5);
+    const isCurrent = k===sel;
+    return `<div class="rmp-cell has-data ${isCurrent?'current':''}" onclick="selectEvalWeek('${k}')">${mmdd}</div>`;
+  }).join('') || `<div style="grid-column:1/-1;text-align:center;color:var(--text-faint);font-size:12px;padding:10px 0;">이 해엔 데이터가 없어요</div>`;
+  picker.innerHTML = `
+    <div class="rmp-year-nav">
+      <div class="rmp-year-btn" onclick="evalWeekPickerYearNav(-1)">‹</div>
+      <span>${evalWeekPickerYear}년</span>
+      <div class="rmp-year-btn" onclick="evalWeekPickerYearNav(1)">›</div>
+    </div>
+    <div class="rmp-grid rmp-grid-narrow">${cells}</div>
+  `;
+}
+function selectEvalWeek(key){
+  evalSelectedWeek = key;
   renderEvalRefresh();
 }
 
@@ -6035,12 +6096,18 @@ function renderEvalView(){
   const weekKeys = Object.keys(evalStore.weekly).sort();
   const sel = getEvalSelectedWeek();
   const week = evalStore.weekly[sel];
-  const weekOpts = weekKeys.map(k=>`<option value="${k}" ${k===sel?'selected':''}>${k}</option>`).join('');
   const locked = week ? isEvalWeekLocked(sel) : false;
   let html = `<div class="duty-report-view">
     <div class="duty-month-bar">
       <span class="duty-month-label">📅 기준일(주차)</span>
-      <select id="evalWeekSelect" class="duty-month-select" onchange="onEvalWeekChange()">${weekOpts || '<option value="">데이터 없음</option>'}</select>
+      <div class="cal-nav">
+        <div class="cal-nav-btn" id="evalWeekPrev" onclick="evalWeekNav(-1)">‹</div>
+        <div class="cal-month-label-wrap" style="position:relative;">
+          <div class="cal-month-label cal-month-label-clickable" id="evalWeekLabel" onclick="toggleEvalWeekPicker(event)">${sel || '데이터 없음'}</div>
+          <div class="rev-month-picker hidden" id="evalWeekPicker"></div>
+        </div>
+        <div class="cal-nav-btn" id="evalWeekNext" onclick="evalWeekNav(1)">›</div>
+      </div>
       <button class="btn-secondary" onclick="document.getElementById('evalCallDataInput').click()">📤 종합콜현황 업로드</button>
       <input type="file" id="evalCallDataInput" accept=".xlsx,.xls" style="display:none;" onchange="onEvalCallDataUpload(event)">
       <button class="btn-secondary" onclick="openEvalCriteriaModal()">📐 평가기준 보기</button>
@@ -6918,6 +6985,21 @@ function docubeAttHeadcountByTask(y, m){
     }
   });
   return { byTask, byTaskSenior, byTaskJunior, baseDays };
+}
+/* 사람별 인원환산(명) - 엑셀(근태현황 시트)과의 비교용 */
+function docubeAttEmployeeHeadcounts(y, m){
+  const attMonth = docubeAttStore.monthly[docubeMonthKey(y,m)];
+  if(!attMonth || !attMonth.employees.length) return null;
+  const baseDays = attMonth.baseDays || docubeAttDefaultBaseDays(y,m);
+  const daily = attMonth.daily || {};
+  return attMonth.employees.map(emp=>{
+    const empDaily = daily[emp.id] || {};
+    let deductCount = 0;
+    Object.values(empDaily).forEach(d=>{ if(DOCUBE_ATT_DEDUCTION_CODES.includes(d.code)) deductCount++; });
+    const workedDays = Math.max(0, baseDays - deductCount);
+    const headcount = baseDays>0 ? (workedDays/baseDays)*((emp.dailyHours||8)/8) : 0;
+    return { id:emp.id, name:emp.name, org:emp.org, task:emp.task, deductCount, workedDays, headcount };
+  });
 }
 
 function docubeFormatWon(n){
@@ -8082,6 +8164,94 @@ function onDocubeAttManualPastePreview(){
   docubeAttParseResults = results;
   openDocubeAttPreviewModal();
 }
+const DOCUBE_ATT_COMPARE_TOLERANCE = 0.05; /* 인원환산 0.05명 미만 차이는 반올림 오차로 보고 일치 처리 */
+async function onDocubeAttCompareUpload(ev){
+  const file = ev.target.files[0]; if(!file) return;
+  const y = docubeAttSelectedYear, m = docubeAttSelectedMonth;
+  const appRows = docubeAttEmployeeHeadcounts(y, m);
+  if(!appRows){
+    alert('먼저 이 달의 근태현황(명단·특이사항)을 준비해주세요.');
+    ev.target.value=''; return;
+  }
+  try{
+    const wb = await readWorkbookFromFile(file);
+    const sheetName = wb.SheetNames.find(n=>n.includes('근태현황') && !n.includes('_')) || wb.SheetNames.find(n=>n.includes('근태현황')) || wb.SheetNames[0];
+    const ws = wb.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:null});
+    let headerRowIdx=-1, colName=-1, colHeadcount=-1;
+    for(let r=0;r<Math.min(rows.length,10);r++){
+      const row = rows[r]||[];
+      const norm = row.map(normalizeHeader);
+      const ni = norm.indexOf('성명');
+      const hi = norm.indexOf('인원환산명');
+      if(ni!==-1 && hi!==-1){ headerRowIdx=r; colName=ni; colHeadcount=hi; break; }
+    }
+    if(headerRowIdx===-1){
+      alert('"성명"과 "인원환산(명)" 열을 찾을 수 없어요. 근태현황 시트 형식인지 확인해주세요.');
+      ev.target.value=''; return;
+    }
+    const fileBySabun = {};
+    let fileCount = 0;
+    for(let r=headerRowIdx+1;r<rows.length;r++){
+      const row = rows[r]; if(!row) continue;
+      const name = row[colName] ? String(row[colName]).trim() : '';
+      if(!name || name==='성명') continue;
+      const hc = numOrNull(row[colHeadcount]);
+      if(hc===null) continue;
+      fileBySabun[name] = (fileBySabun[name]||0) + hc; /* 동명이인은 합산 매칭 */
+      fileCount++;
+    }
+    const remaining = { ...fileBySabun };
+    const compared = appRows.map(r=>{
+      const fileVal = fileBySabun[r.name];
+      if(remaining[r.name]!==undefined) delete remaining[r.name];
+      return { ...r, fileVal: fileVal===undefined ? null : fileVal };
+    });
+    renderAttCompareModal(compared, Object.keys(remaining), y, m, fileCount);
+    document.getElementById('attCompareModalOverlay').classList.remove('hidden');
+  }catch(err){
+    console.error(err);
+    alert('비교할 파일을 읽는 중 문제가 발생했어요.');
+  }
+  ev.target.value='';
+}
+function closeAttCompareModal(){
+  document.getElementById('attCompareModalOverlay').classList.add('hidden');
+}
+function renderAttCompareModal(compared, unmatchedFileNames, y, m, fileCount){
+  const body = document.getElementById('attCompareModalBody');
+  const fmt = n => (n===null||n===undefined) ? '' : n.toFixed(2);
+  const mismatched = compared.filter(r=>r.fileVal!==null && Math.abs(r.fileVal - r.headcount) >= DOCUBE_ATT_COMPARE_TOLERANCE);
+  const appOnly = compared.filter(r=>r.fileVal===null);
+  let html = `<div style="font-size:12.5px;color:var(--text-soft);margin-bottom:10px;">${y}년 ${m+1}월 · 앱 인원 ${compared.length}명 · 엑셀 인원 ${fileCount}명 · 0.05명 미만 차이는 오차로 보고 일치 처리해요.</div>`;
+  if(!mismatched.length && !appOnly.length && !unmatchedFileNames.length){
+    html += `<div class="empty-state" style="padding:30px 0;color:#6fe0a0;">✅ 전원 일치해요.</div>`;
+  }
+  if(mismatched.length){
+    html += `<div class="duty-report-section-title" style="margin-top:0;color:#ff8f8f;">⚠ 인원환산이 다른 사람 (${mismatched.length}명)</div>
+    <div class="duty-table-scroll" style="max-height:280px;">
+    <table class="duty-table"><thead><tr><th>이름</th><th>근무지</th><th>직무</th><th>앱 인원환산</th><th>엑셀 인원환산</th><th>차이</th></tr></thead><tbody>
+    ${mismatched.map(r=>{
+      const diff = r.fileVal - r.headcount;
+      return `<tr><td>${escapeHtml(r.name)}</td><td>${escapeHtml(r.org||'')}</td><td>${escapeHtml(r.task||'')}</td>
+        <td>${fmt(r.headcount)}</td><td>${fmt(r.fileVal)}</td>
+        <td style="font-weight:700;color:${diff>0?'#6fe0a0':'#ff8f8f'};">${diff>0?'+':''}${fmt(diff)}</td></tr>`;
+    }).join('')}
+    </tbody></table></div>`;
+  }
+  if(appOnly.length){
+    html += `<div class="duty-report-section-title">🔍 엑셀에 없는 사람 (${appOnly.length}명, 앱에만 존재)</div>
+    <div class="duty-table-scroll" style="max-height:180px;">
+    <table class="duty-table"><thead><tr><th>이름</th><th>근무지</th><th>직무</th><th>앱 인원환산</th></tr></thead><tbody>
+    ${appOnly.map(r=>`<tr><td>${escapeHtml(r.name)}</td><td>${escapeHtml(r.org||'')}</td><td>${escapeHtml(r.task||'')}</td><td>${fmt(r.headcount)}</td></tr>`).join('')}
+    </tbody></table></div>`;
+  }
+  if(unmatchedFileNames.length){
+    html += `<div class="duty-report-section-title">🔍 앱에 없는 사람 (${unmatchedFileNames.length}명, 엑셀에만 존재)</div>
+    <div style="font-size:12px;color:var(--text-soft);max-height:120px;overflow:auto;">${unmatchedFileNames.map(n=>escapeHtml(n)).join(', ')}</div>`;
+  }
+  body.innerHTML = html;
+}
 async function onDocubeAttDailyUpload(ev){
   const file = ev.target.files[0]; if(!file) return;
   const y = docubeAttSelectedYear, m = docubeAttSelectedMonth;
@@ -8364,6 +8534,8 @@ function renderDocubeAttView(){
         <button class="btn-secondary" onclick="carryForwardDocubeAttRoster()">📋 지난달 명단 가져오기</button>
         <input type="file" id="attDailyUploadInput" accept=".xlsx,.xls" style="display:none;" onchange="onDocubeAttDailyUpload(event)">
         <button class="btn-primary gold" onclick="document.getElementById('attDailyUploadInput').click()">📥 일일현황 업로드</button>
+        <input type="file" id="attCompareUploadInput" accept=".xlsx,.xls" style="display:none;" onchange="onDocubeAttCompareUpload(event)">
+        <button class="btn-secondary" onclick="document.getElementById('attCompareUploadInput').click()">📊 엑셀과 인원환산 비교</button>
       </div>
     </div>
     <div class="rev-section-sub" style="margin-bottom:14px;">직원 명단을 먼저 올린 뒤, 일일현황 엑셀을 업로드하면 특이사항(연차·병가·결근·퇴사 등)을 이름으로 매칭해서 자동으로 채워줘요. 반영 전에 미리보기로 확인할 수 있고, 연차·반차는 기록만 되고 금액 계산에는 영향을 주지 않아요. 빈 칸은 출근한 것으로 처리돼요. 실효OB 직무는 영업일 4일째부터 10일만 출근이고 나머지는 자동으로 '무'가 채워져요.</div>
@@ -8610,6 +8782,18 @@ document.getElementById('attDayEditModalOverlay').addEventListener('click', (e)=
 });
 document.getElementById('attDayEditCode').addEventListener('change', (e)=>{
   document.getElementById('attDayEditCustomWrap').style.display = (e.target.value==='__custom__') ? '' : 'none';
+});
+document.getElementById('attCompareModalOverlay').addEventListener('click', (e)=>{
+  if(e.target.id==='attCompareModalOverlay') closeAttCompareModal();
+});
+document.addEventListener('click', (e)=>{
+  const picker = document.getElementById('evalWeekPicker');
+  const label = document.getElementById('evalWeekLabel');
+  if(picker && !picker.classList.contains('hidden')){
+    if(!picker.contains(e.target) && e.target !== label){
+      picker.classList.add('hidden');
+    }
+  }
 });
 </script>
 </body>
