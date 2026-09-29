@@ -453,6 +453,11 @@
   .call-edit-input:hover{border-color:var(--border-strong);}
   .call-edit-input:focus{outline:none;border-color:var(--accent);background:var(--bg-card);}
   .call-add-row{display:flex;gap:6px;margin-top:10px;}
+  .call-raw-table th{max-width:120px;white-space:normal;line-height:1.3;}
+  .call-raw-table td{padding:1px 2px !important;}
+  .call-raw-input{width:auto;text-align:left;height:24px;font-size:11px;}
+  .call-raw-table .call-raw-del{position:sticky;left:0;z-index:1;background:var(--bg-card);width:32px;}
+  .call-raw-table th.call-raw-del{z-index:3;background:var(--bg-card-2);}
   .call-add-row input{
     height:30px;border:1px solid var(--border-strong);border-radius:var(--radius-sm);padding:0 10px;
     font-size:12px;font-family:inherit;min-width:0;
@@ -6541,6 +6546,98 @@ async function onCallRawUpload(ev){
   ev.target.value='';
 }
 
+/* ---- RAW 입력일 데이터 수기 수정 ---- */
+function callRawColumns(records){
+  const cols = [];
+  records.forEach(rec=>Object.keys(rec).forEach(k=>{ if(!cols.includes(k)) cols.push(k); }));
+  return cols;
+}
+function callEditRawCell(idx, col, value){
+  const rec = ((callStatsStore.raw||{})[callInputDate]||[])[idx]; if(!rec) return;
+  const v = value.trim();
+  const n = numOrNull(v.replace(/,/g,''));
+  rec[col] = v==='' ? null : (n!==null ? n : v);
+  saveCallStatsData();
+}
+function callDeleteRawRow(idx){
+  const list = (callStatsStore.raw||{})[callInputDate]; if(!list || !list[idx]) return;
+  const rec = list[idx];
+  if(!confirm(`${rec['이름']||rec['사번']||(idx+1)+'번째'} 행을 삭제할까요?`)) return;
+  list.splice(idx,1);
+  if(!list.length) delete callStatsStore.raw[callInputDate];
+  saveCallStatsData();
+  renderCallRefresh();
+}
+function callAddRawRow(){
+  const list = callStatsStore.raw[callInputDate] = callStatsStore.raw[callInputDate] || [];
+  const cols = callRawColumns(list.length ? list : Object.values(callStatsStore.raw).find(l=>l&&l.length) || []);
+  const rec = {}; cols.forEach(c=>{ rec[c] = null; });
+  list.push(rec);
+  saveCallStatsData();
+  renderCallRefresh();
+}
+function callClearRawDay(){
+  if(!confirm(`${callFmtDateLabel(callInputDate)} RAW 데이터를 전부 삭제할까요?`)) return;
+  delete callStatsStore.raw[callInputDate];
+  saveCallStatsData();
+  renderCallRefresh();
+}
+let callRawFilter = '';
+function onCallRawFilter(val){
+  callRawFilter = val.trim();
+  document.querySelectorAll('#callRawTable tbody tr[data-search]').forEach(tr=>{
+    tr.style.display = !callRawFilter || tr.dataset.search.includes(callRawFilter) ? '' : 'none';
+  });
+}
+function renderCallRawTable(){
+  const list = (callStatsStore.raw||{})[callInputDate] || [];
+  const cols = callRawColumns(list);
+  const head = cols.map(c=>`<th title="${escapeHtml(c)}">${escapeHtml(c)}</th>`).join('');
+  const body = list.map((rec,i)=>{
+    const search = escapeHtml([rec['이름'],rec['사번'],rec['팀'],rec['업무']].filter(Boolean).join(' '));
+    const cells = cols.map(c=>{
+      const v = rec[c]===null||rec[c]===undefined ? '' : String(rec[c]);
+      return `<td><input class="call-edit-input call-raw-input" value="${escapeHtml(v)}" size="${Math.max(4, Math.min(18, v.length+1))}" data-col="${escapeHtml(c)}" onchange="callEditRawCell(${i}, this.dataset.col, this.value)"></td>`;
+    }).join('');
+    const hidden = callRawFilter && !search.includes(callRawFilter) ? ' style="display:none;"' : '';
+    return `<tr data-search="${search}"${hidden}><td class="call-raw-del"><button class="eval-row-delete-btn" title="행 삭제" onclick="callDeleteRawRow(${i})">✕</button></td>${cells}</tr>`;
+  }).join('');
+  return `<div class="duty-report-section">
+    <div class="duty-report-section-title" style="justify-content:space-between;flex-wrap:wrap;">
+      <span>③ RAW(상담사실적통계) · ${list.length}건</span>
+      <span style="display:flex;gap:8px;align-items:center;">
+        ${list.length?`<input class="duty-search-input" placeholder="이름·사번·팀 검색" value="${escapeHtml(callRawFilter)}" oninput="onCallRawFilter(this.value)">`:''}
+        <button class="btn-secondary" onclick="callAddRawRow()">+ 행 추가</button>
+        ${list.length?`<button class="btn-danger-text" onclick="callClearRawDay()">이 날짜 삭제</button>`:''}
+      </span>
+    </div>
+    ${list.length ? `<div class="duty-table-scroll" style="max-height:440px;">
+      <table class="duty-table call-raw-table" id="callRawTable">
+        <thead><tr><th class="call-raw-del"></th>${head}</tr></thead>
+        <tbody>${body}</tbody>
+      </table>
+    </div>` : `<div class="empty-state" style="padding:18px 0;">${callFmtDateLabel(callInputDate)} RAW 데이터가 없어요. 파일을 올리거나 "+ 행 추가"로 직접 입력하세요.</div>`}
+  </div>`;
+}
+
+/* ---- 붙여넣기 날짜 검사: 입력일이 아닌 행이 있으면 등록하지 않음 ---- */
+function callNormalizePastedDate(str){
+  const t = String(str||'').trim();
+  const m = t.match(/^(\d{2,4})[-./년\s]+(\d{1,2})[-./월\s]+(\d{1,2})/);
+  if(m){
+    let y = Number(m[1]); if(y<100) y += 2000;
+    return callDateKey(y, Number(m[2]), Number(m[3]));
+  }
+  return callParseDateFromDigits(t);
+}
+function callCheckPastedDates(label, rows){
+  const bad = rows.filter(r=>r.date!==callInputDate);
+  if(!bad.length) return true;
+  const lines = bad.slice(0,10).map(r=>`· ${r.raw||'(빈 날짜)'} ${r.name}`).join('\n');
+  alert(`${label}: 입력일(${callFmtDateLabel(callInputDate)})이 아닌 행이 ${bad.length}건 있어서 등록하지 않았어요.\n\n${lines}${bad.length>10?`\n… 외 ${bad.length-10}건`:''}\n\n입력일을 확인하거나 해당 날짜 행만 붙여넣어 주세요.`);
+  return false;
+}
+
 /* ---- 4. 근태(휴무차감 / 근태차감) 엑셀 붙여넣기 ---- */
 function parsePastedTsv(text){
   return text.split(/\r?\n/).filter(l=>l.trim()!=='').map(l=>l.split('\t'));
@@ -6549,6 +6646,8 @@ function applyOffDeductionPaste(){
   const text = document.getElementById('callOffDeductionPasteArea').value;
   if(!text.trim()){ alert('붙여넣을 내용이 없어요.'); return; }
   const rows = parsePastedTsv(text);
+  const valid = rows.filter(cols=>cols.length>=4 && cols[0] && cols[1]);
+  if(!callCheckPastedDates('휴무차감', valid.map(c=>({raw:c[0].trim(), date:callNormalizePastedDate(c[0]), name:(c[1]||'').trim()})))) return;
   let applied=0;
   rows.forEach(cols=>{
     if(cols.length<4) return;
@@ -6566,6 +6665,8 @@ function applyAttendanceDeductionPaste(){
   const text = document.getElementById('callAttendanceDeductionPasteArea').value;
   if(!text.trim()){ alert('붙여넣을 내용이 없어요.'); return; }
   const rows = parsePastedTsv(text);
+  const valid = rows.filter(cols=>cols.length>=9 && cols[1] && cols[2]);
+  if(!callCheckPastedDates('근태차감', valid.map(c=>({raw:c[1].trim(), date:callNormalizePastedDate(c[1]), name:(c[2]||'').trim()})))) return;
   let applied=0;
   rows.forEach(cols=>{
     if(cols.length<9) return;
@@ -6601,6 +6702,8 @@ function renderCallInputView(){
   const rawDates = Object.keys(callStatsStore.raw||{}).sort();
   const offCount = (callStatsStore.offDeduction||[]).length;
   const attCount = (callStatsStore.attendanceDeduction||[]).length;
+  const dayCount = list=>(list||[]).filter(r=>callNormalizePastedDate(r['날짜'])===callInputDate).length;
+  const offDay = dayCount(callStatsStore.offDeduction), attDay = dayCount(callStatsStore.attendanceDeduction);
   return `<div class="duty-report-view">
     <div class="duty-month-bar">
       <span class="duty-month-label">📅 입력일</span>
@@ -6636,8 +6739,10 @@ function renderCallInputView(){
       ${renderCallDayTable('obJanggi', '② 장기사고 콜보정')}
     </div>
 
+    ${renderCallRawTable()}
+
     <div class="duty-report-section">
-      <div class="duty-report-section-title">④ 휴무차감 (엑셀에서 복사해서 붙여넣기) · [날짜, 이름, 사번, 팀, 구분, 비고] 순서 · 현재 ${offCount}건</div>
+      <div class="duty-report-section-title">④ 휴무차감 (엑셀에서 복사해서 붙여넣기) · [날짜, 이름, 사번, 팀, 구분, 비고] 순서 · 입력일 ${offDay}건 / 전체 ${offCount}건 · 입력일 날짜 행만 등록돼요</div>
       <textarea id="callOffDeductionPasteArea" placeholder="엑셀에서 표를 선택해 복사(Ctrl+C)한 뒤 여기에 붙여넣으세요(Ctrl+V)" style="width:100%;min-height:100px;border:1px solid var(--border-strong);border-radius:var(--radius-sm);padding:10px;font-size:11px;font-family:inherit;"></textarea>
       <div class="duty-actions" style="margin-top:8px;">
         <button class="btn-danger-text" onclick="clearCallOffDeduction()">전체 삭제</button>
@@ -6646,7 +6751,7 @@ function renderCallInputView(){
     </div>
 
     <div class="duty-report-section">
-      <div class="duty-report-section-title">⑤ 근태차감 (엑셀에서 복사해서 붙여넣기) · [No, 날짜, 이름, 사번, 팀, 구분, 시작시간, 종료시간, 경과시간(분), 급여차감, 차감금액, 사유] 순서 · 현재 ${attCount}건</div>
+      <div class="duty-report-section-title">⑤ 근태차감 (엑셀에서 복사해서 붙여넣기) · [No, 날짜, 이름, 사번, 팀, 구분, 시작시간, 종료시간, 경과시간(분), 급여차감, 차감금액, 사유] 순서 · 입력일 ${attDay}건 / 전체 ${attCount}건 · 입력일 날짜 행만 등록돼요</div>
       <textarea id="callAttendanceDeductionPasteArea" placeholder="엑셀에서 표를 선택해 복사(Ctrl+C)한 뒤 여기에 붙여넣으세요(Ctrl+V)" style="width:100%;min-height:100px;border:1px solid var(--border-strong);border-radius:var(--radius-sm);padding:10px;font-size:11px;font-family:inherit;"></textarea>
       <div class="duty-actions" style="margin-top:8px;">
         <button class="btn-danger-text" onclick="clearCallAttendanceDeduction()">전체 삭제</button>
