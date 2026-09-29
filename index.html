@@ -3286,7 +3286,22 @@ function findDutyFieldByHeader(headerText){
 }
 async function readWorkbookFromFile(file){
   const buf = await file.arrayBuffer();
-  return XLSX.read(buf, {type:'array', cellDates:true});
+  /* cellDates:true는 한국 시간대에서 날짜를 몇십 초 앞당겨(9/29 00:00 → 9/28 23:59:08) 하루 전날이 되는
+     문제가 있어서, 날짜 서식 칸은 일련번호를 직접 해석해 현지 시각 Date로 만들어요. */
+  const wb = XLSX.read(buf, {type:'array', cellNF:true});
+  wb.SheetNames.forEach(name=>{
+    const ws = wb.Sheets[name];
+    Object.keys(ws).forEach(addr=>{
+      if(addr[0]==='!') return;
+      const cell = ws[addr];
+      if(cell.t!=='n' || !cell.z || !XLSX.SSF.is_date(cell.z)) return;
+      const dc = XLSX.SSF.parse_date_code(cell.v);
+      if(!dc) return;
+      cell.v = new Date(dc.y, dc.m-1, dc.d, dc.H, dc.M, Math.round(dc.S));
+      cell.t = 'd';
+    });
+  });
+  return wb;
 }
 const DEFAULT_DUTY_ORG = 'KB손해보험 부천센터';
 /* ============ Salary sheet (급여내역) ============ */
@@ -6498,13 +6513,80 @@ function renderCallMonthStrip(){
 }
 
 /* ---- 3. RAW(상담사실적통계) 업로드 - 2단 헤더를 합쳐서 통째로 저장, 날짜+사번+업무 기준 병합 ---- */
+/* RAW 날짜 칸 → 'YYYY-MM-DD'
+   엑셀 날짜를 Date로 받으면 한국 시간대에서 몇십 초 앞당겨져(예: 9/29 00:00 → 9/28 23:59) 하루 전날로
+   저장되는 문제가 있어서, 날짜 일련번호를 직접 해석하고 Date/ISO 문자열은 반나절 보정 후 날짜만 취해요. */
+function callRawDateKey(v){
+  if(v===null || v===undefined || v==='') return null;
+  if(typeof v==='number'){
+    if(v>1e7) return callParseDateFromDigits(String(v)); /* 20260929 같은 숫자 */
+    const dc = XLSX.SSF.parse_date_code(v);
+    return dc ? callDateKey(dc.y, dc.m, dc.d) : null;
+  }
+  if(v instanceof Date || /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(String(v))){
+    const d = new Date(new Date(v).getTime() + 12*3600*1000);
+    return isNaN(d.getTime()) ? null : toISODate(d);
+  }
+  return callNormalizePastedDate(v);
+}
+/* 시트를 2차원 배열로: 날짜/시간 서식 칸은 엑셀에 보이는 글자 그대로, 첫 칸(일자)은 원래 값으로 */
+function callRawSheetRows(ws){
+  const rows = [];
+  if(!ws['!ref']) return rows;
+  const range = XLSX.utils.decode_range(ws['!ref']);
+  for(let r=range.s.r; r<=range.e.r; r++){
+    const row = [];
+    for(let c=range.s.c; c<=range.e.c; c++){
+      const cell = ws[XLSX.utils.encode_cell({r, c})];
+      if(!cell || cell.v===undefined || cell.v===null || cell.v===''){ row.push(null); continue; }
+      const isDateFmt = cell.t==='d' || (cell.t==='n' && cell.z && XLSX.SSF.is_date(cell.z));
+      if(c===range.s.c) row.push(isDateFmt && cell.t==='n' ? {dateKey: callRawDateKey(cell.v), text: cell.w} : cell.v);
+      else row.push(isDateFmt ? (cell.w || String(cell.v)) : cell.v);
+    }
+    rows.push(row);
+  }
+  return rows;
+}
+function callRawPutRecord(dateKey, record){
+  const list = callStatsStore.raw[dateKey] = callStatsStore.raw[dateKey] || [];
+  const idx = record['사번']!==undefined
+    ? list.findIndex(x=>x['사번']===record['사번'] && (x['업무']||'')===(record['업무']||''))
+    : -1;
+  if(idx>=0) list[idx] = record; else list.push(record);
+}
+/* 예전에 하루 전날로 잘못 저장된 RAW를, 각 행의 일자 칸 기준으로 올바른 날짜에 다시 배치 */
+function callFixRawDateKeys(){
+  const raw = callStatsStore.raw || {};
+  let moved = 0;
+  Object.keys(raw).forEach(key=>{
+    const keep = [];
+    (raw[key]||[]).forEach(rec=>{
+      const firstCol = Object.keys(rec)[0];
+      const correct = firstCol ? callRawDateKey(rec[firstCol]) : null;
+      if(correct && /^\d{4}-\d{2}-\d{2}T/.test(String(rec[firstCol]))) rec[firstCol] = correct;
+      const dayDiff = correct ? Math.abs(new Date(correct) - new Date(key)) / 86400000 : NaN;
+      /* 하루 밀림(±2일 이내)이나 날짜 형식이 아닌 키만 옮겨요 (엉뚱한 칸을 날짜로 오인하지 않도록) */
+      const movable = correct && correct!==key && /^20\d{2}-/.test(correct)
+        && (!/^\d{4}-\d{2}-\d{2}$/.test(key) || dayDiff<=2);
+      if(movable){
+        moved++;
+        const target = raw[correct] = raw[correct] || [];
+        const idx = rec['사번']!==undefined ? target.findIndex(x=>x['사번']===rec['사번'] && (x['업무']||'')===(rec['업무']||'')) : -1;
+        if(idx<0) target.push(rec); /* 올바른 날짜에 이미 같은 사람 기록이 있으면 그쪽을 유지 */
+      }else keep.push(rec);
+    });
+    if(keep.length) raw[key] = keep; else delete raw[key];
+  });
+  return moved;
+}
+
+/* ---- 3. RAW(상담사실적통계) 업로드 - 2단 헤더를 합쳐서 통째로 저장, 날짜+사번+업무 기준 병합 ---- */
 async function onCallRawUpload(ev){
   const file = ev.target.files[0]; if(!file) return;
   try{
-    const wb = await readWorkbookFromFile(file);
+    const wb = XLSX.read(await file.arrayBuffer(), {type:'array', cellNF:true});
     const sheetName = wb.SheetNames.find(n=>n.includes('상담사실적통계')) || wb.SheetNames[0];
-    const ws = wb.Sheets[sheetName];
-    const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:null});
+    const rows = callRawSheetRows(wb.Sheets[sheetName]);
     const row1 = rows[0]||[], row3 = rows[2]||[];
     const labels = [];
     let lastTop = '';
@@ -6513,32 +6595,35 @@ async function onCallRawUpload(ev){
       const sub = row3[c] ? String(row3[c]).replace(/\n/g,'') : '';
       labels.push(sub ? `${lastTop}_${sub}` : lastTop);
     }
-    let applied=0, updatedDates = new Set();
+    let applied=0, skipped=0;
+    const updatedDates = new Set();
     for(let r=3; r<rows.length; r++){
       const row = rows[r]; if(!row) continue;
-      const dateRaw = row[0];
+      let dateRaw = row[0];
       if(!dateRaw || dateRaw==='합계') continue;
-      let dateKey = null;
-      if(dateRaw instanceof Date) dateKey = dutyFmtDate(dateRaw);
-      else dateKey = callParseDateFromDigits(dateRaw) || String(dateRaw);
-      if(!dateKey) continue;
-      const sabun = row[5]; if(!sabun) continue;
-      const gubun = row[11] || '';
+      const dateKey = (dateRaw && dateRaw.dateKey!==undefined) ? dateRaw.dateKey : callRawDateKey(dateRaw);
+      if(!dateKey){ skipped++; continue; }
+      if(!row[5]) continue;
       const record = {};
       labels.forEach((label,ci)=>{
         if(!label) return;
-        record[label] = row[ci];
+        record[label] = ci===0 ? dateKey : row[ci];
       });
-      callStatsStore.raw[dateKey] = callStatsStore.raw[dateKey] || [];
-      const idx = callStatsStore.raw[dateKey].findIndex(x=>x['사번']===sabun && x['업무']===gubun);
-      if(idx>=0) callStatsStore.raw[dateKey][idx] = record;
-      else callStatsStore.raw[dateKey].push(record);
+      callRawPutRecord(dateKey, record);
       updatedDates.add(dateKey);
       applied++;
     }
+    const dates = [...updatedDates].sort();
+    let jumpNote = '';
+    if(dates.length && !updatedDates.has(callInputDate)){
+      const latest = dates[dates.length-1];
+      callInputDate = callIsBizDay(latest) ? latest : callShiftBizDay(latest, -1);
+      jumpNote = `\n\n파일에 입력일 날짜가 없어서 입력일을 ${callFmtDateLabel(callInputDate)}로 옮겼어요.`;
+    }
     saveCallStatsData();
     renderCallRefresh();
-    alert(`RAW(상담사실적통계) 반영 완료 (${updatedDates.size}일치, ${applied}건)`);
+    const shown = dates.length>8 ? `${dates.slice(0,3).join(', ')} … ${dates.slice(-3).join(', ')}` : dates.join(', ');
+    alert(`RAW(상담사실적통계) 반영 완료 (${dates.length}일치, ${applied}건)\n반영된 날짜: ${shown || '없음'}${skipped?`\n날짜를 알 수 없어 건너뛴 행: ${skipped}건`:''}${jumpNote}`);
   }catch(err){
     console.error(err);
     alert('RAW 파일을 읽는 중 문제가 발생했어요.');
@@ -6628,7 +6713,11 @@ function callNormalizePastedDate(str){
     let y = Number(m[1]); if(y<100) y += 2000;
     return callDateKey(y, Number(m[2]), Number(m[3]));
   }
-  return callParseDateFromDigits(t);
+  const digits = callParseDateFromDigits(t);
+  if(digits) return digits;
+  const md = t.match(/^(\d{1,2})\s*[-./월]\s*(\d{1,2})\s*일?/);
+  if(md) return callDateKey(Number(callInputDate.slice(0,4)), Number(md[1]), Number(md[2]));
+  return null;
 }
 function callCheckPastedDates(label, rows){
   const bad = rows.filter(r=>r.date!==callInputDate);
@@ -6699,6 +6788,7 @@ function clearCallAttendanceDeduction(){
 
 /* ---- 실적입력 화면 ---- */
 function renderCallInputView(){
+  if(callFixRawDateKeys()) saveCallStatsData();
   const rawDates = Object.keys(callStatsStore.raw||{}).sort();
   const offCount = (callStatsStore.offDeduction||[]).length;
   const attCount = (callStatsStore.attendanceDeduction||[]).length;
