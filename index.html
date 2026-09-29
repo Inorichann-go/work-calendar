@@ -3,38 +3,43 @@
 <head>
 <meta charset="UTF-8">
 <title>업무 캘린더</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
 <style>
   :root{
-    --bg:#15161a;
-    --bg-card:#1c1e23;
-    --bg-card-2:#22242a;
-    --sidebar-bg:#111214;
-    --border:#2b2d33;
-    --border-strong:#383a42;
-    --text:#e8e8ea;
-    --text-soft:#9497a1;
-    --text-faint:#5c5f6a;
-    --accent:#6b8afd;
-    --accent-soft:#232b47;
-    --accent-dark:#84a0ff;
-    --danger:#f27272;
-    --danger-soft:#3a2427;
-    --success:#5fd68f;
-    --success-soft:#1d3327;
-    --warning:#e0b34e;
-    --warning-soft:#3a301c;
+    --bg:#f6f7f9;
+    --bg-card:#ffffff;
+    --bg-card-2:#f3f4f6;
+    --sidebar-bg:#ffffff;
+    --border:#e5e7eb;
+    --border-strong:#d5d9e0;
+    --text:#1f2329;
+    --text-soft:#6b7280;
+    --text-faint:#9ca3af;
+    --accent:#4c6ef5;
+    --accent-soft:#edf1ff;
+    --accent-dark:#3b5bdb;
+    --danger:#e03131;
+    --danger-soft:#fdeeee;
+    --danger-text:#d63939;
+    --success:#2f9e44;
+    --success-soft:#e8f6ed;
+    --success-text:#1f8a4c;
+    --warning:#b7791f;
+    --warning-soft:#fff5e1;
+    --warning-text:#b7791f;
+    --saturday:#3d6be0;
     --radius-sm:6px;
-    --radius:10px;
-    --radius-lg:14px;
-    --shadow:0 8px 24px rgba(0,0,0,0.35);
-    --shadow-sm:0 2px 8px rgba(0,0,0,0.25);
+    --radius:8px;
+    --radius-lg:12px;
+    --shadow:0 8px 24px rgba(17,24,39,0.10);
+    --shadow-sm:0 1px 3px rgba(17,24,39,0.08);
   }
   ::-webkit-scrollbar{ width:10px; height:10px; }
   ::-webkit-scrollbar-track{ background:transparent; }
-  ::-webkit-scrollbar-thumb{ background:#34363d; border-radius:6px; border:2px solid var(--bg); }
-  ::-webkit-scrollbar-thumb:hover{ background:#42454e; }
-  * { scrollbar-color:#34363d transparent; scrollbar-width:thin; }
+  ::-webkit-scrollbar-thumb{ background:#cfd3da; border-radius:6px; border:2px solid var(--bg); }
+  ::-webkit-scrollbar-thumb:hover{ background:#b5bac3; }
+  * { scrollbar-color:#cfd3da transparent; scrollbar-width:thin; }
   *{box-sizing:border-box;}
   input, select, textarea{
     background:var(--bg-card); color:var(--text);
@@ -45,7 +50,8 @@
   input[type="checkbox"], input[type="radio"]{ accent-color:var(--accent); background:none; }
   html,body{margin:0;padding:0;height:100%;}
   body{
-    font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic","Segoe UI",Roboto,sans-serif;
+    font-family:"Pretendard Variable",Pretendard,-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic","Segoe UI",Roboto,sans-serif;
+    font-size:12px;letter-spacing:-0.1px;
     color:var(--text);
     background:var(--bg);
     -webkit-font-smoothing:antialiased;
@@ -54,31 +60,31 @@
 
   /* ---------- Sidebar ---------- */
   .sidebar{
-    width:216px;flex:none;background:var(--sidebar-bg);
+    width:196px;flex:none;background:var(--sidebar-bg);
     border-right:1px solid var(--border);
     display:flex;flex-direction:column;
-    padding:18px 14px;gap:16px;
+    padding:14px 10px;gap:12px;
   }
   .brand{
     display:flex;align-items:center;gap:8px;
-    font-size:15px;font-weight:700;letter-spacing:-0.2px;color:var(--text);
+    font-size:14px;font-weight:700;letter-spacing:-0.2px;color:var(--text);
     padding:0 2px;
   }
   .brand-icon{
     width:22px;height:22px;border-radius:6px;background:var(--accent);
-    display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;
+    display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;
   }
   .btn-add{
     background:var(--accent);color:#fff;border:none;border-radius:var(--radius-sm);
-    padding:9px 12px;font-size:13.5px;font-weight:600;cursor:pointer;
+    padding:9px 12px;font-size:12.5px;font-weight:600;cursor:pointer;
     display:flex;align-items:center;gap:6px;justify-content:center;
     transition:background .15s;
   }
   .btn-add:hover{background:var(--accent-dark);}
   .btn-add-secondary{background:var(--bg-card);color:var(--text);border:1px solid var(--border-strong);}
   .btn-add-secondary:hover{background:var(--bg-card-2);}
-  .btn-add-recurring{background:#2b2038;color:#c9a0f5;border:1px solid #4a3a63;}
-  .btn-add-recurring:hover{background:#2b2038;}
+  .btn-add-recurring{background:#f5ebfc;color:#8434c4;border:1px solid #e4d0f5;}
+  .btn-add-recurring:hover{background:#eddcfa;}
   .add-menu-wrap{position:relative;}
   .add-menu-caret{font-size:10px;opacity:.8;margin-left:-2px;}
   .add-menu-dropdown{
@@ -89,14 +95,14 @@
   .add-menu-dropdown.hidden{display:none;}
   .add-menu-item{
     display:flex;align-items:center;gap:8px;width:100%;text-align:left;
-    padding:10px 14px;font-size:13px;font-weight:600;color:var(--text);
+    padding:10px 14px;font-size:12px;font-weight:600;color:var(--text);
     background:var(--bg-card);border:none;cursor:pointer;
   }
   .add-menu-item:hover{background:var(--bg-card-2);}
   .task-search-wrap{position:relative;}
   .task-search-input{
     width:170px;border:1px solid var(--border-strong);border-radius:var(--radius-sm);
-    padding:8px 12px;font-size:12.5px;font-family:inherit;transition:width .15s;
+    padding:8px 12px;font-size:11.5px;font-family:inherit;transition:width .15s;
     background:var(--bg-card);color:var(--text);
   }
   .task-search-input:focus{outline:none;border-color:var(--accent);width:250px;}
@@ -108,12 +114,12 @@
   .task-search-item{padding:10px 12px;border-bottom:1px solid var(--border);cursor:pointer;}
   .task-search-item:last-child{border-bottom:none;}
   .task-search-item:hover{background:var(--bg-card-2);}
-  .task-search-item-title{font-size:13px;font-weight:700;color:var(--text);margin-bottom:3px;}
-  .task-search-item-meta{font-size:11px;color:var(--text-soft);display:flex;gap:5px;align-items:center;flex-wrap:wrap;}
-  .task-search-empty{padding:16px;text-align:center;font-size:12px;color:var(--text-faint);}
+  .task-search-item-title{font-size:12px;font-weight:700;color:var(--text);margin-bottom:3px;}
+  .task-search-item-meta{font-size:10.5px;color:var(--text-soft);display:flex;gap:5px;align-items:center;flex-wrap:wrap;}
+  .task-search-empty{padding:16px;text-align:center;font-size:11px;color:var(--text-faint);}
   .gear-btn{
     width:34px;height:34px;border-radius:var(--radius-sm);border:1px solid var(--border-strong);
-    background:var(--bg-card);cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;
+    background:var(--bg-card);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;
     transition:background .12s;
   }
   .gear-btn:hover{background:var(--bg-card-2);}
@@ -121,8 +127,8 @@
   .tab{
     display:flex;align-items:center;gap:9px;
     background:none;border:none;text-align:left;
-    padding:8px 10px;border-radius:var(--radius-sm);
-    font-size:13.5px;color:var(--text-soft);cursor:pointer;font-weight:500;
+    padding:6px 10px;border-radius:var(--radius-sm);
+    font-size:12.5px;color:var(--text-soft);cursor:pointer;font-weight:500;
     transition:background .12s,color .12s;
   }
   .tab:hover{background:var(--bg-card-2);color:var(--text);}
@@ -140,7 +146,7 @@
   }
   .settings-dropdown.hidden{display:none;}
   .settings-dropdown-item{
-    display:block;width:100%;text-align:left;padding:10px 12px;font-size:12.5px;font-weight:600;
+    display:block;width:100%;text-align:left;padding:10px 12px;font-size:11.5px;font-weight:600;
     color:var(--text);background:var(--bg-card);border:none;cursor:pointer;
   }
   .settings-dropdown-item:hover{background:var(--bg-card-2);}
@@ -150,95 +156,95 @@
   .nav-group-chevron{margin-left:auto;font-size:10px;color:var(--text-faint);}
   .nav-group-children{display:flex;flex-direction:column;}
   .nav-group-children.hidden{display:none;}
-  .tab-sub{padding-left:34px !important;font-size:12.5px;}
+  .tab-sub{padding-left:30px !important;font-size:11.5px;}
 
   .today-card{
     margin-top:auto;background:var(--bg-card);border:1px solid var(--border);
-    border-radius:var(--radius);padding:14px;
-    display:flex;flex-direction:column;align-items:center;gap:8px;
+    border-radius:var(--radius);padding:10px;
+    display:flex;flex-direction:column;align-items:center;gap:6px;
   }
-  .today-card-label{font-size:11px;color:var(--text-faint);font-weight:700;letter-spacing:.5px;text-transform:uppercase;}
-  .today-card-date{font-size:13px;font-weight:700;color:var(--text);margin-top:-4px;}
+  .today-card-label{font-size:10.5px;color:var(--text-faint);font-weight:700;letter-spacing:.5px;text-transform:uppercase;}
+  .today-card-date{font-size:12px;font-weight:700;color:var(--text);margin-top:-4px;}
   .today-ring{
-    width:64px;height:64px;border-radius:50%;
+    width:52px;height:52px;border-radius:50%;
     display:flex;align-items:center;justify-content:center;
     position:relative;
   }
   .today-ring-inner{
-    width:50px;height:50px;border-radius:50%;background:var(--bg-card);
+    width:40px;height:40px;border-radius:50%;background:var(--bg-card);
     display:flex;align-items:center;justify-content:center;
-    font-size:12px;font-weight:700;color:var(--text);
+    font-size:11px;font-weight:700;color:var(--text);
   }
-  .today-card-stats{font-size:11.5px;color:var(--text-soft);text-align:center;line-height:1.5;}
+  .today-card-stats{font-size:11px;color:var(--text-soft);text-align:center;line-height:1.5;}
   .storage-footer{padding:0 2px;display:flex;flex-direction:column;gap:6px;}
   .storage-status{font-size:10.5px;color:var(--text-faint);text-align:center;}
-  .storage-actions{display:flex;align-items:center;justify-content:center;gap:6px;font-size:11px;color:var(--text-faint);}
-  .storage-link{background:none;border:none;color:var(--text-soft);font-size:11px;font-weight:600;cursor:pointer;padding:0;text-decoration:underline;}
+  .storage-actions{display:flex;align-items:center;justify-content:center;gap:6px;font-size:10.5px;color:var(--text-faint);}
+  .storage-link{background:none;border:none;color:var(--text-soft);font-size:10.5px;font-weight:600;cursor:pointer;padding:0;text-decoration:underline;}
   .storage-link:hover{color:var(--accent);}
   .save-error-banner{
     position:fixed;bottom:18px;left:50%;transform:translateX(-50%) translateY(20px);
-    max-width:520px;background:#E0392F;color:#fff;font-size:12.5px;font-weight:600;line-height:1.5;
+    max-width:520px;background:#E0392F;color:#fff;font-size:11.5px;font-weight:600;line-height:1.5;
     padding:12px 16px;border-radius:var(--radius);box-shadow:var(--shadow);
     opacity:0;pointer-events:none;transition:opacity .2s, transform .2s;z-index:200;
   }
   .save-error-banner.show{opacity:1;transform:translateX(-50%) translateY(0);pointer-events:auto;}
   .sync-status-box{
-    font-size:12px;font-weight:600;padding:10px 12px;border-radius:var(--radius-sm);margin-bottom:14px;
+    font-size:11px;font-weight:600;padding:10px 12px;border-radius:var(--radius-sm);margin-bottom:14px;
     background:var(--bg-card-2);color:var(--text-soft);
   }
-  .sync-status-box.connected{background:var(--success-soft);color:#6fe0a0;}
-  .sync-status-box.error{background:var(--danger-soft);color:#ff8f8f;}
+  .sync-status-box.connected{background:var(--success-soft);color:var(--success-text);}
+  .sync-status-box.error{background:var(--danger-soft);color:var(--danger-text);}
 
   /* ---------- Main ---------- */
   .content{flex:1;display:flex;flex-direction:column;min-width:0;}
   .topbar{
     display:flex;align-items:center;justify-content:space-between;
-    padding:16px 26px;border-bottom:1px solid var(--border);flex:none;
+    padding:10px 20px;border-bottom:1px solid var(--border);flex:none;background:var(--bg-card);min-height:52px;
   }
   .nav-controls{display:flex;align-items:center;gap:10px;}
   .nav-btn{
     border:1px solid var(--border-strong);background:var(--bg-card);color:var(--text-soft);
     width:28px;height:28px;border-radius:var(--radius-sm);cursor:pointer;
-    display:flex;align-items:center;justify-content:center;font-size:14px;
+    display:flex;align-items:center;justify-content:center;font-size:13px;
     transition:background .12s;
   }
   .nav-btn:hover{background:var(--bg-card-2);}
   .today-btn{
     border:1px solid var(--border-strong);background:var(--bg-card);color:var(--text);
-    padding:0 12px;height:28px;border-radius:var(--radius-sm);cursor:pointer;font-size:12.5px;font-weight:600;
+    padding:0 12px;height:28px;border-radius:var(--radius-sm);cursor:pointer;font-size:11.5px;font-weight:600;
   }
   .today-btn:hover{background:var(--bg-card-2);}
-  #viewTitle{font-size:18px;font-weight:700;margin:0 4px;letter-spacing:-.2px;}
+  #viewTitle{font-size:16px;font-weight:700;margin:0 4px;letter-spacing:-.2px;}
 
   .legend{display:flex;gap:10px;align-items:center;}
-  .legend-item{display:flex;align-items:center;gap:5px;font-size:11.5px;color:var(--text-soft);}
+  .legend-item{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-soft);}
   .legend-dot{width:8px;height:8px;border-radius:50%;}
 
-  #viewContainer{flex:1;overflow:auto;padding:22px 26px;}
+  #viewContainer{flex:1;overflow:auto;padding:16px 20px;}
 
   /* ---------- Month view ---------- */
   .month-grid{
     display:grid;grid-template-columns:repeat(7,1fr);
     border-left:1px solid var(--border);border-top:1px solid var(--border);
     border-radius:var(--radius);overflow:hidden;background:var(--border);
-    gap:1px;
+    gap:1px;grid-template-rows:auto;grid-auto-rows:minmax(112px,1fr);min-height:100%;
   }
   .weekday-head{
-    background:var(--bg-card-2);padding:9px 10px;font-size:11.5px;font-weight:700;
+    background:var(--bg-card-2);padding:9px 10px;font-size:11px;font-weight:700;
     color:var(--text-soft);text-align:left;
   }
   .weekday-head.sun-head{color:var(--danger);}
-  .weekday-head.sat-head{color:#8ab0ff;}
+  .weekday-head.sat-head{color:var(--saturday);}
   .day-cell{
-    background:var(--bg-card);height:172px;padding:7px 7px 10px;position:relative;cursor:pointer;
+    background:var(--bg-card);min-height:112px;padding:6px 6px 9px;position:relative;cursor:pointer;
     display:flex;flex-direction:column;transition:background .12s;overflow:hidden;
   }
   .day-cell:hover{background:var(--bg-card-2);z-index:5;}
   .day-cell.dim{background:var(--bg-card-2);}
   .day-cell.dim .day-num{color:var(--text-faint);}
-  .day-num{font-size:12.5px;font-weight:600;color:var(--text);margin-bottom:3px;width:20px;height:20px;display:flex;align-items:center;justify-content:center;border-radius:50%;flex:none;}
+  .day-num{font-size:11.5px;font-weight:600;color:var(--text);margin-bottom:3px;width:20px;height:20px;display:flex;align-items:center;justify-content:center;border-radius:50%;flex:none;}
   .day-num.today-num{background:var(--accent);color:#fff;}
-  .day-num.saturday{color:#8ab0ff;}
+  .day-num.saturday{color:var(--saturday);}
   .day-num.sunday{color:var(--danger);}
   .day-num.holiday{color:var(--danger);}
   .day-num.holiday.today-num{background:#E0392F;color:#fff;}
@@ -248,7 +254,7 @@
   .chips::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:3px;border:none;}
   .chips{scrollbar-width:thin;scrollbar-color:var(--border-strong) transparent;}
   .chip{
-    font-size:11px;padding:3px 6px;border-radius:5px;white-space:nowrap;
+    font-size:10.5px;padding:3px 6px;border-radius:5px;white-space:nowrap;
     overflow:hidden;text-overflow:ellipsis;cursor:pointer;font-weight:600;
     display:flex;gap:4px;align-items:center;position:relative;
     border:1px solid rgba(41,40,36,0.08);
@@ -270,7 +276,7 @@
   .chip.chip-important .chip-title{font-weight:800;}
   .chip.chip-important .chip-time{color:#fff;opacity:.9;}
   .chip.chip-important .center-badge-mini{background:rgba(255,255,255,0.25);color:#fff;}
-  .chip-alert{flex:none;font-size:12px;}
+  .chip-alert{flex:none;font-size:11px;}
   .chip.chip-schedule{
     border-left:3px solid var(--accent);font-weight:700;
     box-shadow:0 1px 3px rgba(76,110,245,0.25);
@@ -282,7 +288,7 @@
   .day-progress-bar{height:100%;background:var(--accent);border-radius:2px;}
   .global-tooltip{
     position:fixed;display:none;z-index:1000;pointer-events:none;
-    background:#2F2E2B;color:#fff;padding:8px 10px;border-radius:8px;font-size:11.5px;font-weight:500;
+    background:#2F2E2B;color:#fff;padding:8px 10px;border-radius:8px;font-size:11px;font-weight:500;
     line-height:1.5;white-space:normal;max-width:260px;box-shadow:var(--shadow);
   }
   .global-tooltip.show{display:block;}
@@ -294,32 +300,32 @@
   .week-day-col{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:10px;min-height:220px;display:flex;flex-direction:column;gap:8px;}
   .week-day-col.today{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent);}
   .week-day-head{display:flex;flex-direction:column;align-items:center;gap:2px;padding-bottom:8px;border-bottom:1px solid var(--border);}
-  .week-day-weekday{font-size:11px;color:var(--text-soft);font-weight:700;}
-  .week-day-num{font-size:16px;font-weight:700;}
+  .week-day-weekday{font-size:10.5px;color:var(--text-soft);font-weight:700;}
+  .week-day-num{font-size:14px;font-weight:700;}
   .week-day-col.today .week-day-num{color:var(--accent);}
   .week-add-btn{
     border:1px dashed var(--border-strong);background:none;color:var(--text-faint);
-    border-radius:var(--radius-sm);padding:6px;font-size:11px;cursor:pointer;font-weight:600;
+    border-radius:var(--radius-sm);padding:6px;font-size:10.5px;cursor:pointer;font-weight:600;
   }
   .week-add-btn:hover{background:var(--bg-card-2);color:var(--text-soft);}
   .agenda-chip{
-    border-radius:var(--radius-sm);padding:6px 8px;cursor:pointer;font-size:12px;font-weight:600;
+    border-radius:var(--radius-sm);padding:6px 8px;cursor:pointer;font-size:11px;font-weight:600;
   }
   .agenda-chip .t{font-size:10.5px;font-weight:700;opacity:.75;font-variant-numeric:tabular-nums;}
 
   .day-view{max-width:640px;}
   .day-view-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
-  .day-view-title{font-size:15px;font-weight:700;color:var(--text-soft);}
+  .day-view-title{font-size:14px;font-weight:700;color:var(--text-soft);}
   .day-events-list{display:flex;flex-direction:column;gap:8px;}
   .day-event-card{
     background:var(--bg-card);border:1px solid var(--border);border-left:4px solid var(--c);
     border-radius:var(--radius-sm);padding:12px 14px;cursor:pointer;transition:box-shadow .12s;
   }
   .day-event-card:hover{box-shadow:var(--shadow-sm);}
-  .day-event-time{font-size:11.5px;font-weight:700;color:var(--text-soft);margin-bottom:3px;font-variant-numeric:tabular-nums;}
-  .day-event-title{font-size:14px;font-weight:700;}
-  .day-event-memo{font-size:12px;color:var(--text-soft);margin-top:4px;line-height:1.4;}
-  .empty-state{color:var(--text-faint);font-size:13px;padding:30px 0;text-align:center;}
+  .day-event-time{font-size:11px;font-weight:700;color:var(--text-soft);margin-bottom:3px;font-variant-numeric:tabular-nums;}
+  .day-event-title{font-size:13px;font-weight:700;}
+  .day-event-memo{font-size:11px;color:var(--text-soft);margin-top:4px;line-height:1.4;}
+  .empty-state{color:var(--text-faint);font-size:12px;padding:30px 0;text-align:center;}
 
   .center-badge{font-size:10px;font-weight:700;color:var(--text-soft);background:var(--bg-card-2);padding:2px 7px;border-radius:5px;white-space:nowrap;}
   .center-badge-mini{font-size:9px;font-weight:700;color:inherit;opacity:.7;background:rgba(0,0,0,0.08);padding:1px 4px;border-radius:3px;margin-right:3px;flex:none;}
@@ -328,12 +334,12 @@
   .center-row{display:flex;align-items:center;gap:8px;}
   .center-row input{
     border:1px solid var(--border-strong);border-radius:var(--radius-sm);
-    padding:8px 10px;font-size:13px;font-family:inherit;background:var(--bg-card);color:var(--text);
+    padding:8px 10px;font-size:12px;font-family:inherit;background:var(--bg-card);color:var(--text);
   }
   .center-row input.center-name-input{flex:1.4;}
   .center-row input.center-abbr-input{flex:0.7;}
   .center-row input:focus{outline:none;border-color:var(--accent);}
-  .center-row button{border:none;background:none;color:var(--text-faint);cursor:pointer;font-size:14px;padding:4px 6px;}
+  .center-row button{border:none;background:none;color:var(--text-faint);cursor:pointer;font-size:13px;padding:4px 6px;}
   .center-row button:hover{color:var(--danger);}
   .center-palette{display:flex;align-items:center;gap:6px;margin-top:8px;}
   .center-palette-label{font-size:10.5px;color:var(--text-faint);font-weight:600;margin-right:2px;}
@@ -352,13 +358,13 @@
   .weekday-picker{display:flex;gap:6px;}
   .weekday-btn{
     width:34px;height:34px;border-radius:50%;border:1px solid var(--border-strong);background:var(--bg-card);
-    color:var(--text-soft);font-size:12.5px;font-weight:700;cursor:pointer;
+    color:var(--text-soft);font-size:11.5px;font-weight:700;cursor:pointer;
     display:flex;align-items:center;justify-content:center;transition:all .12s;
   }
   .weekday-btn:hover{background:var(--bg-card-2);}
   .weekday-btn.selected{background:var(--accent);border-color:var(--accent);color:#fff;}
   .recurring-list-section{margin-top:20px;padding-top:16px;border-top:1px solid var(--border);}
-  .recurring-list-title{font-size:12px;font-weight:700;color:var(--text-soft);text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px;}
+  .recurring-list-title{font-size:11px;font-weight:700;color:var(--text-soft);text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px;}
   .recurring-list{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:6px;max-height:220px;overflow:auto;}
   .recurring-item{
     display:flex;align-items:center;gap:10px;background:var(--bg-card-2);border:1px solid var(--border);
@@ -366,9 +372,9 @@
   }
   .recurring-item:hover{background:var(--bg-card-2);}
   .recurring-item-dot{width:8px;height:8px;border-radius:50%;flex:none;}
-  .recurring-item-title{font-size:13px;font-weight:700;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  .recurring-item-pattern{font-size:11px;color:var(--text-soft);white-space:nowrap;}
-  .recurring-item-del{border:none;background:none;color:var(--text-faint);cursor:pointer;font-size:13px;padding:2px 4px;}
+  .recurring-item-title{font-size:12px;font-weight:700;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .recurring-item-pattern{font-size:10.5px;color:var(--text-soft);white-space:nowrap;}
+  .recurring-item-del{border:none;background:none;color:var(--text-faint);cursor:pointer;font-size:12px;padding:2px 4px;}
   .recurring-item-del:hover{color:var(--danger);}
 
   /* ---------- Notices view ---------- */
@@ -381,35 +387,35 @@
     background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);
     padding:10px 14px;margin-bottom:14px;
   }
-  .duty-month-label{font-size:12.5px;font-weight:700;color:var(--text);}
+  .duty-month-label{font-size:11.5px;font-weight:700;color:var(--text);}
   .duty-month-select{
     border:1px solid var(--border-strong);border-radius:var(--radius-sm);
-    padding:6px 8px;font-size:12.5px;font-family:inherit;background:var(--bg-card);
+    padding:6px 8px;font-size:11.5px;font-family:inherit;background:var(--bg-card);
   }
   .duty-org-input{
     border:1px solid var(--border-strong);border-radius:var(--radius-sm);
-    padding:6px 10px;font-size:12.5px;font-family:inherit;background:var(--bg-card);min-width:160px;
+    padding:6px 10px;font-size:11.5px;font-family:inherit;background:var(--bg-card);min-width:160px;
   }
   .duty-org-input:focus{outline:none;border-color:var(--accent);}
-  .duty-month-hint{font-size:11px;color:var(--text-faint);flex-basis:100%;}
-  .duty-lock-badge{font-size:11.5px;font-weight:700;color:#ff8f8f;background:var(--danger-soft);padding:6px 10px;border-radius:6px;}
+  .duty-month-hint{font-size:10.5px;color:var(--text-faint);flex-basis:100%;}
+  .duty-lock-badge{font-size:11px;font-weight:700;color:var(--danger-text);background:var(--danger-soft);padding:6px 10px;border-radius:6px;}
   .duty-upload-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:20px;}
   .duty-upload-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:14px;display:flex;flex-direction:column;gap:8px;}
-  .duty-upload-title{font-size:13px;font-weight:700;}
-  .duty-upload-desc{font-size:11px;color:var(--text-soft);line-height:1.5;min-height:32px;}
-  .duty-upload-card input[type=file]{font-size:11.5px;}
-  .duty-upload-status{font-size:11px;color:#6fe0a0;font-weight:700;background:var(--success-soft);padding:5px 8px;border-radius:6px;}
+  .duty-upload-title{font-size:12px;font-weight:700;}
+  .duty-upload-desc{font-size:10.5px;color:var(--text-soft);line-height:1.5;min-height:32px;}
+  .duty-upload-card input[type=file]{font-size:11px;}
+  .duty-upload-status{font-size:10.5px;color:var(--success-text);font-weight:700;background:var(--success-soft);padding:5px 8px;border-radius:6px;}
   .duty-item-badges{display:flex;flex-wrap:wrap;gap:5px;margin-top:2px;}
   .duty-item-badge{font-size:10px;font-weight:700;color:var(--accent-dark);background:var(--accent-soft);padding:2px 7px;border-radius:5px;}
   .duty-preview-wrap{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:16px;}
-  .duty-preview-title{font-size:13px;font-weight:700;margin-bottom:10px;color:var(--text-soft);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+  .duty-preview-title{font-size:12px;font-weight:700;margin-bottom:10px;color:var(--text-soft);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
   .duty-search-input{
     border:1px solid var(--border-strong);border-radius:var(--radius-sm);
-    padding:7px 12px;font-size:12.5px;font-family:inherit;width:180px;background:var(--bg-card);color:var(--text);
+    padding:7px 12px;font-size:11.5px;font-family:inherit;width:180px;background:var(--bg-card);color:var(--text);
   }
   .duty-search-input:focus{outline:none;border-color:var(--accent);}
   .duty-table-scroll{overflow:auto;max-height:520px;border:1px solid var(--border);border-radius:8px;}
-  .duty-table{border-collapse:collapse;font-size:11px;white-space:nowrap;}
+  .duty-table{border-collapse:collapse;font-size:10.5px;white-space:nowrap;}
   .duty-table th,.duty-table td{border:1px solid var(--border);padding:4px 7px;text-align:center;}
   .duty-table th{background:var(--bg-card-2);position:sticky;top:0;z-index:2;font-weight:700;color:var(--text-soft);}
   .duty-name-cell{text-align:left;font-weight:600;}
@@ -427,19 +433,19 @@
   .duty-table td.duty-sticky-4,.duty-table th.duty-sticky-4{position:sticky;left:184px;width:72px;min-width:72px;max-width:72px;background:var(--bg-card);}
   .duty-table td.duty-sticky-1,.duty-table td.duty-sticky-2,.duty-table td.duty-sticky-3,.duty-table td.duty-sticky-4{z-index:1;box-shadow:2px 0 3px -2px rgba(0,0,0,0.15);}
   .duty-table th.duty-sticky-1,.duty-table th.duty-sticky-2,.duty-table th.duty-sticky-3,.duty-table th.duty-sticky-4{z-index:3;background:var(--bg-card-2);box-shadow:2px 0 3px -2px rgba(0,0,0,0.15);}
-  .duty-del-cell button{border:none;background:none;color:#ff8f8f;font-size:10.5px;font-weight:700;cursor:pointer;padding:4px 6px;white-space:nowrap;}
+  .duty-del-cell button{border:none;background:none;color:var(--danger-text);font-size:10.5px;font-weight:700;cursor:pointer;padding:4px 6px;white-space:nowrap;}
   .duty-del-cell button:hover{text-decoration:underline;}
   .duty-actions{display:flex;gap:10px;justify-content:flex-end;}
 
   /* ---------- Duty report (복무관리) ---------- */
   .duty-report-view{max-width:100%;}
-  .duty-manage-view .duty-stat-number{font-size:20px;}
+  .duty-manage-view .duty-stat-number{font-size:17px;}
   .duty-manage-view .duty-stat-label{font-size:10px;}
   .duty-manage-view .duty-stat-card{padding:12px;}
   .duty-manage-view .duty-report-section{padding:12px;}
-  .duty-manage-view .duty-report-section-title{font-size:11.5px;margin-bottom:8px;}
-  .duty-manage-view .duty-report-table th,.duty-manage-view .duty-report-table td{font-size:11px;padding:5px 8px;}
-  .duty-manage-view .duty-namelist{font-size:11px;}
+  .duty-manage-view .duty-report-section-title{font-size:11px;margin-bottom:8px;}
+  .duty-manage-view .duty-report-table th,.duty-manage-view .duty-report-table td{font-size:10.5px;padding:5px 8px;}
+  .duty-manage-view .duty-namelist{font-size:10.5px;}
   .duty-manage-view .duty-grade-pill{font-size:10px;padding:2px 7px;}
   .duty-manage-view .duty-prev-note{font-size:10.5px;padding:6px 10px;}
   .duty-stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:12px;}
@@ -452,34 +458,34 @@
   .duty-stat-card.accent-green::before{background:#27AE60;}
   .duty-stat-card.accent-red::before{background:#EB5757;}
   .duty-stat-card.accent-purple::before{background:#9B51E0;}
-  .duty-stat-number{font-size:28px;font-weight:800;color:var(--text);}
-  .duty-stat-label{font-size:11.5px;color:var(--text-soft);font-weight:600;margin-top:4px;}
+  .duty-stat-number{font-size:24px;font-weight:800;color:var(--text);}
+  .duty-stat-label{font-size:11px;color:var(--text-soft);font-weight:600;margin-top:4px;}
   .duty-stat-delta{margin-top:6px;}
-  .duty-prev-note{font-size:11.5px;color:var(--accent-dark);background:var(--accent-soft);padding:8px 12px;border-radius:8px;margin-bottom:14px;font-weight:600;}
-  .duty-warn-box{background:var(--warning-soft);border:1px solid #5a4a29;border-radius:var(--radius);padding:12px 16px;margin:14px 0;}
-  .duty-warn-box-ok{background:var(--success-soft);border-color:#2f4a3a;color:#6fe0a0;font-size:12.5px;font-weight:700;padding:10px 16px;}
-  .duty-warn-box-title{font-size:12.5px;font-weight:800;color:var(--warning);margin-bottom:8px;}
+  .duty-prev-note{font-size:11px;color:var(--accent-dark);background:var(--accent-soft);padding:8px 12px;border-radius:8px;margin-bottom:14px;font-weight:600;}
+  .duty-warn-box{background:var(--warning-soft);border:1px solid #f1dcaa;border-radius:var(--radius);padding:12px 16px;margin:14px 0;}
+  .duty-warn-box-ok{background:var(--success-soft);border-color:#bfe5cc;color:var(--success-text);font-size:11.5px;font-weight:700;padding:10px 16px;}
+  .duty-warn-box-title{font-size:11.5px;font-weight:800;color:var(--warning);margin-bottom:8px;}
   .duty-warn-list{margin:0;padding-left:18px;max-height:180px;overflow-y:auto;}
-  .duty-warn-list li{font-size:12px;color:var(--warning);line-height:1.9;}
-  .duty-prev-note-empty{color:#f2ae7a;background:var(--warning-soft);}
-  .duty-delta{font-size:11px;font-weight:800;padding:2px 6px;border-radius:5px;}
-  .duty-delta-up{color:#6fe0a0;background:var(--success-soft);}
-  .duty-delta-down{color:#ff8f8f;background:var(--danger-soft);}
+  .duty-warn-list li{font-size:11px;color:var(--warning);line-height:1.9;}
+  .duty-prev-note-empty{color:#c9762b;background:var(--warning-soft);}
+  .duty-delta{font-size:10.5px;font-weight:800;padding:2px 6px;border-radius:5px;}
+  .duty-delta-up{color:var(--success-text);background:var(--success-soft);}
+  .duty-delta-down{color:var(--danger-text);background:var(--danger-soft);}
   .duty-delta-flat{color:var(--text-faint);background:var(--bg-card-2);}
   .duty-bar-track{background:var(--bg-card-2);border-radius:6px;height:6px;overflow:hidden;margin-top:5px;min-width:80px;}
   .duty-bar-fill{height:100%;background:linear-gradient(90deg,var(--accent),#8AA6FF);border-radius:6px;}
-  .duty-grade-pill{display:inline-block;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:700;margin:2px 2px 2px 0;white-space:nowrap;}
+  .duty-grade-pill{display:inline-block;padding:3px 9px;border-radius:999px;font-size:10.5px;font-weight:700;margin:2px 2px 2px 0;white-space:nowrap;}
   .eval-badge{display:inline-block;padding:2px 7px;border-radius:999px;font-size:10px;font-weight:700;margin-left:4px;}
   .eval-badge-blue{background:var(--accent-soft);color:var(--accent-dark);}
-  .eval-badge-red{background:var(--danger-soft);color:#ff8f8f;}
+  .eval-badge-red{background:var(--danger-soft);color:var(--danger-text);}
   .eval-badge-gray{background:var(--bg-card-2);color:var(--text-soft);}
   .eval-editable-cell{cursor:pointer;}
-  .eval-row-delete-btn{border:none;background:none;color:var(--text-faint);cursor:pointer;font-size:13px;padding:3px 6px;border-radius:5px;}
-  .eval-row-delete-btn:hover{color:#ff8f8f;background:var(--danger-soft);}
+  .eval-row-delete-btn{border:none;background:none;color:var(--text-faint);cursor:pointer;font-size:12px;padding:3px 6px;border-radius:5px;}
+  .eval-row-delete-btn:hover{color:var(--danger-text);background:var(--danger-soft);}
   .eval-editable-cell:hover{background:var(--accent-soft);}
   .duty-report-section{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:14px;}
-  .duty-report-section-title{font-size:13px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:6px;}
-  .duty-report-table{width:100%;border-collapse:collapse;font-size:12.5px;}
+  .duty-report-section-title{font-size:12px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:6px;}
+  .duty-report-table{width:100%;border-collapse:collapse;font-size:11.5px;}
   .duty-report-table th,.duty-report-table td{border:1px solid var(--border);padding:9px 12px;text-align:center;}
   .duty-report-table th{background:var(--bg-card-2);font-weight:700;color:var(--text-soft);}
   .salary-mini-upload-btn{
@@ -488,31 +494,31 @@
   }
   .salary-mini-upload-btn:hover{background:var(--accent-soft);}
   .duty-report-table tbody tr:hover{background:var(--bg-card-2);}
-  .duty-namelist{font-size:12px;color:var(--text-soft);line-height:1.8;}
+  .duty-namelist{font-size:11px;color:var(--text-soft);line-height:1.8;}
   .duty-report-row2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;}
   .duty-report-row2 .duty-report-section{margin-bottom:0;}
   .duty-report-memo{
     width:100%;min-height:110px;border:1px solid var(--border-strong);border-radius:var(--radius-sm);
-    padding:10px 12px;font-size:13px;font-family:inherit;resize:vertical;
+    padding:10px 12px;font-size:12px;font-family:inherit;resize:vertical;
   }
   .duty-report-memo:focus{outline:none;border-color:var(--accent);}
-  .duty-report-memo-view{font-size:13px;line-height:1.7;color:var(--text);white-space:pre-wrap;min-height:24px;}
+  .duty-report-memo-view{font-size:12px;line-height:1.7;color:var(--text);white-space:pre-wrap;min-height:24px;}
   .duty-report-memo-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:10px;}
   .notices-toolbar{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center;}
   .notices-search{
     flex:1 1 260px;min-width:200px;border:1px solid var(--border-strong);border-radius:var(--radius-sm);
-    padding:10px 14px;font-size:13.5px;font-family:inherit;
+    padding:10px 14px;font-size:12.5px;font-family:inherit;
   }
   .notices-search:focus{outline:none;border-color:var(--accent);}
   .category-chips{display:flex;gap:6px;}
   .category-chip{
     border:1px solid var(--border-strong);background:var(--bg-card);color:var(--text-soft);
-    padding:7px 12px;border-radius:999px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;
+    padding:7px 12px;border-radius:999px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;
   }
   .category-chip.active{background:var(--text);color:#fff;border-color:var(--text);}
   .notice-add-btn{
     background:var(--accent);color:#fff;border:none;border-radius:var(--radius-sm);
-    padding:10px 16px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;
+    padding:10px 16px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;
   }
   .notice-add-btn:hover{background:var(--accent-dark);}
   .notice-list{display:flex;flex-direction:column;gap:8px;}
@@ -522,35 +528,35 @@
   }
   .notice-card:hover{box-shadow:var(--shadow-sm);border-color:var(--border-strong);}
   .notice-card-head{display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap;cursor:pointer;}
-  .notice-chevron{margin-left:auto;color:var(--text-faint);font-size:11px;flex:none;}
+  .notice-chevron{margin-left:auto;color:var(--text-faint);font-size:10.5px;flex:none;}
   .notice-cat-badge{font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:5px;}
-  .notice-date{font-size:11.5px;color:var(--text-soft);font-weight:600;}
-  .notice-title{font-size:14.5px;font-weight:700;cursor:pointer;}
+  .notice-date{font-size:11px;color:var(--text-soft);font-weight:600;}
+  .notice-title{font-size:13.5px;font-weight:700;cursor:pointer;}
   .notice-card.expanded .notice-title{margin-bottom:10px;}
   .notice-detail-content{
-    font-size:12px;line-height:1.6;color:var(--text-soft);white-space:pre-wrap;
+    font-size:11px;line-height:1.6;color:var(--text-soft);white-space:pre-wrap;
     padding-top:10px;border-top:1px solid var(--border);
   }
   .notice-detail-content div,.notice-detail-content p{min-height:1.3em;}
   .notice-card-actions{margin-top:12px;display:flex;justify-content:flex-end;gap:8px;}
   .notice-edit-btn{
     background:var(--accent-soft);color:var(--accent-dark);border:none;border-radius:6px;
-    padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;
+    padding:6px 12px;font-size:11px;font-weight:700;cursor:pointer;
   }
   .notice-edit-btn:hover{background:var(--accent-soft);}
-  .notice-file-tag{font-size:11px;color:var(--accent-dark);font-weight:600;margin-top:8px;display:inline-flex;align-items:center;gap:4px;text-decoration:none;cursor:pointer;}
+  .notice-file-tag{font-size:10.5px;color:var(--accent-dark);font-weight:600;margin-top:8px;display:inline-flex;align-items:center;gap:4px;text-decoration:none;cursor:pointer;}
   .notice-file-tag:hover{text-decoration:underline;}
   .file-chip{
     display:inline-flex;align-items:center;gap:8px;background:var(--bg-card-2);border:1px solid var(--border);
-    border-radius:var(--radius-sm);padding:6px 10px;font-size:12.5px;
+    border-radius:var(--radius-sm);padding:6px 10px;font-size:11.5px;
   }
   .file-chip a{color:var(--accent-dark);font-weight:600;text-decoration:none;}
   .file-chip a:hover{text-decoration:underline;}
-  .file-chip button{border:none;background:none;color:var(--text-faint);cursor:pointer;font-size:13px;}
+  .file-chip button{border:none;background:none;color:var(--text-faint);cursor:pointer;font-size:12px;}
   .rte-toolbar{display:flex;align-items:center;gap:6px;margin-bottom:6px;}
   .rte-btn{
     width:30px;height:30px;border:1px solid var(--border-strong);border-radius:6px;
-    background:var(--bg-card);cursor:pointer;font-size:13px;color:var(--text);
+    background:var(--bg-card);cursor:pointer;font-size:12px;color:var(--text);
     display:flex;align-items:center;justify-content:center;
   }
   .rte-btn:hover{background:var(--bg-card-2);}
@@ -563,7 +569,7 @@
   .rte-swatch:hover{transform:scale(1.12);}
   .rte-editor{
     min-height:140px;max-height:320px;overflow-y:auto;border:1px solid var(--border-strong);
-    border-radius:var(--radius-sm);padding:10px 12px;font-size:13.5px;line-height:1.6;font-family:inherit;
+    border-radius:var(--radius-sm);padding:10px 12px;font-size:12.5px;line-height:1.6;font-family:inherit;
   }
   .rte-editor:focus{outline:none;border-color:var(--accent);}
   .rte-editor:empty:before{content:attr(data-placeholder);color:var(--text-faint);}
@@ -579,28 +585,29 @@
   .pld-summary-row:hover{background:var(--bg-card-2);}
   .modal{
     background:var(--bg-card);border-radius:var(--radius-lg);width:400px;max-width:92vw;
-    max-height:88vh;overflow:auto;box-shadow:var(--shadow);padding:22px;
+    max-height:88vh;overflow:auto;box-shadow:var(--shadow);padding:18px;
   }
-  .modal h2{font-size:16px;margin:0 0 16px;font-weight:700;}
+  .modal h2{font-size:14px;margin:0 0 16px;font-weight:700;}
   .autosave-status{
-    font-size:11px;font-weight:600;color:var(--accent);margin-left:8px;
+    font-size:10.5px;font-weight:600;color:var(--accent);margin-left:8px;
     opacity:0;transition:opacity .3s;white-space:nowrap;
   }
   .autosave-status.show{opacity:1;}
-  .field{margin-bottom:14px;}
-  .field label{display:block;font-size:12px;font-weight:700;color:var(--text-soft);margin-bottom:6px;}
-  .field-hint{font-size:11px;color:var(--accent-dark);margin-top:5px;font-weight:600;}
+  .field{margin-bottom:12px;}
+  .field label{display:block;font-size:11px;font-weight:700;color:var(--text-soft);margin-bottom:6px;}
+  .field-hint{font-size:10.5px;color:var(--accent-dark);margin-top:5px;font-weight:600;}
   .field input[type=text],.field input[type=date],.field input[type=time],.field select,.field textarea{
     width:100%;border:1px solid var(--border-strong);border-radius:var(--radius-sm);
-    padding:9px 10px;font-size:13.5px;font-family:inherit;color:var(--text);background:var(--bg-card);
+    padding:7px 10px;font-size:12.5px;font-family:inherit;color:var(--text);background:var(--bg-card);
   }
+  .field input[type=text],.field input[type=date],.field input[type=time],.field select{height:34px;padding-top:0;padding-bottom:0;}
   .field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--accent);}
   .field textarea{resize:vertical;min-height:56px;}
   .row2{display:flex;gap:10px;}
   .row2 .field{flex:1;}
   .checkbox-row{display:flex;align-items:center;gap:7px;margin-bottom:14px;}
   .checkbox-row input{width:15px;height:15px;}
-  .checkbox-row label{font-size:12.5px;font-weight:600;color:var(--text);}
+  .checkbox-row label{font-size:11.5px;font-weight:600;color:var(--text);}
   .color-swatches{display:flex;gap:8px;}
   .swatch{
     width:26px;height:26px;border-radius:50%;cursor:pointer;
@@ -612,19 +619,19 @@
   .modal-actions{display:flex;justify-content:space-between;align-items:center;margin-top:18px;}
   .btn-secondary{
     background:var(--bg-card);border:1px solid var(--border-strong);color:var(--text-soft);
-    padding:9px 14px;border-radius:var(--radius-sm);font-size:13px;font-weight:600;cursor:pointer;
+    padding:9px 14px;border-radius:var(--radius-sm);font-size:12px;font-weight:600;cursor:pointer;
   }
   .btn-secondary:hover{background:var(--bg-card-2);}
   .btn-primary{
     background:var(--accent);border:none;color:#fff;
-    padding:9px 16px;border-radius:var(--radius-sm);font-size:13px;font-weight:700;cursor:pointer;
+    padding:9px 16px;border-radius:var(--radius-sm);font-size:12px;font-weight:700;cursor:pointer;
   }
   .btn-primary:hover{background:var(--accent-dark);}
-  .btn-danger-text{background:none;border:none;color:var(--danger);font-size:12.5px;font-weight:600;cursor:pointer;padding:6px 4px;}
+  .btn-danger-text{background:none;border:none;color:var(--danger);font-size:11.5px;font-weight:600;cursor:pointer;padding:6px 4px;}
 
   #loadingOverlay{
     position:fixed;inset:0;background:var(--bg-card);display:flex;align-items:center;justify-content:center;
-    color:var(--text-soft);font-size:13px;z-index:100;
+    color:var(--text-soft);font-size:12px;z-index:100;
   }
 
   @media (max-width:760px){
@@ -639,10 +646,10 @@
    이 안의 클래스들은 .docube-scope 하위에서만 쓰이며, 변수도 이 안에서만 유효함
 =================================================================== */
 .docube-scope{
-  --navy-950:#0d0e12; --gold:#e0b34e; --gold-dark:#f0c065; --gold-soft:rgba(224,179,78,0.14);
-  --text-0:#ffffff; --text-1:#c7cbd6; --text-2:#8890a2;
-  --bg-app:#15161a; --bg-card:#1c1e23; --border-light:#2b2d33;
-  --ink-0:#e8e8ea; --ink-1:#9497a1; --ink-2:#6c6f7a;
+  --navy-950:#1e2a44; --gold:#e0b34e; --gold-dark:#b9860a; --gold-soft:rgba(224,179,78,0.14);
+  --text-0:#ffffff; --text-1:#c7cbd6; --text-2:#9aa3b5;
+  --bg-app:#f6f7f9; --bg-card:#ffffff; --border-light:#e5e7eb;
+  --ink-0:#1f2329; --ink-1:#4b5563; --ink-2:#8b919c;
 }
 .cal-nav{ display:flex; align-items:center; gap:10px; }
 .cal-nav-btn{
@@ -651,12 +658,12 @@
   background:var(--bg-card);
   display:flex; align-items:center; justify-content:center;
   cursor:pointer; color:var(--text-soft);
-  font-size:15px; font-weight:700;
+  font-size:14px; font-weight:700;
   transition: background .12s ease, border-color .12s ease;
 }
 .cal-nav-btn:hover{ background:var(--bg-card-2); border-color:var(--border-strong); }
 .cal-month-label{
-  font-size:16px; font-weight:800; color:var(--text);
+  font-size:14px; font-weight:800; color:var(--text);
   min-width:112px; text-align:center;
 }
 .cal-month-label-clickable{ cursor:pointer; border-radius:8px; padding:4px 8px; }
@@ -664,12 +671,12 @@
 .rev-month-picker{
   position:absolute; top:calc(100% + 6px); left:50%; transform:translateX(-50%);
   background:var(--bg-card); border:1px solid var(--border); border-radius:12px;
-  box-shadow:0 10px 30px rgba(0,0,0,0.4); padding:12px; z-index:40; width:240px;
+  box-shadow:var(--shadow); padding:12px; z-index:40; width:240px;
 }
 .rev-month-picker.hidden{ display:none; }
 .rmp-year-nav{
   display:flex; align-items:center; justify-content:space-between;
-  margin-bottom:10px; font-size:13px; font-weight:800; color:var(--text);
+  margin-bottom:10px; font-size:12px; font-weight:800; color:var(--text);
 }
 .rmp-year-nav .rmp-year-btn{
   width:24px; height:24px; border-radius:6px; display:flex; align-items:center; justify-content:center;
@@ -680,7 +687,7 @@
 .rmp-grid.rmp-grid-narrow{ grid-template-columns:repeat(3, 1fr); }
 .rmp-cell{
   position:relative; padding:8px 0; border-radius:7px; text-align:center;
-  font-size:12.5px; font-weight:700; color:var(--text-soft); cursor:pointer;
+  font-size:11.5px; font-weight:700; color:var(--text-soft); cursor:pointer;
   border:1px solid transparent;
 }
 .rmp-cell:hover{ background:var(--bg-card-2); }
@@ -693,7 +700,7 @@
   padding:6px 12px; border-radius:8px;
   border:1px solid var(--border-light);
   background:var(--bg-card);
-  font-size:12.5px; font-weight:700; color:var(--ink-1);
+  font-size:11.5px; font-weight:700; color:var(--ink-1);
   cursor:pointer;
 }
 .docube-scope .cal-today-btn:hover{ background:var(--bg-card-2); }
@@ -707,7 +714,7 @@
 }
 .docube-scope .inner-tab{
   padding:9px 4px; margin-right:18px;
-  font-size:13.5px; font-weight:700; color:var(--ink-2);
+  font-size:12.5px; font-weight:700; color:var(--ink-2);
   cursor:pointer; user-select:none;
   position:relative;
 }
@@ -724,7 +731,7 @@
   margin-bottom:16px;
 }
 .docube-scope .rev-detail-toolbar{ margin-bottom:14px; }
-.docube-scope .rev-detail-hint{ font-size:12px; color:var(--ink-2); }
+.docube-scope .rev-detail-hint{ font-size:11px; color:var(--ink-2); }
 
 .docube-scope .rev-grand{
   background: var(--navy-950);
@@ -734,13 +741,13 @@
   display:flex; align-items:center; justify-content:space-between;
   flex-wrap:wrap; gap:12px;
 }
-.docube-scope .rev-grand .label{ font-size:12.5px; font-weight:700; color:var(--text-1); margin-bottom:6px; }
-.docube-scope .rev-grand .value{ font-size:30px; font-weight:800; color:var(--gold); letter-spacing:-0.01em; }
+.docube-scope .rev-grand .label{ font-size:11.5px; font-weight:700; color:var(--text-1); margin-bottom:6px; }
+.docube-scope .rev-grand .value{ font-size:26px; font-weight:800; color:var(--gold); letter-spacing:-0.01em; }
 .docube-scope .rev-grand-breakdown{ display:flex; gap:18px; flex-wrap:wrap; }
 .docube-scope .rev-grand-breakdown .gb-item{ text-align:right; }
-.docube-scope .rev-grand-breakdown .gb-label{ font-size:11px; color:var(--text-2); font-weight:600; margin-bottom:3px; }
-.docube-scope .rev-grand-breakdown .gb-value{ font-size:13px; color:var(--text-0); font-weight:700; }
-.docube-scope .rev-grand-sub{ font-size:11.5px; color:var(--text-2); font-weight:600; margin-top:4px; }
+.docube-scope .rev-grand-breakdown .gb-label{ font-size:10.5px; color:var(--text-2); font-weight:600; margin-bottom:3px; }
+.docube-scope .rev-grand-breakdown .gb-value{ font-size:12px; color:var(--text-0); font-weight:700; }
+.docube-scope .rev-grand-sub{ font-size:11px; color:var(--text-2); font-weight:600; margin-top:4px; }
 
 .docube-scope .rev-section-cols{
   display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px; align-items:stretch;
@@ -758,8 +765,8 @@
   padding:18px 20px;
   margin-bottom:16px;
 }
-.docube-scope .rev-section-title{ font-size:14px; font-weight:800; color:var(--ink-0); margin-bottom:4px; }
-.docube-scope .rev-section-sub{ font-size:12px; color:var(--ink-2); line-height:1.6; margin-bottom:14px; }
+.docube-scope .rev-section-title{ font-size:13px; font-weight:800; color:var(--ink-0); margin-bottom:4px; }
+.docube-scope .rev-section-sub{ font-size:11px; color:var(--ink-2); line-height:1.6; margin-bottom:14px; }
 
 .docube-scope .rev-row{
   display:flex; align-items:center; gap:8px;
@@ -767,25 +774,25 @@
   border-bottom:1px solid var(--border-light);
 }
 .docube-scope .rev-row:last-of-type{ border-bottom:none; }
-.docube-scope .rev-row .rev-label{ flex:0 0 auto; min-width:60px; font-size:13px; font-weight:700; color:var(--ink-0); }
+.docube-scope .rev-row .rev-label{ flex:0 0 auto; min-width:60px; font-size:12px; font-weight:700; color:var(--ink-0); }
 .docube-scope .rev-row .rev-price{
-  width:auto; text-align:left; font-size:11.5px; color:var(--ink-2); font-weight:600;
+  width:auto; text-align:left; font-size:11px; color:var(--ink-2); font-weight:600;
   cursor:pointer; border-bottom:1px dashed transparent; white-space:nowrap;
 }
 .docube-scope .rev-row .rev-price:hover{ color:var(--ink-0); border-bottom-color:var(--ink-2); }
 .docube-scope .rev-row .rev-row-right{ display:flex; align-items:center; gap:6px; margin-left:auto; flex:none; }
 .docube-scope .rev-row .rev-count-input{
   width:76px; padding:6px 6px; border:1px solid var(--border-light); border-radius:7px;
-  text-align:center; font-size:12.5px; font-weight:700; color:var(--ink-0); background:var(--bg-card);
+  text-align:center; font-size:11.5px; font-weight:700; color:var(--ink-0); background:var(--bg-card);
 }
-.docube-scope .rev-row .rev-x{ font-size:12px; color:var(--ink-2); }
-.docube-scope .rev-row .rev-subtotal{ width:92px; text-align:right; font-size:13px; font-weight:800; color:var(--ink-0); }
+.docube-scope .rev-row .rev-x{ font-size:11px; color:var(--ink-2); }
+.docube-scope .rev-row .rev-subtotal{ width:92px; text-align:right; font-size:12px; font-weight:800; color:var(--ink-0); }
 
 .docube-scope .rev-billing-section{ padding-bottom:14px; }
 .docube-scope .billing-table-wrap{ overflow-x:auto; margin-bottom:4px; }
-.docube-scope .billing-table{ width:100%; border-collapse:collapse; font-size:13px; table-layout:fixed; }
+.docube-scope .billing-table{ width:100%; border-collapse:collapse; font-size:12px; table-layout:fixed; }
 .docube-scope .billing-table th{
-  text-align:left; font-size:11px; font-weight:700; color:var(--ink-2);
+  text-align:left; font-size:10.5px; font-weight:700; color:var(--ink-2);
   padding:6px 8px; border-bottom:1px solid var(--border-light);
 }
 .docube-scope .billing-table th:nth-child(1){ width:18%; }
@@ -799,14 +806,14 @@
 .docube-scope .billing-table .bt-amount{ width:28%; }
 .docube-scope .billing-count-input{
   width:70px; padding:6px 8px; border:1px solid var(--border-light); border-radius:7px;
-  text-align:center; font-size:13px; font-weight:700; color:var(--ink-0); background:var(--bg-card);
+  text-align:center; font-size:12px; font-weight:700; color:var(--ink-0); background:var(--bg-card);
 }
 .docube-scope .bt-count-value{
   width:70px; padding:7px 8px; text-align:center;
-  font-size:13px; font-weight:700; color:var(--ink-0);
+  font-size:12px; font-weight:700; color:var(--ink-0);
   background:var(--bg-app); border:1px dashed var(--border-light); border-radius:7px;
 }
-.docube-scope .bt-amount-value{ font-size:13px; font-weight:800; color:var(--ink-0); white-space:nowrap; }
+.docube-scope .bt-amount-value{ font-size:12px; font-weight:800; color:var(--ink-0); white-space:nowrap; }
 .docube-scope .bt-unit-price{
   font-size:10.5px; color:var(--ink-2); font-weight:600; margin-top:3px; cursor:pointer;
   border-bottom:1px dashed transparent; display:inline-block;
@@ -817,11 +824,11 @@
 .docube-scope .csr-note-grid label{ font-size:10px; color:var(--ink-2); font-weight:600; display:flex; flex-direction:column; gap:2px; width:58px; flex:none; }
 .docube-scope .csr-note-grid input{
   width:100%; padding:4px 3px; border:1px solid var(--border-light); border-radius:6px;
-  font-size:11.5px; color:var(--ink-1); background:var(--bg-app); text-align:center;
+  font-size:11px; color:var(--ink-1); background:var(--bg-app); text-align:center;
 }
 .docube-scope .billing-subtotal-row td{
   border-bottom:none; border-top:2px solid var(--ink-0); padding-top:10px;
-  font-weight:800; color:var(--ink-0); font-size:14px;
+  font-weight:800; color:var(--ink-0); font-size:13px;
 }
 
 .docube-scope .rev-section-total-block{
@@ -831,71 +838,71 @@
 .docube-scope .stb-row{
   display:flex; justify-content:space-between; align-items:center;
   padding:4px 0;
-  font-size:12.5px; color:var(--ink-1); font-weight:600;
+  font-size:11.5px; color:var(--ink-1); font-weight:600;
 }
 .docube-scope .stb-row b{ color:var(--ink-0); font-weight:700; }
 .docube-scope .stb-row.grand{
   margin-top:6px; padding-top:10px;
   border-top:2px solid var(--ink-0);
-  font-size:14px; font-weight:800; color:var(--ink-0);
+  font-size:13px; font-weight:800; color:var(--ink-0);
 }
-.docube-scope .stb-row.grand b{ color:var(--gold-dark, #b9860a); font-size:16px; }
+.docube-scope .stb-row.grand b{ color:var(--gold-dark, #b9860a); font-size:14px; }
 
 .docube-scope .trainee-add-row{ display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap; }
 .docube-scope .trainee-add-row input, .docube-scope .trainee-add-row select{
   padding:8px 10px; border:1px solid var(--border-light); border-radius:8px;
-  font-size:12.5px; font-family:inherit; color:var(--ink-0); background:var(--bg-app);
+  font-size:11.5px; font-family:inherit; color:var(--ink-0); background:var(--bg-app);
 }
 .docube-scope .trainee-add-row input{ width:150px; }
 .docube-scope .trainee-list{ display:flex; flex-direction:column; gap:6px; margin-bottom:6px; }
 .docube-scope .trainee-item{
   display:flex; align-items:center; gap:10px;
   padding:8px 12px; border:1px solid var(--border-light); border-radius:9px;
-  font-size:12.5px;
+  font-size:11.5px;
 }
 .docube-scope .trainee-item .ti-days{ font-weight:700; color:var(--ink-0); }
-.docube-scope .trainee-item .ti-status{ padding:2px 8px; border-radius:999px; font-size:11px; font-weight:700; }
-.docube-scope .trainee-item .ti-status.pass{ background:var(--success-soft); color:#6fe0a0; }
-.docube-scope .trainee-item .ti-status.fail{ background:var(--danger-soft); color:#ff8f8f; }
+.docube-scope .trainee-item .ti-status{ padding:2px 8px; border-radius:999px; font-size:10.5px; font-weight:700; }
+.docube-scope .trainee-item .ti-status.pass{ background:var(--success-soft); color:var(--success-text); }
+.docube-scope .trainee-item .ti-status.fail{ background:var(--danger-soft); color:var(--danger-text); }
 .docube-scope .trainee-item .ti-pay{ margin-left:auto; font-weight:800; color:var(--ink-0); }
 .docube-scope .trainee-item .ti-del{
-  color:var(--ink-2); cursor:pointer; font-size:14px;
+  color:var(--ink-2); cursor:pointer; font-size:13px;
   width:18px; height:18px; display:flex; align-items:center; justify-content:center; border-radius:5px;
 }
-.docube-scope .trainee-item .ti-del:hover{ background:var(--danger-soft); color:#ff8f8f; }
-.docube-scope .trainee-empty{ font-size:12px; color:var(--ink-2); padding:14px 0; text-align:center; }
+.docube-scope .trainee-item .ti-del:hover{ background:var(--danger-soft); color:var(--danger-text); }
+.docube-scope .trainee-empty{ font-size:11px; color:var(--ink-2); padding:14px 0; text-align:center; }
 
 .docube-scope .telecom-row{ display:flex; gap:16px; margin-bottom:6px; }
-.docube-scope .telecom-row label{ flex:1; font-size:12px; font-weight:700; color:var(--ink-1); }
+.docube-scope .telecom-row label{ flex:1; font-size:11px; font-weight:700; color:var(--ink-1); }
 .docube-scope .telecom-row input{
   display:block; width:100%; margin-top:6px;
   padding:9px 10px; border:1px solid var(--border-light); border-radius:8px;
-  font-size:13px; color:var(--ink-0); background:var(--bg-app);
+  font-size:12px; color:var(--ink-0); background:var(--bg-app);
 }
 
 .docube-scope .rev-saved-badge{
-  font-size:11.5px; font-weight:700; padding:5px 10px; border-radius:999px;
+  font-size:11px; font-weight:700; padding:5px 10px; border-radius:999px;
   background:var(--bg-card-2); color:var(--ink-2);
 }
-.docube-scope .rev-saved-badge.on{ background:var(--success-soft); color:#6fe0a0; }
+.docube-scope .rev-saved-badge.on{ background:var(--success-soft); color:var(--success-text); }
 
 .docube-scope .docube-lock-banner{
   display:flex; align-items:center; justify-content:space-between; gap:10px;
-  background:var(--danger-soft); border:1px solid #4a2c2f; border-radius:8px;
+  background:var(--danger-soft); border:1px solid #f5c6c6; border-radius:8px;
   padding:7px 10px 7px 12px; margin-bottom:12px;
 }
-.docube-scope .docube-lock-banner span{ font-size:11.5px; font-weight:600; color:#ff8f8f; }
-.docube-scope .docube-lock-banner .btn-secondary{ padding:4px 10px; font-size:11px; flex:none; }
+.docube-scope .docube-lock-banner span{ font-size:11px; font-weight:600; color:var(--danger-text); }
+.docube-scope .docube-lock-banner .btn-secondary{ padding:4px 10px; font-size:10.5px; flex:none; }
 .docube-scope .att-code-badge{
   display:inline-block; font-size:10.5px; font-weight:700; padding:2px 7px; border-radius:999px;
   background:var(--bg-card-2); color:var(--ink-1); margin:1px 2px 1px 0;
 }
-.docube-scope .att-daily-table{ font-size:11px; }
+.docube-scope .att-daily-table{ font-size:10.5px; }
 .docube-scope .att-daily-table th, .docube-scope .att-daily-table td{ padding:4px 3px; text-align:center; }
 .docube-scope .att-day-cell{
   font-size:10px; font-weight:700; border-radius:4px; white-space:nowrap; min-width:26px;
 }
-.docube-scope .att-day-cell.deduct{ background:var(--danger-soft); color:#ff8f8f; }
+.docube-scope .att-day-cell.deduct{ background:var(--danger-soft); color:var(--danger-text); }
 .docube-scope .att-day-cell.note-only{ background:var(--bg-card-2); color:var(--ink-2); }
 .docube-scope .att-day-cell-editable{ cursor:pointer; }
 .docube-scope .att-day-cell-editable:hover{ outline:1.5px solid var(--gold); outline-offset:-1px; }
@@ -906,9 +913,9 @@
   padding:8px 2px; margin-bottom:8px;
   border-bottom:2px solid var(--ink-0);
 }
-.docube-scope .rev-year-head .yh-label{ font-size:15px; font-weight:800; color:var(--ink-0); }
-.docube-scope .rev-year-head .yh-total{ font-size:13px; font-weight:700; color:var(--ink-2); }
-.docube-scope .rev-year-head .yh-total b{ color:var(--gold-dark, #b9860a); font-size:14px; }
+.docube-scope .rev-year-head .yh-label{ font-size:14px; font-weight:800; color:var(--ink-0); }
+.docube-scope .rev-year-head .yh-total{ font-size:12px; font-weight:700; color:var(--ink-2); }
+.docube-scope .rev-year-head .yh-total b{ color:var(--gold-dark, #b9860a); font-size:13px; }
 
 .docube-scope .rev-month-card{
   background:var(--bg-card);
@@ -926,13 +933,13 @@
   cursor:pointer;
 }
 .docube-scope .rev-month-row:hover{ background:var(--bg-card-2); }
-.docube-scope .rev-month-row .mr-month{ font-size:13px; font-weight:800; color:var(--ink-0); }
+.docube-scope .rev-month-row .mr-month{ font-size:12px; font-weight:800; color:var(--ink-0); }
 .docube-scope .rev-month-row .mr-metric{ text-align:right; }
 .docube-scope .rev-month-row .mr-metric .mm-label{ font-size:10.5px; color:var(--ink-2); font-weight:600; }
-.docube-scope .rev-month-row .mr-metric .mm-value{ font-size:12.5px; color:var(--ink-0); font-weight:700; margin-top:2px; }
+.docube-scope .rev-month-row .mr-metric .mm-value{ font-size:11.5px; color:var(--ink-0); font-weight:700; margin-top:2px; }
 .docube-scope .rev-month-row .mr-total-wrap{ display:flex; flex-direction:column; align-items:flex-end; gap:3px; }
-.docube-scope .rev-month-row .mr-total{ text-align:right; font-size:14.5px; font-weight:800; color:var(--gold-dark, #b9860a); }
-.docube-scope .rev-month-row .mr-chev{ color:var(--ink-2); font-size:12px; transition: transform .15s ease; }
+.docube-scope .rev-month-row .mr-total{ text-align:right; font-size:13.5px; font-weight:800; color:var(--gold-dark, #b9860a); }
+.docube-scope .rev-month-row .mr-chev{ color:var(--ink-2); font-size:11px; transition: transform .15s ease; }
 .docube-scope .rev-month-row.open .mr-chev{ transform: rotate(90deg); }
 
 .docube-scope .delta{
@@ -940,21 +947,21 @@
   font-size:10px; font-weight:700; padding:1px 6px; border-radius:999px;
   white-space:nowrap;
 }
-.docube-scope .delta.up{ color:#6fe0a0; background:var(--success-soft); }
-.docube-scope .delta.down{ color:#ff8f8f; background:var(--danger-soft); }
+.docube-scope .delta.up{ color:var(--success-text); background:var(--success-soft); }
+.docube-scope .delta.down{ color:var(--danger-text); background:var(--danger-soft); }
 .docube-scope .delta.flat{ color:var(--ink-2); background:var(--bg-card-2); }
 .docube-scope .delta.none{ color:var(--ink-2); background:transparent; font-weight:600; }
 
 .docube-scope .rev-month-detail{ display:none; border-top:1px solid var(--border-light); padding:14px 18px; background:var(--bg-card-2); }
 .docube-scope .rev-month-detail.open{ display:block; }
 .docube-scope .rev-detail-grid{ display:grid; grid-template-columns: 1.6fr 1fr 1fr; gap:16px; }
-.docube-scope .rev-detail-col-title{ font-size:11px; font-weight:800; color:var(--ink-2); margin-bottom:8px; letter-spacing:0.02em; }
-.docube-scope .rev-detail-item{ display:flex; justify-content:space-between; font-size:12px; padding:4px 0; color:var(--ink-1); }
+.docube-scope .rev-detail-col-title{ font-size:10.5px; font-weight:800; color:var(--ink-2); margin-bottom:8px; letter-spacing:0.02em; }
+.docube-scope .rev-detail-item{ display:flex; justify-content:space-between; font-size:11px; padding:4px 0; color:var(--ink-1); }
 .docube-scope .rev-detail-item b{ color:var(--ink-0); font-weight:700; }
-.docube-scope .rev-detail-empty-note{ text-align:center; color:var(--ink-2); font-size:12.5px; padding:36px 0; }
+.docube-scope .rev-detail-empty-note{ text-align:center; color:var(--ink-2); font-size:11.5px; padding:36px 0; }
 
 .docube-scope .rev-detail-footer{ margin-top:8px; padding-top:8px; border-top:1px solid var(--border-light); }
-.docube-scope .rev-detail-footer .rev-detail-item{ font-size:11.5px; color:var(--ink-2); }
+.docube-scope .rev-detail-footer .rev-detail-item{ font-size:11px; color:var(--ink-2); }
 .docube-scope .rev-detail-footer .rev-detail-item.total{ font-weight:800; color:var(--ink-0); }
 .docube-scope .rev-detail-footer .rev-detail-item.total b{ color:var(--gold-dark, #b9860a); }
 
@@ -962,9 +969,9 @@
   display:flex; justify-content:flex-end; gap:20px; flex-wrap:wrap;
   margin-top:14px; padding-top:12px;
   border-top:2px solid var(--ink-0);
-  font-size:12px; color:var(--ink-1); font-weight:700;
+  font-size:11px; color:var(--ink-1); font-weight:700;
 }
-.docube-scope .rev-detail-grandline .rdg-total{ color:var(--gold-dark, #b9860a); font-size:13.5px; font-weight:800; }
+.docube-scope .rev-detail-grandline .rdg-total{ color:var(--gold-dark, #b9860a); font-size:12.5px; font-weight:800; }
 </style>
 </head>
 <body>
@@ -1224,7 +1231,7 @@
 <div class="modal-overlay hidden" id="dutyFieldModalOverlay">
   <div class="modal" style="width:380px;">
     <h2>어떤 항목에 넣을까요?</h2>
-    <p style="font-size:12px;color:var(--text-soft);margin:-8px 0 14px;">업로드한 파일의 항목명을 자동으로 못 찾았어요. 어느 항목에 해당하는지 골라주세요.<br>파일 속 항목명: <b id="dutyFieldModalHeaderName"></b></p>
+    <p style="font-size:11px;color:var(--text-soft);margin:-8px 0 14px;">업로드한 파일의 항목명을 자동으로 못 찾았어요. 어느 항목에 해당하는지 골라주세요.<br>파일 속 항목명: <b id="dutyFieldModalHeaderName"></b></p>
     <div class="field">
       <label>대상 항목</label>
       <select id="dutyFieldModalSelect"></select>
@@ -1239,7 +1246,7 @@
 <div class="modal-overlay hidden" id="dutyItemOverwriteModalOverlay">
   <div class="modal" style="width:560px;max-height:80vh;">
     <h2>⚠ 이미 값이 있는 사람이 있어요</h2>
-    <p style="font-size:11.5px;color:var(--text-soft);margin:-8px 0 12px;">아래 사람들은 이미 값이 입력되어 있어요. 새 값으로 덮어쓸까요?</p>
+    <p style="font-size:11px;color:var(--text-soft);margin:-8px 0 12px;">아래 사람들은 이미 값이 입력되어 있어요. 새 값으로 덮어쓸까요?</p>
     <div id="dutyItemOverwriteModalBody" style="max-height:400px;overflow:auto;"></div>
     <div class="modal-actions" style="justify-content:flex-end;">
       <button type="button" class="btn-secondary" onclick="cancelDutyItemOverwrite()">취소</button>
@@ -1251,7 +1258,7 @@
 <div class="modal-overlay hidden" id="dutyCellEditModalOverlay">
   <div class="modal" style="width:380px;">
     <h2>값 수정</h2>
-    <p style="font-size:11.5px;color:var(--text-soft);margin:-8px 0 14px;" id="dutyCellEditInfo"></p>
+    <p style="font-size:11px;color:var(--text-soft);margin:-8px 0 14px;" id="dutyCellEditInfo"></p>
     <div class="field">
       <label>값</label>
       <input type="text" id="dutyCellEditInput" onkeydown="if(event.key==='Enter'){event.preventDefault();confirmDutyCellEdit();}">
@@ -1284,7 +1291,7 @@
 <div class="modal-overlay hidden" id="evalReducedHoursModalOverlay">
   <div class="modal" style="width:380px;">
     <h2>👶 육아단축자 명단</h2>
-    <p style="font-size:11.5px;color:var(--text-soft);margin:-8px 0 12px;">여기 등록된 사람은 모든 주차에서 CPD·Call Time 실적이 자동으로 2배 보정돼요.</p>
+    <p style="font-size:11px;color:var(--text-soft);margin:-8px 0 12px;">여기 등록된 사람은 모든 주차에서 CPD·Call Time 실적이 자동으로 2배 보정돼요.</p>
     <div id="evalReducedHoursModalBody"></div>
     <div class="modal-actions" style="justify-content:flex-end;">
       <button type="button" class="btn-secondary" onclick="closeEvalReducedHoursModal()">닫기</button>
@@ -1295,7 +1302,7 @@
 <div class="modal-overlay hidden" id="evalResignModalOverlay">
   <div class="modal" style="width:460px;">
     <h2>🚪 퇴사자 명단 (이번 주차)</h2>
-    <p style="font-size:11.5px;color:var(--text-soft);margin:-8px 0 12px;">입사 2주 이하 퇴사자는 제외하고 넣어주세요.</p>
+    <p style="font-size:11px;color:var(--text-soft);margin:-8px 0 12px;">입사 2주 이하 퇴사자는 제외하고 넣어주세요.</p>
     <div id="evalResignModalBody"></div>
     <div class="modal-actions" style="justify-content:flex-end;">
       <button type="button" class="btn-secondary" onclick="closeEvalResignModal()">닫기</button>
@@ -1309,7 +1316,7 @@
     <div class="field">
       <label id="evalCellEditModalLabel">값</label>
       <input type="text" id="evalCellEditModalInput">
-      <p id="evalCellEditModalHint" style="font-size:11px;color:var(--text-faint);margin-top:6px;"></p>
+      <p id="evalCellEditModalHint" style="font-size:10.5px;color:var(--text-faint);margin-top:6px;"></p>
     </div>
     <div class="modal-actions" style="justify-content:flex-end;">
       <button type="button" class="btn-secondary" onclick="closeEvalCellEditModal()">취소</button>
@@ -1321,7 +1328,7 @@
 <div class="modal-overlay hidden" id="evalUnder80ModalOverlay">
   <div class="modal" style="width:460px;">
     <h2>⚠ 근무 80% 미만 근무자 (이번 주차)</h2>
-    <p style="font-size:11.5px;color:var(--text-soft);margin:-8px 0 12px;">등록된 사람은 CPD·Call Time 점수 계산에서 모두 제외돼요.</p>
+    <p style="font-size:11px;color:var(--text-soft);margin:-8px 0 12px;">등록된 사람은 CPD·Call Time 점수 계산에서 모두 제외돼요.</p>
     <div id="evalUnder80ModalBody"></div>
     <div class="modal-actions" style="justify-content:flex-end;">
       <button type="button" class="btn-secondary" onclick="closeEvalUnder80Modal()">닫기</button>
@@ -1342,7 +1349,7 @@
 <div class="modal-overlay hidden" id="salaryTableModalOverlay">
   <div class="modal" style="width:1400px;max-width:96vw;max-height:85vh;">
     <h2 id="salaryTableModalTitle">💰 급여테이블 (단가표)</h2>
-    <p style="font-size:11.5px;color:var(--text-soft);margin:-8px 0 12px;">호봉별 고정급여·업적수당·연차수당·시간외수당 단가예요. 수정이 필요하면 알려주세요.</p>
+    <p style="font-size:11px;color:var(--text-soft);margin:-8px 0 12px;">호봉별 고정급여·업적수당·연차수당·시간외수당 단가예요. 수정이 필요하면 알려주세요.</p>
     <div id="salaryTableModalBody"></div>
     <div class="modal-actions" style="justify-content:flex-end;">
       <button type="button" class="btn-secondary" onclick="closeSalaryTableModal()">닫기</button>
@@ -1353,8 +1360,8 @@
 <div class="modal-overlay hidden" id="dutyValidationModalOverlay">
   <div class="modal" style="width:600px;max-height:80vh;">
     <h2>🔍 근태 검증 결과</h2>
-    <p style="font-size:11.5px;color:var(--text-soft);margin:-8px 0 12px;">근태관리 원본 파일의 요약 수치(출근·연차·반차 등)와 지금 표에 입력된 일자별 코드를 세어 비교해요.</p>
-    <p id="dutyValidationSummary" style="font-size:12.5px;font-weight:700;margin:0 0 12px;"></p>
+    <p style="font-size:11px;color:var(--text-soft);margin:-8px 0 12px;">근태관리 원본 파일의 요약 수치(출근·연차·반차 등)와 지금 표에 입력된 일자별 코드를 세어 비교해요.</p>
+    <p id="dutyValidationSummary" style="font-size:11.5px;font-weight:700;margin:0 0 12px;"></p>
     <div id="dutyValidationBody" style="max-height:400px;overflow:auto;"></div>
     <div class="modal-actions" style="justify-content:flex-end;">
       <button type="button" class="btn-secondary" onclick="closeDutyValidationModal()">닫기</button>
@@ -1365,7 +1372,7 @@
 <div class="modal-overlay hidden" id="dutyLockModalOverlay">
   <div class="modal" style="width:480px;">
     <h2>🔒 복무마감 설정</h2>
-    <p style="font-size:11.5px;color:var(--text-soft);margin:-8px 0 14px;">마감(잠금)한 달은 복무입력 탭에서 업로드·수정·삭제가 모두 막히고, 조회와 엑셀 다운로드만 가능해요.</p>
+    <p style="font-size:11px;color:var(--text-soft);margin:-8px 0 14px;">마감(잠금)한 달은 복무입력 탭에서 업로드·수정·삭제가 모두 막히고, 조회와 엑셀 다운로드만 가능해요.</p>
     <div id="dutyLockModalBody"></div>
     <div class="modal-actions" style="justify-content:flex-end;">
       <button type="button" class="btn-secondary" onclick="closeDutyLockModal()">닫기</button>
@@ -1376,7 +1383,7 @@
 <div class="modal-overlay hidden" id="evalLockModalOverlay">
   <div class="modal" style="width:480px;">
     <h2>🔒 관리자평가 마감 설정</h2>
-    <p style="font-size:11.5px;color:var(--text-soft);margin:-8px 0 14px;">마감(잠금)한 주차는 업로드·수정·삭제가 모두 막히고, 조회와 엑셀 다운로드만 가능해요.</p>
+    <p style="font-size:11px;color:var(--text-soft);margin:-8px 0 14px;">마감(잠금)한 주차는 업로드·수정·삭제가 모두 막히고, 조회와 엑셀 다운로드만 가능해요.</p>
     <div id="evalLockModalBody"></div>
     <div class="modal-actions" style="justify-content:flex-end;">
       <button type="button" class="btn-secondary" onclick="closeEvalLockModal()">닫기</button>
@@ -1397,7 +1404,7 @@
 <div class="modal-overlay hidden" id="attDayEditModalOverlay">
   <div class="modal" style="width:380px;">
     <h2>근태 수정</h2>
-    <p id="attDayEditSubtitle" style="font-size:12.5px;color:var(--text-soft);margin:-8px 0 14px;"></p>
+    <p id="attDayEditSubtitle" style="font-size:11.5px;color:var(--text-soft);margin:-8px 0 14px;"></p>
     <div class="field">
       <label>근태 코드</label>
       <select id="attDayEditCode">
@@ -1425,7 +1432,7 @@
       <input type="text" id="attDayEditNote" placeholder="예: 8.19 ~">
     </div>
     <div class="modal-actions" style="justify-content:space-between;">
-      <button type="button" class="btn-secondary" style="color:#ff8f8f;" onclick="deleteAttDayEdit()">이 날짜 기록 삭제</button>
+      <button type="button" class="btn-secondary" style="color:var(--danger-text);" onclick="deleteAttDayEdit()">이 날짜 기록 삭제</button>
       <div style="display:flex; gap:8px;">
         <button type="button" class="btn-secondary" onclick="closeAttDayEditModal()">취소</button>
         <button type="button" class="btn-primary" onclick="saveAttDayEdit()">저장</button>
@@ -1448,7 +1455,7 @@
 <div class="modal-overlay hidden" id="docubeLockModalOverlay">
   <div class="modal" style="width:480px;">
     <h2>🔒 도급비마감 설정</h2>
-    <p style="font-size:11.5px;color:var(--text-soft);margin:-8px 0 14px;">마감(잠금)한 달은 매출입력 탭에서 입력·수정이 모두 막히고, 조회와 산출세부 확인만 가능해요.</p>
+    <p style="font-size:11px;color:var(--text-soft);margin:-8px 0 14px;">마감(잠금)한 달은 매출입력 탭에서 입력·수정이 모두 막히고, 조회와 산출세부 확인만 가능해요.</p>
     <div id="docubeLockModalBody"></div>
     <div class="modal-actions" style="justify-content:flex-end;">
       <button type="button" class="btn-secondary" onclick="closeDocubeLockModal()">닫기</button>
@@ -1459,7 +1466,7 @@
 <div class="modal-overlay hidden" id="payLedgerDiffModalOverlay">
   <div class="modal" style="width:720px;max-width:92vw;">
     <h2>🔍 급여대장 차이 확인</h2>
-    <p style="font-size:11.5px;color:var(--text-soft);margin:-8px 0 14px;">사번 기준으로 매칭해서, 급여내역 탭의 계산된 합계와 업로드한 급여대장의 지급금액(4대보험·세금 공제 전)을 비교해요. 1,000원 미만 차이는 오차로 보고 일치로 처리해요.</p>
+    <p style="font-size:11px;color:var(--text-soft);margin:-8px 0 14px;">사번 기준으로 매칭해서, 급여내역 탭의 계산된 합계와 업로드한 급여대장의 지급금액(4대보험·세금 공제 전)을 비교해요. 1,000원 미만 차이는 오차로 보고 일치로 처리해요.</p>
     <div id="payLedgerDiffModalBody"></div>
     <div class="modal-actions" style="justify-content:flex-end;">
       <button type="button" class="btn-secondary" onclick="closePayLedgerDiffModal()">닫기</button>
@@ -1470,12 +1477,12 @@
 <div class="modal-overlay hidden" id="centerModalOverlay">
   <div class="modal" style="width:600px;">
     <h2>센터명 관리</h2>
-    <p style="font-size:11.5px;color:var(--text-soft);margin:-8px 0 12px;">약어는 캘린더 칸에 짧게 표시할 때, 색상은 캘린더에서 센터를 한눈에 구분할 때 사용돼요</p>
+    <p style="font-size:11px;color:var(--text-soft);margin:-8px 0 12px;">약어는 캘린더 칸에 짧게 표시할 때, 색상은 캘린더에서 센터를 한눈에 구분할 때 사용돼요</p>
     <form onsubmit="addCenter(event)" style="display:flex;gap:8px;margin-bottom:14px;">
       <input type="text" id="new-center-input" placeholder="센터명 (예: KB손해보험 부천센터)" required
-        style="flex:1.4;border:1px solid var(--border-strong);border-radius:var(--radius-sm);padding:9px 12px;font-size:13.5px;font-family:inherit;">
+        style="flex:1.4;border:1px solid var(--border-strong);border-radius:var(--radius-sm);padding:9px 12px;font-size:12.5px;font-family:inherit;">
       <input type="text" id="new-center-abbr-input" placeholder="약어 (예: 부천)" maxlength="6"
-        style="flex:0.7;border:1px solid var(--border-strong);border-radius:var(--radius-sm);padding:9px 12px;font-size:13.5px;font-family:inherit;">
+        style="flex:0.7;border:1px solid var(--border-strong);border-radius:var(--radius-sm);padding:9px 12px;font-size:12.5px;font-family:inherit;">
       <button type="submit" class="btn-primary">추가</button>
     </form>
     <ul class="center-list" id="centerList"></ul>
@@ -1498,7 +1505,7 @@
       </div>
       <div class="row2">
         <div class="field">
-          <label>구분 <a href="#" onclick="event.preventDefault();openCategoryModal();" style="font-weight:600;font-size:11px;color:var(--accent);text-decoration:none;">관리</a></label>
+          <label>구분 <a href="#" onclick="event.preventDefault();openCategoryModal();" style="font-weight:600;font-size:10.5px;color:var(--accent);text-decoration:none;">관리</a></label>
           <select id="n-category"></select>
         </div>
         <div class="field">
@@ -1546,7 +1553,7 @@
     <h2>구분 관리</h2>
     <form onsubmit="addNoticeCategory(event)" style="display:flex;gap:8px;margin-bottom:14px;">
       <input type="text" id="new-category-input" placeholder="새 구분명 입력" required
-        style="flex:1;border:1px solid var(--border-strong);border-radius:var(--radius-sm);padding:9px 12px;font-size:13.5px;font-family:inherit;">
+        style="flex:1;border:1px solid var(--border-strong);border-radius:var(--radius-sm);padding:9px 12px;font-size:12.5px;font-family:inherit;">
       <button type="submit" class="btn-primary">추가</button>
     </form>
     <ul class="center-list" id="categoryList"></ul>
@@ -1559,13 +1566,13 @@
 <script>
 /* ============ Data & State ============ */
 const COLORS = {
-  white:{bg:'#2a2c32',fg:'#e8e8ea',dot:'#c7c6c1'},
-  blue:{bg:'#1c2540',fg:'#8ab0ff',dot:'#4C6EF5'},
-  red:{bg:'#3a2427',fg:'#ff8f8f',dot:'#EB5757'},
-  orange:{bg:'#3a2c1c',fg:'#f2ae7a',dot:'#F2994A'},
-  green:{bg:'#1d3327',fg:'#6fe0a0',dot:'#27AE60'},
-  purple:{bg:'#2b2038',fg:'#c9a0f5',dot:'#9B51E0'},
-  gray:{bg:'#2a2b2f',fg:'#a9a8a4',dot:'#9B9A96'}
+  white:{bg:'#f3f4f6',fg:'#1f2329',dot:'#c7c6c1'},
+  blue:{bg:'#EAF1FF',fg:'#3D6BE0',dot:'#4C6EF5'},
+  red:{bg:'#FDEAEA',fg:'#D64545',dot:'#EB5757'},
+  orange:{bg:'#FDF1E7',fg:'#C9762B',dot:'#F2994A'},
+  green:{bg:'#E9F7EF',fg:'#1F8A4C',dot:'#27AE60'},
+  purple:{bg:'#F5EBFC',fg:'#8434C4',dot:'#9B51E0'},
+  gray:{bg:'#F0F0EE',fg:'#6B6A66',dot:'#9B9A96'}
 };
 const REPEAT_LABEL = {none:'', daily:'매일', weekly:'매주', monthly:'매월'};
 const WEEKDAYS = ['일','월','화','수','목','금','토'];
@@ -2123,8 +2130,8 @@ function renderHome(){
   return `
     <div style="display:flex;align-items:center;justify-content:center;min-height:60vh;">
       <div style="text-align:center;color:var(--text-faint);">
-        <div style="font-size:14px;font-weight:600;color:var(--text-soft);">홈 탭 준비 중</div>
-        <div style="font-size:12.5px;margin-top:6px;">여기에 넣을 내용은 아직 정해지지 않았어요.</div>
+        <div style="font-size:13px;font-weight:600;color:var(--text-soft);">홈 탭 준비 중</div>
+        <div style="font-size:11.5px;margin-top:6px;">여기에 넣을 내용은 아직 정해지지 않았어요.</div>
       </div>
     </div>
   `;
@@ -2282,7 +2289,7 @@ function updateTodayCard(){
   const eventsToday = state.events.filter(e=>occursOnDate(e,dateStr) && e.type!=='schedule');
   const doneCount = eventsToday.filter(e=>isEventDone(e,dateStr)).length;
   const pct = eventsToday.length ? Math.round(doneCount/eventsToday.length*100) : 0;
-  document.getElementById('todayRing').style.background = `conic-gradient(var(--accent) ${pct}%, #EFEEEA 0)`;
+  document.getElementById('todayRing').style.background = `conic-gradient(var(--accent) ${pct}%, var(--bg-card-2) 0)`;
   document.getElementById('todayRingInner').textContent = pct+'%';
   document.getElementById('todayCardStats').textContent = `업무 ${eventsToday.length}개 · 완료 ${doneCount}/${eventsToday.length}`;
 }
@@ -3459,7 +3466,7 @@ function openPayLedgerDiffModal(){
     const fmt = n => (n||n===0) ? Math.round(n).toLocaleString()+'원' : '';
     let html = '';
     if(!mismatched.length && !noAppMatch.length && !diffResult.unmatchedLedger.length){
-      html += `<div class="empty-state" style="padding:30px 0;color:#6fe0a0;">✅ 전원 일치해요. 차이 나는 사람이 없어요.</div>`;
+      html += `<div class="empty-state" style="padding:30px 0;color:var(--success-text);">✅ 전원 일치해요. 차이 나는 사람이 없어요.</div>`;
     }
     if(mismatched.length){
       html += `<div class="duty-report-section-title" style="margin-top:0;">⚠ 금액이 다른 사람 (${mismatched.length}명) · 행을 클릭하면 항목별 내역이 펼쳐져요</div>
@@ -3473,18 +3480,18 @@ function openPayLedgerDiffModal(){
           <td>▸</td>
           <td>${escapeHtml(r.sabun)}</td><td>${escapeHtml(r.name||'')}</td>
           <td>${fmt(r.BW)}</td><td>${fmt(r.ledgerTotal)}</td>
-          <td style="font-weight:700;color:${r.ledgerDiff>0?'#6fe0a0':'#ff8f8f'};">${r.ledgerDiff>0?'+':''}${fmt(r.ledgerDiff)}</td>
+          <td style="font-weight:700;color:${r.ledgerDiff>0?'var(--success-text)':'var(--danger-text)'};">${r.ledgerDiff>0?'+':''}${fmt(r.ledgerDiff)}</td>
         </tr>
         <tr class="pld-detail hidden" id="pldDetail_${escapeHtml(r.sabun)}">
           <td colspan="6" style="background:var(--bg-card-2);">
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:8px 4px;">
               <div>
-                <div style="font-size:11px;font-weight:800;color:var(--text-soft);margin-bottom:6px;">급여내역(앱) 계산 항목</div>
-                ${appItems.length ? appItems.map(x=>`<div style="display:flex;justify-content:space-between;font-size:12px;padding:2px 0;"><span>${escapeHtml(x.label)}</span><b>${fmt(x.value)}</b></div>`).join('') : '<div style="font-size:12px;color:var(--text-faint);">표시할 항목 없음</div>'}
+                <div style="font-size:10.5px;font-weight:800;color:var(--text-soft);margin-bottom:6px;">급여내역(앱) 계산 항목</div>
+                ${appItems.length ? appItems.map(x=>`<div style="display:flex;justify-content:space-between;font-size:11px;padding:2px 0;"><span>${escapeHtml(x.label)}</span><b>${fmt(x.value)}</b></div>`).join('') : '<div style="font-size:11px;color:var(--text-faint);">표시할 항목 없음</div>'}
               </div>
               <div>
-                <div style="font-size:11px;font-weight:800;color:var(--text-soft);margin-bottom:6px;">급여대장 지급 항목 (0원 제외)</div>
-                ${ledgerItems.length ? ledgerItems.map(x=>`<div style="display:flex;justify-content:space-between;font-size:12px;padding:2px 0;"><span>${escapeHtml(x.label)}</span><b>${fmt(x.value)}</b></div>`).join('') : '<div style="font-size:12px;color:var(--text-faint);">표시할 항목 없음</div>'}
+                <div style="font-size:10.5px;font-weight:800;color:var(--text-soft);margin-bottom:6px;">급여대장 지급 항목 (0원 제외)</div>
+                ${ledgerItems.length ? ledgerItems.map(x=>`<div style="display:flex;justify-content:space-between;font-size:11px;padding:2px 0;"><span>${escapeHtml(x.label)}</span><b>${fmt(x.value)}</b></div>`).join('') : '<div style="font-size:11px;color:var(--text-faint);">표시할 항목 없음</div>'}
               </div>
             </div>
           </td>
@@ -3634,8 +3641,8 @@ function renderSalaryPreviewTable(rows, orgName, monthLabel){
         ledgerCell = `<td style="color:var(--text-faint);">매칭없음</td>`;
       }else{
         const diff = entry.total - r.BW;
-        if(Math.abs(diff)<PAY_LEDGER_TOLERANCE) ledgerCell = `<td style="color:#6fe0a0;font-weight:700;">일치</td>`;
-        else ledgerCell = `<td style="font-weight:700;color:${diff>0?'#6fe0a0':'#ff8f8f'};">${diff>0?'+':''}${fmt(diff)}</td>`;
+        if(Math.abs(diff)<PAY_LEDGER_TOLERANCE) ledgerCell = `<td style="color:var(--success-text);font-weight:700;">일치</td>`;
+        else ledgerCell = `<td style="font-weight:700;color:${diff>0?'var(--success-text)':'var(--danger-text)'};">${diff>0?'+':''}${fmt(diff)}</td>`;
       }
     }
     return `<tr>
@@ -3643,7 +3650,7 @@ function renderSalaryPreviewTable(rows, orgName, monthLabel){
       <td>${idx+1}</td>
       <td class="duty-name-cell" style="white-space:nowrap;">${escapeHtml(r.name||'')}</td>
       <td>${escapeHtml(r.sabun)}</td>
-      <td style="text-align:left;white-space:nowrap;">${escapeHtml(displayGradeShort(r.grade, isAggregate?r._org:orgName))}${r.hasSalaryRow?'':' <span style="color:#ff8f8f;">⚠</span>'}</td>
+      <td style="text-align:left;white-space:nowrap;">${escapeHtml(displayGradeShort(r.grade, isAggregate?r._org:orgName))}${r.hasSalaryRow?'':' <span style="color:var(--danger-text);">⚠</span>'}</td>
       <td style="white-space:nowrap;">${dutyFmtDate(r.hireDate)}</td>
       <td style="white-space:nowrap;">${dutyFmtDate(r.transferDate)}</td>
       <td style="white-space:nowrap;">${dutyFmtDate(r.leaveDate)}</td>
@@ -3697,7 +3704,7 @@ function renderSalaryView(){
       ${buildDutyMonthSelectorHtml('dutyGroup', parts[0], parts[1])}
       <span class="duty-month-label">🏢 센터</span>
       ${buildDutyOrgSelectHtml('dutyGroupOrgInput', sel.orgName)}
-      <label style="display:flex;align-items:center;gap:5px;font-size:12px;font-weight:600;color:var(--text-soft);">
+      <label style="display:flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:var(--text-soft);">
         <input type="checkbox" id="dutyGroupAllCenters" onchange="onDutyGroupSelectionChange()" ${dutyGroupAllCenters?'checked':''}> 전체 센터 합산
       </label>
       <button class="btn-secondary" onclick="onDutyGroupSelectionChange()">조회</button>
@@ -3780,7 +3787,7 @@ function openSalaryTableModal(){
     <td>${r.leavePay.toLocaleString()}</td><td>${r.otPay.toLocaleString()}</td>
   </tr>`).join('');
   body.innerHTML = `<div style="overflow-x:auto;">
-    <table class="duty-report-table" style="white-space:nowrap;font-size:11.5px;">
+    <table class="duty-report-table" style="white-space:nowrap;font-size:11px;">
       <thead><tr>
         <th>호봉</th><th>초과근무<br>시간</th><th>기본급</th><th>직무수당</th><th>직책수당</th><th>근속수당</th><th>초과근무수당</th><th>급식비</th>
         <th>S</th><th>A</th><th>B</th><th>C</th><th>D</th><th>E</th><th>연차수당</th><th>시간외수당</th>
@@ -4010,7 +4017,7 @@ function renderDutyItemBadges(){
   const filled = DUTY_ITEM_FIELDS.filter(f=> dutyState.employees.some(e=>{
     const v = e.items[f.key]; return v!==undefined && v!==null && v!=='';
   }));
-  if(filled.length===0) return '<span style="font-size:11px;color:var(--text-faint);">아직 업로드된 항목이 없어요</span>';
+  if(filled.length===0) return '<span style="font-size:10.5px;color:var(--text-faint);">아직 업로드된 항목이 없어요</span>';
   return filled.map(f=>`<span class="duty-item-badge">✓ ${escapeHtml(f.header.replace(/\n/g,' '))}</span>`).join('');
 }
 function buildDutyHeaderRow(){
@@ -4410,15 +4417,15 @@ function renderDutyLockModalBody(){
     const key = dutyLockKey(monthLabel, orgName);
     const isLocked = locked.includes(key);
     return `<li class="center-row">
-      <span style="flex:1;font-size:13px;font-weight:600;">${escapeHtml(monthLabel)} · ${escapeHtml(orgName)}</span>
-      <span style="font-size:11px;font-weight:700;margin-right:8px;color:${isLocked?'#D64545':'#1F8A4C'};">${isLocked?'🔒 마감됨':'🔓 해제됨'}</span>
-      <button type="button" class="btn-secondary" style="padding:6px 10px;font-size:11.5px;" onclick="toggleDutyMonthLockFromModal('${monthLabel}','${escapeHtml(orgName).replace(/'/g,"\\'")}')">${isLocked?'잠금 해제':'마감(잠금)'}</button>
+      <span style="flex:1;font-size:12px;font-weight:600;">${escapeHtml(monthLabel)} · ${escapeHtml(orgName)}</span>
+      <span style="font-size:10.5px;font-weight:700;margin-right:8px;color:${isLocked?'#D64545':'#1F8A4C'};">${isLocked?'🔒 마감됨':'🔓 해제됨'}</span>
+      <button type="button" class="btn-secondary" style="padding:6px 10px;font-size:11px;" onclick="toggleDutyMonthLockFromModal('${monthLabel}','${escapeHtml(orgName).replace(/'/g,"\\'")}')">${isLocked?'잠금 해제':'마감(잠금)'}</button>
     </li>`;
   }).join('') || '<li class="empty-state" style="padding:10px 0;">저장된 복무 데이터가 없어요.</li>';
   body.innerHTML = `
     <ul class="center-list" style="margin-bottom:0;">${rows}</ul>
     <div style="display:flex;gap:6px;align-items:center;margin-top:14px;flex-wrap:wrap;">
-      <span style="font-size:11.5px;color:var(--text-soft);">다른 연월/센터 지정:</span>
+      <span style="font-size:11px;color:var(--text-soft);">다른 연월/센터 지정:</span>
       ${buildDutyMonthSelectorHtml('dutyLockAdd', cur.year, cur.month)}
       ${buildDutyOrgSelectHtml('dutyLockAddOrgInput', dutyState.orgName||DEFAULT_DUTY_ORG)}
       <button type="button" class="btn-secondary" onclick="lockCustomMonth()">마감(잠금)</button>
@@ -4469,7 +4476,7 @@ function renderDutyProgressSummary(monthLabel){
     const snap = loadDutyMonthSnapshot(monthLabel, org);
     const count = snap && snap.employees ? snap.employees.length : 0;
     const locked = isDutyMonthLocked(monthLabel, org);
-    const status = count>0 ? `<span style="color:#6fe0a0;font-weight:700;">✅ 입력됨 (${count}명)</span>` : `<span style="color:var(--text-faint);">⬜ 미입력</span>`;
+    const status = count>0 ? `<span style="color:var(--success-text);font-weight:700;">✅ 입력됨 (${count}명)</span>` : `<span style="color:var(--text-faint);">⬜ 미입력</span>`;
     return `<tr>
       <td style="text-align:left;font-weight:600;white-space:nowrap;">${escapeHtml(org)}</td>
       <td>${status}</td>
@@ -4742,7 +4749,7 @@ function openDutyItemOverwriteConfirmModal(conflicts, onConfirm){
     <td>→</td>
     <td style="font-weight:700;">${escapeHtml(String(c.newVal))}</td>
   </tr>`).join('');
-  body.innerHTML = `<table class="duty-report-table" style="font-size:12px;">
+  body.innerHTML = `<table class="duty-report-table" style="font-size:11px;">
     <thead><tr><th>이름</th><th>항목</th><th>기존값</th><th></th><th>새 값</th></tr></thead>
     <tbody>${rowsHtml}</tbody>
   </table>`;
@@ -4914,16 +4921,16 @@ function openDutyValidationModal(){
   }else{
     const results = computeDutyValidation();
     if(results.length===0){
-      summaryEl.innerHTML = `<span style="color:#6fe0a0;">✅ 전체 ${dutyState.employees.length}명 모두 근태관리 원본의 요약 수치와 정확히 일치해요.</span>`;
+      summaryEl.innerHTML = `<span style="color:var(--success-text);">✅ 전체 ${dutyState.employees.length}명 모두 근태관리 원본의 요약 수치와 정확히 일치해요.</span>`;
       bodyEl.innerHTML = '';
     }else{
-      summaryEl.innerHTML = `<span style="color:#ff8f8f;">⚠ 전체 ${dutyState.employees.length}명 중 ${results.length}명에서 차이가 발견됐어요.</span> 공휴일 관련 차이는 자동 보정 때문일 수 있어요.`;
+      summaryEl.innerHTML = `<span style="color:var(--danger-text);">⚠ 전체 ${dutyState.employees.length}명 중 ${results.length}명에서 차이가 발견됐어요.</span> 공휴일 관련 차이는 자동 보정 때문일 수 있어요.`;
       bodyEl.innerHTML = results.map(r=>{
         const lines = r.mismatches.map(m=>
-          `<div style="font-size:12px;padding:2px 0;">${escapeHtml(m.label)}: 원본 ${m.expected} → 지금 ${m.actual}${m.note?` <span style="color:var(--text-faint);">(${escapeHtml(m.note)})</span>`:''}</div>`
+          `<div style="font-size:11px;padding:2px 0;">${escapeHtml(m.label)}: 원본 ${m.expected} → 지금 ${m.actual}${m.note?` <span style="color:var(--text-faint);">(${escapeHtml(m.note)})</span>`:''}</div>`
         ).join('');
         return `<div style="border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px;">
-          <div style="font-weight:700;font-size:13px;margin-bottom:4px;">${escapeHtml(r.name||'(이름없음)')} (사번 ${escapeHtml(r.sabun)})</div>
+          <div style="font-weight:700;font-size:12px;margin-bottom:4px;">${escapeHtml(r.name||'(이름없음)')} (사번 ${escapeHtml(r.sabun)})</div>
           ${lines}
         </div>`;
       }).join('');
@@ -5192,7 +5199,7 @@ function renderDutyStatsHtml(stats, prevStats, prevLabel, monthLabel, orgName, a
       </div>
       <div class="duty-report-section">
         <div class="duty-report-section-title">📌 기타 현황</div>
-        <div style="font-size:12.5px;">유사산휴가 대상 ${stats.specialLeave.유사산휴가기간}명 · 육아단축 대상 ${stats.specialLeave.육아단축}명 · 산휴/휴직 대상 ${stats.specialLeave.산휴휴직}명</div>
+        <div style="font-size:11.5px;">유사산휴가 대상 ${stats.specialLeave.유사산휴가기간}명 · 육아단축 대상 ${stats.specialLeave.육아단축}명 · 산휴/휴직 대상 ${stats.specialLeave.산휴휴직}명</div>
       </div>
     </div>
     <div class="duty-report-section">
@@ -5229,7 +5236,7 @@ function renderDutyReport(){
       ${buildDutyMonthSelectorHtml('dutyGroup', parts[0], parts[1])}
       <span class="duty-month-label">🏢 센터</span>
       ${buildDutyOrgSelectHtml('dutyGroupOrgInput', sel.orgName)}
-      <label style="display:flex;align-items:center;gap:5px;font-size:12px;font-weight:600;color:var(--text-soft);">
+      <label style="display:flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:var(--text-soft);">
         <input type="checkbox" id="dutyGroupAllCenters" onchange="onDutyGroupSelectionChange()" ${dutyGroupAllCenters?'checked':''}> 전체 센터 합산
       </label>
       <button class="btn-secondary" onclick="onDutyGroupSelectionChange()">조회</button>
@@ -5516,7 +5523,7 @@ function renderEvalWeekPickerBody(){
     const mmdd = k.slice(5);
     const isCurrent = k===sel;
     return `<div class="rmp-cell has-data ${isCurrent?'current':''}" onclick="selectEvalWeek('${k}')">${mmdd}</div>`;
-  }).join('') || `<div style="grid-column:1/-1;text-align:center;color:var(--text-faint);font-size:12px;padding:10px 0;">이 해엔 데이터가 없어요</div>`;
+  }).join('') || `<div style="grid-column:1/-1;text-align:center;color:var(--text-faint);font-size:11px;padding:10px 0;">이 해엔 데이터가 없어요</div>`;
   picker.innerHTML = `
     <div class="rmp-year-nav">
       <div class="rmp-year-btn" onclick="evalWeekPickerYearNav(-1)">‹</div>
@@ -5548,13 +5555,13 @@ function renderEvalReducedHoursModalBody(){
   const week = evalStore.weekly[getEvalSelectedWeek()];
   const names = (week && week.reducedHoursNames) || [];
   const rows = names.map((n,idx)=>`<li class="center-row">
-    <span style="flex:1;font-size:13px;font-weight:600;">${escapeHtml(n)}</span>
-    <button type="button" class="btn-secondary" style="padding:5px 10px;font-size:11.5px;" onclick="removeEvalReducedHoursName(${idx})">삭제</button>
+    <span style="flex:1;font-size:12px;font-weight:600;">${escapeHtml(n)}</span>
+    <button type="button" class="btn-secondary" style="padding:5px 10px;font-size:11px;" onclick="removeEvalReducedHoursName(${idx})">삭제</button>
   </li>`).join('') || '<li class="empty-state" style="padding:10px 0;">등록된 육아단축자가 없어요.</li>';
   body.innerHTML = `
     <ul class="center-list" style="margin-bottom:12px;max-height:400px;">${rows}</ul>
     <div style="display:flex;gap:6px;">
-      <input type="text" id="evalReducedHoursNameInput" placeholder="이름 입력 후 Enter" style="flex:1;border:1px solid var(--border-strong);border-radius:var(--radius-sm);padding:8px 10px;font-size:13px;font-family:inherit;" onkeydown="if(event.key==='Enter'){event.preventDefault();addEvalReducedHoursName();}">
+      <input type="text" id="evalReducedHoursNameInput" placeholder="이름 입력 후 Enter" style="flex:1;border:1px solid var(--border-strong);border-radius:var(--radius-sm);padding:8px 10px;font-size:12px;font-family:inherit;" onkeydown="if(event.key==='Enter'){event.preventDefault();addEvalReducedHoursName();}">
       <button type="button" class="btn-primary" onclick="addEvalReducedHoursName()">추가</button>
     </div>
   `;
@@ -5606,14 +5613,14 @@ function renderEvalUnder80ModalBody(){
   const list = (week && week.under80List) || [];
   const teamOpts = EVAL_TEAMS.map(t=>`<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
   const rows = list.map((r,idx)=>`<li class="center-row">
-    <span style="flex:1;font-size:13px;">${escapeHtml(r.name)} · ${escapeHtml(r.team)}</span>
-    <button type="button" class="btn-secondary" style="padding:5px 10px;font-size:11.5px;" onclick="removeEvalUnder80(${idx})">삭제</button>
+    <span style="flex:1;font-size:12px;">${escapeHtml(r.name)} · ${escapeHtml(r.team)}</span>
+    <button type="button" class="btn-secondary" style="padding:5px 10px;font-size:11px;" onclick="removeEvalUnder80(${idx})">삭제</button>
   </li>`).join('') || '<li class="empty-state" style="padding:10px 0;">등록된 사람이 없어요.</li>';
   document.getElementById('evalUnder80ModalBody').innerHTML = `
     <ul class="center-list" style="margin-bottom:12px;max-height:400px;">${rows}</ul>
     <div style="display:flex;gap:6px;flex-wrap:wrap;">
-      <input type="text" id="evalUnder80NameInput" placeholder="이름" style="flex:1;min-width:100px;border:1px solid var(--border-strong);border-radius:var(--radius-sm);padding:8px 10px;font-size:13px;font-family:inherit;" onkeydown="if(event.key==='Enter'){event.preventDefault();addEvalUnder80();}">
-      <select id="evalUnder80TeamInput" style="border:1px solid var(--border-strong);border-radius:var(--radius-sm);padding:8px 10px;font-size:13px;font-family:inherit;">${teamOpts}</select>
+      <input type="text" id="evalUnder80NameInput" placeholder="이름" style="flex:1;min-width:100px;border:1px solid var(--border-strong);border-radius:var(--radius-sm);padding:8px 10px;font-size:12px;font-family:inherit;" onkeydown="if(event.key==='Enter'){event.preventDefault();addEvalUnder80();}">
+      <select id="evalUnder80TeamInput" style="border:1px solid var(--border-strong);border-radius:var(--radius-sm);padding:8px 10px;font-size:12px;font-family:inherit;">${teamOpts}</select>
       <button type="button" class="btn-primary" onclick="addEvalUnder80()">추가</button>
     </div>
   `;
@@ -5673,15 +5680,15 @@ function renderEvalResignModalBody(){
   const list = (week && week.resigned) || [];
   const teamOpts = EVAL_TEAMS.map(t=>`<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
   const rows = list.map((r,idx)=>`<li class="center-row">
-    <span style="flex:1;font-size:13px;">${escapeHtml(r.name)} · ${escapeHtml(r.team)} · ${escapeHtml(r.date||'')}</span>
-    <button type="button" class="btn-secondary" style="padding:5px 10px;font-size:11.5px;" onclick="removeEvalResign(${idx})">삭제</button>
+    <span style="flex:1;font-size:12px;">${escapeHtml(r.name)} · ${escapeHtml(r.team)} · ${escapeHtml(r.date||'')}</span>
+    <button type="button" class="btn-secondary" style="padding:5px 10px;font-size:11px;" onclick="removeEvalResign(${idx})">삭제</button>
   </li>`).join('') || '<li class="empty-state" style="padding:10px 0;">등록된 퇴사자가 없어요.</li>';
   document.getElementById('evalResignModalBody').innerHTML = `
     <ul class="center-list" style="margin-bottom:12px;max-height:400px;">${rows}</ul>
     <div style="display:flex;gap:6px;flex-wrap:wrap;">
-      <input type="text" id="evalResignNameInput" placeholder="이름" style="flex:1;min-width:100px;border:1px solid var(--border-strong);border-radius:var(--radius-sm);padding:8px 10px;font-size:13px;font-family:inherit;" onkeydown="if(event.key==='Enter'){event.preventDefault();addEvalResign();}">
-      <select id="evalResignTeamInput" style="border:1px solid var(--border-strong);border-radius:var(--radius-sm);padding:8px 10px;font-size:13px;font-family:inherit;">${teamOpts}</select>
-      <input type="date" id="evalResignDateInput" style="border:1px solid var(--border-strong);border-radius:var(--radius-sm);padding:8px 10px;font-size:13px;font-family:inherit;" onkeydown="if(event.key==='Enter'){event.preventDefault();addEvalResign();}">
+      <input type="text" id="evalResignNameInput" placeholder="이름" style="flex:1;min-width:100px;border:1px solid var(--border-strong);border-radius:var(--radius-sm);padding:8px 10px;font-size:12px;font-family:inherit;" onkeydown="if(event.key==='Enter'){event.preventDefault();addEvalResign();}">
+      <select id="evalResignTeamInput" style="border:1px solid var(--border-strong);border-radius:var(--radius-sm);padding:8px 10px;font-size:12px;font-family:inherit;">${teamOpts}</select>
+      <input type="date" id="evalResignDateInput" style="border:1px solid var(--border-strong);border-radius:var(--radius-sm);padding:8px 10px;font-size:12px;font-family:inherit;" onkeydown="if(event.key==='Enter'){event.preventDefault();addEvalResign();}">
       <button type="button" class="btn-primary" onclick="addEvalResign()">추가</button>
     </div>
   `;
@@ -5728,12 +5735,12 @@ function openEvalCriteriaModal(){
         <tr><td style="text-align:left;">퇴직인원</td><td colspan="2">1명당 ${EVAL_CRITERIA.resignPenaltyPerPerson}점</td></tr>
       </tbody>
     </table>
-    <div style="font-size:12.5px;font-weight:700;margin-bottom:8px;">발신율 페널티 (TOP2는 절반, NPS는 전액 반영)</div>
+    <div style="font-size:11.5px;font-weight:700;margin-bottom:8px;">발신율 페널티 (TOP2는 절반, NPS는 전액 반영)</div>
     <table class="duty-report-table" style="margin-bottom:16px;">
       <thead><tr><th>발신율</th><th>차감점수</th></tr></thead>
       <tbody>${EVAL_CRITERIA.outboundTiers.map(t=>`<tr><td>${escapeHtml(t.label)}</td><td>${t.penalty}점</td></tr>`).join('')}</tbody>
     </table>
-    <div style="font-size:12.5px;font-weight:700;margin-bottom:8px;">총점 → 인센티브</div>
+    <div style="font-size:11.5px;font-weight:700;margin-bottom:8px;">총점 → 인센티브</div>
     <table class="duty-report-table"><thead><tr><th>총점</th><th>인센티브</th></tr></thead><tbody>${incentiveRows}</tbody></table>
   `;
   document.getElementById('evalCriteriaModalOverlay').classList.remove('hidden');
@@ -5868,9 +5875,9 @@ function renderEvalLockModalBody(){
   const rows = weekKeys.map(k=>{
     const isLocked = locked.includes(k);
     return `<li class="center-row">
-      <span style="flex:1;font-size:13px;font-weight:600;">${escapeHtml(k)}</span>
-      <span style="font-size:11px;font-weight:700;margin-right:8px;color:${isLocked?'#D64545':'#1F8A4C'};">${isLocked?'🔒 마감됨':'🔓 해제됨'}</span>
-      <button type="button" class="btn-secondary" style="padding:6px 10px;font-size:11.5px;" onclick="toggleEvalWeekLockFromModal('${k}')">${isLocked?'잠금 해제':'마감(잠금)'}</button>
+      <span style="flex:1;font-size:12px;font-weight:600;">${escapeHtml(k)}</span>
+      <span style="font-size:10.5px;font-weight:700;margin-right:8px;color:${isLocked?'#D64545':'#1F8A4C'};">${isLocked?'🔒 마감됨':'🔓 해제됨'}</span>
+      <button type="button" class="btn-secondary" style="padding:6px 10px;font-size:11px;" onclick="toggleEvalWeekLockFromModal('${k}')">${isLocked?'잠금 해제':'마감(잠금)'}</button>
     </li>`;
   }).join('') || '<li class="empty-state" style="padding:10px 0;">저장된 관리자평가 데이터가 없어요.</li>';
   body.innerHTML = `<ul class="center-list" style="margin-bottom:0;">${rows}</ul>`;
@@ -5938,7 +5945,7 @@ function renderEvalSummaryDashboard(dateKey){
     <td>${r.complaintPenalty}점</td>
     <td>${r.resignCount}명 (${r.resignPenalty}점)</td>
     <td style="font-weight:800;">${r.total.toFixed(1)}점${p?gap(r.total,p.total):''}</td>
-    <td style="font-weight:800;color:#6fe0a0;">${r.incentive.toLocaleString()}원${p?gap(r.incentive,p.incentive):''}</td>
+    <td style="font-weight:800;color:var(--success-text);">${r.incentive.toLocaleString()}원${p?gap(r.incentive,p.incentive):''}</td>
   </tr>`;
   }).join('');
   return `
@@ -6083,7 +6090,7 @@ function renderEvalEmployeeTable(week, locked){
       ${editCell('ctIn', evalFmtSeconds(e.ctIn))}
       ${editCell('ctOut', evalFmtSeconds(e.ctOut))}
       ${editCell('ctTotal', `<b>${evalFmtSeconds(e.ctTotal)}</b>`)}
-      <td>${months}개월${excludedTenure?' <span style="color:#ff8f8f;">(제외)</span>':''}</td>
+      <td>${months}개월${excludedTenure?' <span style="color:var(--danger-text);">(제외)</span>':''}</td>
       <td>${isUnder80?'<span class="eval-badge eval-badge-red">✓</span>':''}</td>
     </tr>`;
   }).join('');
@@ -6431,25 +6438,25 @@ function renderCallInputView(){
         <div class="duty-upload-title">① 제휴 OB콜백 업로드</div>
         <div class="duty-upload-desc">제휴상담 OB/콜백 월별 파일. 시트명(예: "26년8월")과 일자별 값을 자동으로 읽어요.</div>
         <input type="file" accept=".xlsx,.xls" onchange="onCallObJehuUpload(event)">
-        <div style="font-size:11px;color:var(--text-faint);margin-top:6px;">저장된 날짜: ${jehuDates.length}일 ${jehuDates.length?`(${jehuDates[0]} ~ ${jehuDates[jehuDates.length-1]})`:''}</div>
+        <div style="font-size:10.5px;color:var(--text-faint);margin-top:6px;">저장된 날짜: ${jehuDates.length}일 ${jehuDates.length?`(${jehuDates[0]} ~ ${jehuDates[jehuDates.length-1]})`:''}</div>
       </div>
       <div class="duty-upload-card">
         <div class="duty-upload-title">② 장기사고 콜보정 업로드</div>
         <div class="duty-upload-desc">장기사고 콜보정 파일. 날짜별로 나뉜 시트를 전부 자동으로 읽어요 (기존 날짜는 다시 올려도 최신값으로 갱신돼요).</div>
         <input type="file" accept=".xlsx,.xls" onchange="onCallObJanggiUpload(event)">
-        <div style="font-size:11px;color:var(--text-faint);margin-top:6px;">저장된 날짜: ${janggiDates.length}일 ${janggiDates.length?`(${janggiDates[0]} ~ ${janggiDates[janggiDates.length-1]})`:''}</div>
+        <div style="font-size:10.5px;color:var(--text-faint);margin-top:6px;">저장된 날짜: ${janggiDates.length}일 ${janggiDates.length?`(${janggiDates[0]} ~ ${janggiDates[janggiDates.length-1]})`:''}</div>
       </div>
       <div class="duty-upload-card">
         <div class="duty-upload-title">③ RAW(상담사실적통계) 업로드</div>
         <div class="duty-upload-desc">매일 누적되는 원본 통계 파일. 날짜+사번+업무 기준으로 겹치는 건 최신 값으로 덮어써요.</div>
         <input type="file" accept=".xlsx,.xls" onchange="onCallRawUpload(event)">
-        <div style="font-size:11px;color:var(--text-faint);margin-top:6px;">저장된 날짜: ${rawDates.length}일 ${rawDates.length?`(${rawDates[0]} ~ ${rawDates[rawDates.length-1]})`:''}</div>
+        <div style="font-size:10.5px;color:var(--text-faint);margin-top:6px;">저장된 날짜: ${rawDates.length}일 ${rawDates.length?`(${rawDates[0]} ~ ${rawDates[rawDates.length-1]})`:''}</div>
       </div>
     </div>
 
     <div class="duty-report-section">
       <div class="duty-report-section-title">④ 휴무차감 (엑셀에서 복사해서 붙여넣기) · [날짜, 이름, 사번, 팀, 구분, 비고] 순서 · 현재 ${offCount}건</div>
-      <textarea id="callOffDeductionPasteArea" placeholder="엑셀에서 표를 선택해 복사(Ctrl+C)한 뒤 여기에 붙여넣으세요(Ctrl+V)" style="width:100%;min-height:100px;border:1px solid var(--border-strong);border-radius:var(--radius-sm);padding:10px;font-size:12px;font-family:inherit;"></textarea>
+      <textarea id="callOffDeductionPasteArea" placeholder="엑셀에서 표를 선택해 복사(Ctrl+C)한 뒤 여기에 붙여넣으세요(Ctrl+V)" style="width:100%;min-height:100px;border:1px solid var(--border-strong);border-radius:var(--radius-sm);padding:10px;font-size:11px;font-family:inherit;"></textarea>
       <div class="duty-actions" style="margin-top:8px;">
         <button class="btn-danger-text" onclick="clearCallOffDeduction()">전체 삭제</button>
         <button class="btn-primary" onclick="applyOffDeductionPaste()">반영</button>
@@ -6458,7 +6465,7 @@ function renderCallInputView(){
 
     <div class="duty-report-section">
       <div class="duty-report-section-title">⑤ 근태차감 (엑셀에서 복사해서 붙여넣기) · [No, 날짜, 이름, 사번, 팀, 구분, 시작시간, 종료시간, 경과시간(분), 급여차감, 차감금액, 사유] 순서 · 현재 ${attCount}건</div>
-      <textarea id="callAttendanceDeductionPasteArea" placeholder="엑셀에서 표를 선택해 복사(Ctrl+C)한 뒤 여기에 붙여넣으세요(Ctrl+V)" style="width:100%;min-height:100px;border:1px solid var(--border-strong);border-radius:var(--radius-sm);padding:10px;font-size:12px;font-family:inherit;"></textarea>
+      <textarea id="callAttendanceDeductionPasteArea" placeholder="엑셀에서 표를 선택해 복사(Ctrl+C)한 뒤 여기에 붙여넣으세요(Ctrl+V)" style="width:100%;min-height:100px;border:1px solid var(--border-strong);border-radius:var(--radius-sm);padding:10px;font-size:11px;font-family:inherit;"></textarea>
       <div class="duty-actions" style="margin-top:8px;">
         <button class="btn-danger-text" onclick="clearCallAttendanceDeduction()">전체 삭제</button>
         <button class="btn-primary" onclick="applyAttendanceDeductionPaste()">반영</button>
@@ -6787,7 +6794,7 @@ function renderDocubeInputView(){
     <div class="rev-section rev-billing-section">
       <div class="rev-section-title" style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
         <span>청구 인원</span>
-        <button type="button" class="btn-secondary" id="attPullBtn" style="font-size:11.5px; padding:6px 10px;">📊 근태현황에서 인원 가져오기</button>
+        <button type="button" class="btn-secondary" id="attPullBtn" style="font-size:11px; padding:6px 10px;">📊 근태현황에서 인원 가져오기</button>
       </div>
       <div class="rev-section-sub">CSR 인원은 비고란의 업무별 세부 인원을 모두 더한 값을 반올림해서 자동으로 계산돼요 (청구액도 이 반올림된 인원수 기준으로 계산됩니다). 단가는 항목별 금액 아래 숫자를 더블클릭하면 수정할 수 있어요. "근태현황에서 인원 가져오기"를 누르면 근태현황 탭에 입력된 이번 달 데이터로 인원이 자동 채워져요.</div>
       <div class="billing-table-wrap">
@@ -7900,19 +7907,19 @@ function renderAttCompareModal(compared, unmatchedFileNames, y, m, fileCount){
   const fmt = n => (n===null||n===undefined) ? '' : n.toFixed(2);
   const mismatched = compared.filter(r=>r.fileVal!==null && Math.abs(r.fileVal - r.headcount) >= DOCUBE_ATT_COMPARE_TOLERANCE);
   const appOnly = compared.filter(r=>r.fileVal===null);
-  let html = `<div style="font-size:12.5px;color:var(--text-soft);margin-bottom:10px;">${y}년 ${m+1}월 · 앱 인원 ${compared.length}명 · 엑셀 인원 ${fileCount}명 · 0.05명 미만 차이는 오차로 보고 일치 처리해요.</div>`;
+  let html = `<div style="font-size:11.5px;color:var(--text-soft);margin-bottom:10px;">${y}년 ${m+1}월 · 앱 인원 ${compared.length}명 · 엑셀 인원 ${fileCount}명 · 0.05명 미만 차이는 오차로 보고 일치 처리해요.</div>`;
   if(!mismatched.length && !appOnly.length && !unmatchedFileNames.length){
-    html += `<div class="empty-state" style="padding:30px 0;color:#6fe0a0;">✅ 전원 일치해요.</div>`;
+    html += `<div class="empty-state" style="padding:30px 0;color:var(--success-text);">✅ 전원 일치해요.</div>`;
   }
   if(mismatched.length){
-    html += `<div class="duty-report-section-title" style="margin-top:0;color:#ff8f8f;">⚠ 인원환산이 다른 사람 (${mismatched.length}명)</div>
+    html += `<div class="duty-report-section-title" style="margin-top:0;color:var(--danger-text);">⚠ 인원환산이 다른 사람 (${mismatched.length}명)</div>
     <div class="duty-table-scroll" style="max-height:280px;">
     <table class="duty-table"><thead><tr><th>이름</th><th>근무지</th><th>직무</th><th>앱 인원환산</th><th>엑셀 인원환산</th><th>차이</th></tr></thead><tbody>
     ${mismatched.map(r=>{
       const diff = r.fileVal - r.headcount;
       return `<tr><td>${escapeHtml(r.name)}</td><td>${escapeHtml(r.org||'')}</td><td>${escapeHtml(r.task||'')}</td>
         <td>${fmt(r.headcount)}</td><td>${fmt(r.fileVal)}</td>
-        <td style="font-weight:700;color:${diff>0?'#6fe0a0':'#ff8f8f'};">${diff>0?'+':''}${fmt(diff)}</td></tr>`;
+        <td style="font-weight:700;color:${diff>0?'var(--success-text)':'var(--danger-text)'};">${diff>0?'+':''}${fmt(diff)}</td></tr>`;
     }).join('')}
     </tbody></table></div>`;
   }
@@ -7925,7 +7932,7 @@ function renderAttCompareModal(compared, unmatchedFileNames, y, m, fileCount){
   }
   if(unmatchedFileNames.length){
     html += `<div class="duty-report-section-title">🔍 앱에 없는 사람 (${unmatchedFileNames.length}명, 엑셀에만 존재)</div>
-    <div style="font-size:12px;color:var(--text-soft);max-height:120px;overflow:auto;">${unmatchedFileNames.map(n=>escapeHtml(n)).join(', ')}</div>`;
+    <div style="font-size:11px;color:var(--text-soft);max-height:120px;overflow:auto;">${unmatchedFileNames.map(n=>escapeHtml(n)).join(', ')}</div>`;
   }
   body.innerHTML = html;
 }
@@ -8121,12 +8128,12 @@ function renderDocubeAttPreviewBody(){
   const unmatched = named.filter(r=>!r.matchedEmpId);
   const reviewNeeded = named.filter(r=>r.matchedEmpId && r.needsReview);
   const notes = docubeAttParseResults.filter(r=>r.isNote);
-  let html = `<div style="font-size:12.5px;color:var(--text-soft);margin-bottom:10px;">총 ${named.length}건 인식됨 · 자동반영 ${matched.length}건 · 확인필요 ${reviewNeeded.length}건 · <span style="color:#ff8f8f;font-weight:700;">매칭 실패 ${unmatched.length}건</span></div>`;
+  let html = `<div style="font-size:11.5px;color:var(--text-soft);margin-bottom:10px;">총 ${named.length}건 인식됨 · 자동반영 ${matched.length}건 · 확인필요 ${reviewNeeded.length}건 · <span style="color:var(--danger-text);font-weight:700;">매칭 실패 ${unmatched.length}건</span></div>`;
   if(unmatched.length){
     const datalistOptions = roster.map(e=>`<option value="${escapeHtml(docubeAttOptionLabel(e))}">`).join('');
     html += `<datalist id="attRosterDatalist">${datalistOptions}</datalist>`;
-    html += `<div class="duty-report-section-title" style="margin-top:0;color:#ff8f8f;">⚠ 명단에서 이름을 찾을 수 없음 (${unmatched.length}건) · 오타이거나 명단에 없는 사람이에요</div>
-    <div style="font-size:11px;color:var(--text-faint);margin:-4px 0 8px;">이름을 입력해서 검색하고, 목록에서 맞는 사람을 고르면 바로 "자동 반영될 항목"으로 넘어가요.</div>
+    html += `<div class="duty-report-section-title" style="margin-top:0;color:var(--danger-text);">⚠ 명단에서 이름을 찾을 수 없음 (${unmatched.length}건) · 오타이거나 명단에 없는 사람이에요</div>
+    <div style="font-size:10.5px;color:var(--text-faint);margin:-4px 0 8px;">이름을 입력해서 검색하고, 목록에서 맞는 사람을 고르면 바로 "자동 반영될 항목"으로 넘어가요.</div>
     <div class="duty-table-scroll" style="max-height:220px;">
     <table class="duty-table"><thead><tr><th>일자</th><th>이벤트</th><th>구분</th><th>인식된 이름</th><th>명단에서 검색</th></tr></thead><tbody>
     ${unmatched.map(r=>{
@@ -8135,22 +8142,22 @@ function renderDocubeAttPreviewBody(){
       const placeholder = suggestions.length ? `혹시 "${suggestions[0].emp.name}"?` : '이름 검색';
       return `<tr>
         <td>${r.day}일</td><td>${escapeHtml(r.eventType||'')}</td><td>${escapeHtml(r.dept||'')}</td>
-        <td style="color:#ff8f8f;font-weight:700;">${escapeHtml(r.name)}${r.note?` (${escapeHtml(r.note)})`:''}</td>
+        <td style="color:var(--danger-text);font-weight:700;">${escapeHtml(r.name)}${r.note?` (${escapeHtml(r.note)})`:''}</td>
         <td>
           <input type="text" list="attRosterDatalist" oninput="docubeAttSetMatchByInput(${idx}, this.value)" placeholder="${escapeHtml(placeholder)}"
-            style="font-size:11px;padding:4px 6px;border-radius:6px;border:1px solid var(--border-light);background:var(--bg-card);color:var(--ink-0);width:160px;">
+            style="font-size:10.5px;padding:4px 6px;border-radius:6px;border:1px solid var(--border-light);background:var(--bg-card);color:var(--ink-0);width:160px;">
         </td>
       </tr>`;
     }).join('')}
     </tbody></table></div>`;
   }
   if(reviewNeeded.length){
-    html += `<div class="duty-report-section-title" style="color:#e0b34e;">🔎 자동 반영 안 됨, 직접 확인 필요 (${reviewNeeded.length}건)</div>
+    html += `<div class="duty-report-section-title" style="color:var(--warning-text);">🔎 자동 반영 안 됨, 직접 확인 필요 (${reviewNeeded.length}건)</div>
     <div class="duty-table-scroll" style="max-height:180px;">
     <table class="duty-table"><thead><tr><th>일자</th><th>이벤트</th><th>이름</th><th>메모</th></tr></thead><tbody>
     ${reviewNeeded.map(r=>`<tr><td>${r.day}일</td><td>${escapeHtml(r.eventType)}</td><td>${escapeHtml(r.name)}</td><td>${escapeHtml(r.note||'')}</td></tr>`).join('')}
     </tbody></table></div>
-    <div style="font-size:11px;color:var(--text-faint);margin:-4px 0 10px;">육아단축·복직·휴직 시작처럼 근무시간이나 재직상태 자체를 바꾸는 항목은 자동 반영하지 않아요. 확인 후 명단에서 직접 반영해주세요.</div>`;
+    <div style="font-size:10.5px;color:var(--text-faint);margin:-4px 0 10px;">육아단축·복직·휴직 시작처럼 근무시간이나 재직상태 자체를 바꾸는 항목은 자동 반영하지 않아요. 확인 후 명단에서 직접 반영해주세요.</div>`;
   }
   if(matched.length){
     html += `<div class="duty-report-section-title">✅ 자동 반영될 항목 (${matched.length}건)</div>
@@ -8161,7 +8168,7 @@ function renderDocubeAttPreviewBody(){
   }
   if(notes.length){
     html += `<div class="duty-report-section-title">📝 일반 메모 (${notes.length}건, 개인별 기록에는 반영 안 함)</div>
-    <div style="font-size:12px;color:var(--text-soft);max-height:120px;overflow:auto;">${notes.map(r=>`<div>${r.day}일 · ${escapeHtml(r.eventType)}: ${escapeHtml(r.desc||'')}</div>`).join('')}</div>`;
+    <div style="font-size:11px;color:var(--text-soft);max-height:120px;overflow:auto;">${notes.map(r=>`<div>${r.day}일 · ${escapeHtml(r.eventType)}: ${escapeHtml(r.desc||'')}</div>`).join('')}</div>`;
   }
   if(!named.length && !notes.length){
     html += `<div class="empty-state" style="padding:24px 0;">이 달에서 인식된 특이사항이 없어요.</div>`;
@@ -8221,9 +8228,9 @@ function renderDocubeAttView(){
       <div class="rev-section-title">입사일 반영</div>
       <div class="rev-section-sub">일일현황 파일에는 입사일이 나오지 않아서, 이름을 검색해서 입사일을 직접 반영해요. 입사일이 이 달 중간이면(예: 8/4), 입사 전 영업일(8/1~8/3)은 자동으로 '무'로 채워져요.</div>
       <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
-        <input type="text" id="attHireNameInput" list="attHireNameDatalist" placeholder="이름 검색" style="width:180px; padding:8px 10px; border:1px solid var(--border-light); border-radius:8px; background:var(--bg-card); color:var(--ink-0); font-size:12.5px;">
+        <input type="text" id="attHireNameInput" list="attHireNameDatalist" placeholder="이름 검색" style="width:180px; padding:8px 10px; border:1px solid var(--border-light); border-radius:8px; background:var(--bg-card); color:var(--ink-0); font-size:11.5px;">
         <datalist id="attHireNameDatalist"></datalist>
-        <input type="date" id="attHireDateInput" style="padding:8px 10px; border:1px solid var(--border-light); border-radius:8px; background:var(--bg-card); color:var(--ink-0); font-size:12.5px;">
+        <input type="date" id="attHireDateInput" style="padding:8px 10px; border:1px solid var(--border-light); border-radius:8px; background:var(--bg-card); color:var(--ink-0); font-size:11.5px;">
         <button class="btn-primary gold" onclick="applyDocubeAttHireDate()">적용</button>
       </div>
     </div>
@@ -8232,7 +8239,7 @@ function renderDocubeAttView(){
       <div class="rev-section-title">직접 추가·수정 (붙여넣기)</div>
       <div class="rev-section-sub">엑셀에서 <b>날짜 · 이름 · 사번 · 부서 · 근태 · 비고</b> 순서로 된 표를 그대로 복사해서 붙여넣으세요. 날짜·이름·근태만 사용하고 나머지 열은 무시해요. 여러 명 한 번에 가능합니다.</div>
       <textarea id="attManualPasteBox" rows="5" placeholder="2026/8/31(월)&#9;김소형&#9;2390517&#9;관리자&#9;반차&#9;오전반차
-2026/8/31(월)&#9;이은미&#9;2390619&#9;관리자&#9;교육&#9;해외연수" style="width:100%; padding:10px; border:1px solid var(--border-light); border-radius:8px; background:var(--bg-card); color:var(--ink-0); font-size:12px; font-family:inherit; resize:vertical;"></textarea>
+2026/8/31(월)&#9;이은미&#9;2390619&#9;관리자&#9;교육&#9;해외연수" style="width:100%; padding:10px; border:1px solid var(--border-light); border-radius:8px; background:var(--bg-card); color:var(--ink-0); font-size:11px; font-family:inherit; resize:vertical;"></textarea>
       <div style="margin-top:8px;">
         <button class="btn-primary gold" onclick="onDocubeAttManualPastePreview()">미리보기</button>
       </div>
@@ -8296,7 +8303,7 @@ function initDocubeAttView(){
         <td style="font-weight:700;">${deductCount}일</td>
         <td>${workedDays}일</td>
         <td style="font-weight:700;color:var(--gold);">${headcount.toFixed(2)}</td>
-        <td>${emp.leaveDate ? `<span style="color:#ff8f8f;font-weight:700;">퇴사 ${dutyFmtDate(emp.leaveDate)}</span>` : '재직'}</td>
+        <td>${emp.leaveDate ? `<span style="color:var(--danger-text);font-weight:700;">퇴사 ${dutyFmtDate(emp.leaveDate)}</span>` : '재직'}</td>
       </tr>`;
     }).join('');
     tableWrap.innerHTML = `
@@ -8343,7 +8350,7 @@ function initDocubeAttView(){
       <div class="rev-detail-hint" style="margin-bottom:8px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
         <span>기준일(표준근무일수):</span>
         <input type="number" id="attBaseDaysInput" value="${baseDays}" min="1" max="31" style="width:56px; padding:4px 6px; border:1px solid var(--border-light); border-radius:6px; background:var(--bg-card); color:var(--ink-0); text-align:center;">
-        <input type="text" id="attSearchInput" value="${escapeHtml(docubeAttSearchQuery||'')}" placeholder="🔍 이름·근무지·직무 검색" style="width:180px; padding:6px 10px; border:1px solid var(--border-light); border-radius:8px; background:var(--bg-card); color:var(--ink-0); font-size:12px;">
+        <input type="text" id="attSearchInput" value="${escapeHtml(docubeAttSearchQuery||'')}" placeholder="🔍 이름·근무지·직무 검색" style="width:180px; padding:6px 10px; border:1px solid var(--border-light); border-radius:8px; background:var(--bg-card); color:var(--ink-0); font-size:11px;">
         <span style="color:var(--ink-2);">영업일(토·일, 공휴일 제외) ${businessDayCount}일만 표시돼요. 날짜 칸을 클릭하면 그 사람의 그날 근태를 직접 수정할 수 있어요. <span class="att-day-cell deduct" style="display:inline-block;padding:1px 6px;">결근</span> 계열은 인원 계산에 영향을 주고, <span class="att-day-cell note-only" style="display:inline-block;padding:1px 6px;">연차</span> 계열은 기록만 돼요.</span>
       </div>
       <div id="attTableInner"></div>
@@ -8431,15 +8438,15 @@ function renderDocubeLockModalBody(){
     const [y,m1] = key.split('-').map(Number);
     const isLocked = locked.includes(key);
     return `<li class="center-row">
-      <span style="flex:1;font-size:13px;font-weight:600;">${y}년 ${m1}월</span>
-      <span style="font-size:11px;font-weight:700;margin-right:8px;color:${isLocked?'#ff8f8f':'#6fe0a0'};">${isLocked?'🔒 마감됨':'🔓 해제됨'}</span>
-      <button type="button" class="btn-secondary" style="padding:6px 10px;font-size:11.5px;" onclick="toggleDocubeMonthLockFromModal('${key}')">${isLocked?'잠금 해제':'마감(잠금)'}</button>
+      <span style="flex:1;font-size:12px;font-weight:600;">${y}년 ${m1}월</span>
+      <span style="font-size:10.5px;font-weight:700;margin-right:8px;color:${isLocked?'var(--danger-text)':'var(--success-text)'};">${isLocked?'🔒 마감됨':'🔓 해제됨'}</span>
+      <button type="button" class="btn-secondary" style="padding:6px 10px;font-size:11px;" onclick="toggleDocubeMonthLockFromModal('${key}')">${isLocked?'잠금 해제':'마감(잠금)'}</button>
     </li>`;
   }).join('') || '<li class="empty-state" style="padding:10px 0;">저장된 도급비 데이터가 없어요.</li>';
   body.innerHTML = `
     <ul class="center-list" style="margin-bottom:0;">${rows}</ul>
     <div style="display:flex;gap:6px;align-items:center;margin-top:14px;flex-wrap:wrap;">
-      <span style="font-size:11.5px;color:var(--text-soft);">다른 연월 지정:</span>
+      <span style="font-size:11px;color:var(--text-soft);">다른 연월 지정:</span>
       ${buildDutyMonthSelectorHtml('docubeLockAdd', cur.year, cur.month)}
       <button type="button" class="btn-secondary" onclick="lockCustomDocubeMonth()">마감(잠금)</button>
     </div>
