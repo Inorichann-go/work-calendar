@@ -457,6 +457,7 @@
   .call-raw-table th{max-width:120px;white-space:normal;line-height:1.3;}
   .call-raw-table td{padding:1px 2px !important;}
   .call-raw-input{width:auto;text-align:left;height:24px;font-size:11px;}
+  .call-raw-input.num{text-align:right;}
   .call-raw-table .call-raw-del{position:sticky;left:0;z-index:1;background:var(--bg-card);width:32px;}
   .call-raw-table th.call-raw-del{z-index:3;background:var(--bg-card-2);}
   .call-add-row input{
@@ -6876,59 +6877,137 @@ function callCheckPastedDates(label, rows){
 function parsePastedTsv(text){
   return text.split(/\r?\n/).filter(l=>l.trim()!=='').map(l=>l.split('\t'));
 }
-function applyOffDeductionPaste(){
-  const text = document.getElementById('callOffDeductionPasteArea').value;
+/* 휴무차감/근태차감 항목 정의 (붙여넣기 열 순서 = cols의 idx) */
+const CALL_DEDUCTION_DEFS = {
+  offDeduction: {
+    label: '휴무차감', minCols: 4, dateIdx: 0, nameIdx: 1,
+    fields: [
+      {key:'날짜', idx:0}, {key:'이름', idx:1}, {key:'사번', idx:2}, {key:'팀', idx:3}, {key:'구분', idx:4}, {key:'비고', idx:5}
+    ]
+  },
+  attendanceDeduction: {
+    label: '근태차감', minCols: 9, dateIdx: 1, nameIdx: 2,
+    fields: [
+      {key:'날짜', idx:1}, {key:'이름', idx:2}, {key:'사번', idx:3}, {key:'팀', idx:4}, {key:'구분', idx:5},
+      {key:'시작시간', idx:6}, {key:'종료시간', idx:7}, {key:'경과시간', idx:8, num:true},
+      {key:'급여차감', idx:9}, {key:'차감금액', idx:10, num:true}, {key:'사유', idx:11}
+    ],
+    /* 근태차감 항목(급여차감 열)이 O인 행은 가져오지 않음 */
+    exclude: cols=>/^[OoＯ○ㅇ]$/.test((cols[9]||'').trim())
+  }
+};
+function callDeductionRecordKey(rec, def){ return def.fields.map(f=>String(rec[f.key]??'')).join('\t'); }
+function applyCallDeductionPaste(kind, textareaId){
+  const def = CALL_DEDUCTION_DEFS[kind];
+  const text = document.getElementById(textareaId).value;
   if(!text.trim()){ alert('붙여넣을 내용이 없어요.'); return; }
-  const rows = parsePastedTsv(text);
-  const valid = rows.filter(cols=>cols.length>=4 && cols[0] && cols[1]);
-  if(!callCheckPastedDates('휴무차감', valid.map(c=>({raw:c[0].trim(), date:callNormalizePastedDate(c[0]), name:(c[1]||'').trim()})))) return;
-  let applied=0;
+  /* 제목행(날짜/이름 글자)과 열이 모자란 행은 건너뜀 */
+  let rows = parsePastedTsv(text).filter(cols=>cols.length>=def.minCols && cols[def.dateIdx] && cols[def.nameIdx]
+    && cols[def.dateIdx].trim()!=='날짜' && cols[def.nameIdx].trim()!=='이름');
+  const excluded = def.exclude ? rows.filter(def.exclude).length : 0;
+  if(def.exclude) rows = rows.filter(cols=>!def.exclude(cols));
+  if(!callCheckPastedDates(def.label, rows.map(c=>({raw:c[def.dateIdx].trim(), date:callNormalizePastedDate(c[def.dateIdx]), name:(c[def.nameIdx]||'').trim()})))) return;
+  const list = callStatsStore[kind] = callStatsStore[kind] || [];
+  const existing = new Set(list.map(r=>callDeductionRecordKey(r, def)));
+  let applied=0, dup=0;
   rows.forEach(cols=>{
-    if(cols.length<4) return;
-    const [날짜,이름,사번,팀,구분,비고] = cols;
-    if(!이름 || !날짜) return;
-    callStatsStore.offDeduction.push({ 날짜:(날짜||'').trim(), 이름:(이름||'').trim(), 사번:(사번||'').trim(), 팀:(팀||'').trim(), 구분:(구분||'').trim(), 비고:(비고||'').trim() });
-    applied++;
-  });
-  document.getElementById('callOffDeductionPasteArea').value='';
-  saveCallStatsData();
-  renderCallRefresh();
-  alert(`휴무차감 ${applied}건 추가됐어요.`);
-}
-function applyAttendanceDeductionPaste(){
-  const text = document.getElementById('callAttendanceDeductionPasteArea').value;
-  if(!text.trim()){ alert('붙여넣을 내용이 없어요.'); return; }
-  const rows = parsePastedTsv(text);
-  const valid = rows.filter(cols=>cols.length>=9 && cols[1] && cols[2]);
-  if(!callCheckPastedDates('근태차감', valid.map(c=>({raw:c[1].trim(), date:callNormalizePastedDate(c[1]), name:(c[2]||'').trim()})))) return;
-  let applied=0;
-  rows.forEach(cols=>{
-    if(cols.length<9) return;
-    const [No,날짜,이름,사번,팀,구분,시작시간,종료시간,경과시간,급여차감,차감금액,사유] = cols;
-    if(!이름 || !날짜) return;
-    callStatsStore.attendanceDeduction.push({
-      날짜:(날짜||'').trim(), 이름:(이름||'').trim(), 사번:(사번||'').trim(), 팀:(팀||'').trim(), 구분:(구분||'').trim(),
-      시작시간:(시작시간||'').trim(), 종료시간:(종료시간||'').trim(), 경과시간:numOrNull(경과시간)||0,
-      급여차감:(급여차감||'').trim(), 차감금액:numOrNull(차감금액)||0, 사유:(사유||'').trim()
+    const rec = {};
+    def.fields.forEach(f=>{
+      const v = (cols[f.idx]||'').trim();
+      rec[f.key] = f.num ? (numOrNull(v.replace(/,/g,''))||0) : v;
     });
+    rec['날짜'] = callNormalizePastedDate(rec['날짜']) || rec['날짜'];
+    const k = callDeductionRecordKey(rec, def);
+    if(existing.has(k)){ dup++; return; }
+    existing.add(k);
+    list.push(rec);
     applied++;
   });
-  document.getElementById('callAttendanceDeductionPasteArea').value='';
+  document.getElementById(textareaId).value='';
   saveCallStatsData();
   renderCallRefresh();
-  alert(`근태차감 ${applied}건 추가됐어요.`);
+  alert(`${def.label} ${applied}건 추가됐어요.${excluded?`\n근태차감 항목이 O인 ${excluded}건은 제외했어요.`:''}${dup?`\n이미 등록된 똑같은 ${dup}건은 건너뛰었어요.`:''}`);
 }
+function applyOffDeductionPaste(){ applyCallDeductionPaste('offDeduction', 'callOffDeductionPasteArea'); }
+function applyAttendanceDeductionPaste(){ applyCallDeductionPaste('attendanceDeduction', 'callAttendanceDeductionPasteArea'); }
 function clearCallOffDeduction(){
-  if(!confirm('휴무차감 기록을 전부 삭제할까요?')) return;
+  if(!confirm('휴무차감 기록을 전부 삭제할까요? (모든 날짜)')) return;
   callStatsStore.offDeduction = [];
   saveCallStatsData();
   renderCallRefresh();
 }
 function clearCallAttendanceDeduction(){
-  if(!confirm('근태차감 기록을 전부 삭제할까요?')) return;
+  if(!confirm('근태차감 기록을 전부 삭제할까요? (모든 날짜)')) return;
   callStatsStore.attendanceDeduction = [];
   saveCallStatsData();
   renderCallRefresh();
+}
+/* ---- 휴무차감/근태차감 입력일 기록 수기 수정 ---- */
+function callDeductionDayIndexes(kind){
+  return (callStatsStore[kind]||[]).map((r,i)=>callNormalizePastedDate(r['날짜'])===callInputDate ? i : -1).filter(i=>i>=0);
+}
+function callEditDeduction(kind, idx, key, value){
+  const rec = (callStatsStore[kind]||[])[idx]; if(!rec) return;
+  const f = CALL_DEDUCTION_DEFS[kind].fields.find(x=>x.key===key);
+  const v = value.trim();
+  if(key==='날짜'){
+    const d = callNormalizePastedDate(v);
+    if(!d){ alert('날짜 형식을 알 수 없어요. 예: 2026-09-29'); setTimeout(renderCallRefresh, 0); return; }
+    rec[key] = d;
+    saveCallStatsData();
+    /* 다른 날짜로 옮기면 이 표에서 빠짐 (change 이벤트 처리 중 입력칸을 지우지 않도록 다음 틱에 다시 그림) */
+    if(d!==callInputDate) setTimeout(renderCallRefresh, 0);
+    return;
+  }
+  rec[key] = f && f.num ? (numOrNull(v.replace(/,/g,''))||0) : v;
+  saveCallStatsData();
+}
+function callDeleteDeduction(kind, idx){
+  const rec = (callStatsStore[kind]||[])[idx]; if(!rec) return;
+  if(!confirm(`${rec['이름']||''} ${CALL_DEDUCTION_DEFS[kind].label} 기록을 삭제할까요?`)) return;
+  callStatsStore[kind].splice(idx,1);
+  saveCallStatsData();
+  renderCallRefresh();
+}
+function callAddDeduction(kind){
+  const rec = {};
+  CALL_DEDUCTION_DEFS[kind].fields.forEach(f=>{ rec[f.key] = f.num ? 0 : ''; });
+  rec['날짜'] = callInputDate;
+  (callStatsStore[kind] = callStatsStore[kind] || []).push(rec);
+  saveCallStatsData();
+  renderCallRefresh();
+}
+function callClearDeductionDay(kind){
+  const idxs = callDeductionDayIndexes(kind);
+  if(!idxs.length || !confirm(`${callFmtDateLabel(callInputDate)} ${CALL_DEDUCTION_DEFS[kind].label} ${idxs.length}건을 삭제할까요?`)) return;
+  const drop = new Set(idxs);
+  callStatsStore[kind] = callStatsStore[kind].filter((_,i)=>!drop.has(i));
+  saveCallStatsData();
+  renderCallRefresh();
+}
+function renderCallDeductionTable(kind){
+  const def = CALL_DEDUCTION_DEFS[kind];
+  const list = callStatsStore[kind] || [];
+  const idxs = callDeductionDayIndexes(kind);
+  const k = escapeHtml(kind);
+  if(!idxs.length) return `<div class="empty-state" style="padding:12px 0;">${callFmtDateLabel(callInputDate)} ${def.label} 기록이 없어요.
+    <button class="btn-secondary" style="margin-left:6px;" onclick="callAddDeduction('${k}')">+ 행 추가</button></div>`;
+  const head = def.fields.map(f=>`<th>${escapeHtml(f.key)}</th>`).join('');
+  const body = idxs.map(i=>{
+    const rec = list[i];
+    const cells = def.fields.map(f=>{
+      const v = rec[f.key]===null||rec[f.key]===undefined ? '' : String(rec[f.key]);
+      return `<td><input class="call-edit-input call-raw-input${f.num?' num':''}" value="${escapeHtml(v)}" size="${Math.max(4, Math.min(24, v.length+1))}" data-key="${escapeHtml(f.key)}" onchange="callEditDeduction('${k}', ${i}, this.dataset.key, this.value)"></td>`;
+    }).join('');
+    return `<tr><td class="call-raw-del"><button class="eval-row-delete-btn" title="삭제" onclick="callDeleteDeduction('${k}', ${i})">✕</button></td>${cells}</tr>`;
+  }).join('');
+  return `<div class="duty-table-scroll" style="max-height:320px;margin-bottom:8px;">
+      <table class="duty-table call-raw-table"><thead><tr><th class="call-raw-del"></th>${head}</tr></thead><tbody>${body}</tbody></table>
+    </div>
+    <div class="duty-actions" style="justify-content:flex-start;margin-bottom:12px;">
+      <button class="btn-secondary" onclick="callAddDeduction('${k}')">+ 행 추가</button>
+      <button class="btn-danger-text" onclick="callClearDeductionDay('${k}')">이 날짜 삭제</button>
+    </div>`;
 }
 
 /* ---- 실적입력 화면 ---- */
@@ -6937,8 +7016,7 @@ function renderCallInputView(){
   const rawDates = Object.keys(callStatsStore.raw||{}).sort();
   const offCount = (callStatsStore.offDeduction||[]).length;
   const attCount = (callStatsStore.attendanceDeduction||[]).length;
-  const dayCount = list=>(list||[]).filter(r=>callNormalizePastedDate(r['날짜'])===callInputDate).length;
-  const offDay = dayCount(callStatsStore.offDeduction), attDay = dayCount(callStatsStore.attendanceDeduction);
+  const offDay = callDeductionDayIndexes('offDeduction').length, attDay = callDeductionDayIndexes('attendanceDeduction').length;
   return `<div class="duty-report-view">
     <div class="duty-month-bar">
       <span class="duty-month-label">📅 입력일</span>
@@ -6978,18 +7056,20 @@ function renderCallInputView(){
 
     <div class="duty-report-section">
       <div class="duty-report-section-title">④ 휴무차감 (엑셀에서 복사해서 붙여넣기) · [날짜, 이름, 사번, 팀, 구분, 비고] 순서 · 입력일 ${offDay}건 / 전체 ${offCount}건 · 입력일 날짜 행만 등록돼요</div>
+      ${renderCallDeductionTable('offDeduction')}
       <textarea id="callOffDeductionPasteArea" placeholder="엑셀에서 표를 선택해 복사(Ctrl+C)한 뒤 여기에 붙여넣으세요(Ctrl+V)" style="width:100%;min-height:100px;border:1px solid var(--border-strong);border-radius:var(--radius-sm);padding:10px;font-size:11px;font-family:inherit;"></textarea>
       <div class="duty-actions" style="margin-top:8px;">
-        <button class="btn-danger-text" onclick="clearCallOffDeduction()">전체 삭제</button>
+        <button class="btn-danger-text" onclick="clearCallOffDeduction()">모든 날짜 삭제</button>
         <button class="btn-primary" onclick="applyOffDeductionPaste()">반영</button>
       </div>
     </div>
 
     <div class="duty-report-section">
-      <div class="duty-report-section-title">⑤ 근태차감 (엑셀에서 복사해서 붙여넣기) · [No, 날짜, 이름, 사번, 팀, 구분, 시작시간, 종료시간, 경과시간(분), 급여차감, 차감금액, 사유] 순서 · 입력일 ${attDay}건 / 전체 ${attCount}건 · 입력일 날짜 행만 등록돼요</div>
+      <div class="duty-report-section-title">⑤ 근태차감 (엑셀에서 복사해서 붙여넣기) · [No, 날짜, 이름, 사번, 팀, 구분, 시작시간, 종료시간, 경과시간(분), 급여차감, 차감금액, 사유] 순서 · 입력일 ${attDay}건 / 전체 ${attCount}건 · 입력일 날짜 행만 등록돼요 · 근태차감 항목이 O인 행은 제외돼요</div>
+      ${renderCallDeductionTable('attendanceDeduction')}
       <textarea id="callAttendanceDeductionPasteArea" placeholder="엑셀에서 표를 선택해 복사(Ctrl+C)한 뒤 여기에 붙여넣으세요(Ctrl+V)" style="width:100%;min-height:100px;border:1px solid var(--border-strong);border-radius:var(--radius-sm);padding:10px;font-size:11px;font-family:inherit;"></textarea>
       <div class="duty-actions" style="margin-top:8px;">
-        <button class="btn-danger-text" onclick="clearCallAttendanceDeduction()">전체 삭제</button>
+        <button class="btn-danger-text" onclick="clearCallAttendanceDeduction()">모든 날짜 삭제</button>
         <button class="btn-primary" onclick="applyAttendanceDeductionPaste()">반영</button>
       </div>
     </div>
