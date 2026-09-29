@@ -436,6 +436,29 @@
   .duty-del-cell button{border:none;background:none;color:var(--danger-text);font-size:10.5px;font-weight:700;cursor:pointer;padding:4px 6px;white-space:nowrap;}
   .duty-del-cell button:hover{text-decoration:underline;}
   .duty-actions{display:flex;gap:10px;justify-content:flex-end;}
+  .call-month-strip{display:flex;flex-wrap:wrap;gap:4px;flex-basis:100%;}
+  .call-day-chip{
+    min-width:28px;height:24px;border-radius:5px;border:1px solid var(--border-strong);background:var(--bg-card);
+    font-size:11px;font-weight:700;color:var(--text-faint);cursor:pointer;padding:0 4px;font-family:inherit;
+  }
+  .call-day-chip.half{background:var(--warning-soft);color:var(--warning-text);border-color:#f1dcaa;}
+  .call-day-chip.full{background:var(--success-soft);color:var(--success-text);border-color:#bfe5cc;}
+  .call-day-chip.current{outline:2px solid var(--accent);outline-offset:1px;}
+  .duty-report-table.call-day-table td{padding:2px 8px;}
+  .duty-report-table.call-day-table th{padding:6px 8px;}
+  .call-edit-input{
+    width:100%;height:28px;border:1px solid transparent;border-radius:5px;background:transparent;
+    text-align:right;font-size:12px;font-family:inherit;color:var(--text);padding:0 6px;
+  }
+  .call-edit-input:hover{border-color:var(--border-strong);}
+  .call-edit-input:focus{outline:none;border-color:var(--accent);background:var(--bg-card);}
+  .call-add-row{display:flex;gap:6px;margin-top:10px;}
+  .call-add-row input{
+    height:30px;border:1px solid var(--border-strong);border-radius:var(--radius-sm);padding:0 10px;
+    font-size:12px;font-family:inherit;min-width:0;
+  }
+  .call-add-row input[type=text]{flex:1;}
+  .call-add-row input[type=number]{width:90px;}
 
   /* ---------- Duty report (복무관리) ---------- */
   .duty-report-view{max-width:100%;}
@@ -6216,105 +6239,227 @@ function callDateKey(y,m,d){
   return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
 }
 
-/* ---- 1. 제휴 OB콜백 업로드 (월별 시트, 상담사명×일자) ---- */
+/* ---- 입력일 선택 (영업일만: 주말·공휴일 제외) ---- */
+function callIsBizDay(dateStr){
+  const w = new Date(dateStr+'T00:00:00').getDay();
+  return w!==0 && w!==6 && !getHoliday(dateStr);
+}
+function callShiftBizDay(dateStr, step){
+  const d = new Date(dateStr+'T00:00:00');
+  do{ d.setDate(d.getDate()+step); }while(!callIsBizDay(toISODate(d)));
+  return toISODate(d);
+}
+function callDefaultInputDate(){
+  const today = toISODate(new Date());
+  return callIsBizDay(today) ? today : callShiftBizDay(today, -1);
+}
+let callInputDate = callDefaultInputDate();
+function callSetInputDate(dateStr){
+  if(!dateStr) return;
+  if(!callIsBizDay(dateStr)){
+    const snapped = callShiftBizDay(dateStr, -1);
+    alert(`${dateStr}은(는) 주말/공휴일이라 직전 영업일 ${snapped}로 이동했어요.`);
+    dateStr = snapped;
+  }
+  callInputDate = dateStr;
+  renderCallRefresh();
+}
+function callStepInputDate(step){ callInputDate = callShiftBizDay(callInputDate, step); renderCallRefresh(); }
+function callFmtDateLabel(dateStr){
+  const d = new Date(dateStr+'T00:00:00');
+  return `${d.getMonth()+1}월 ${d.getDate()}일 (${WEEKDAYS[d.getDay()]})`;
+}
+/* 업로드로 해당일 데이터를 덮어쓰기 전에 확인 */
+function callConfirmOverwrite(kind, label){
+  const cur = (callStatsStore[kind]||{})[callInputDate];
+  const n = cur ? Object.keys(cur).length : 0;
+  return !n || confirm(`${callFmtDateLabel(callInputDate)} ${label}에 이미 ${n}명 데이터가 있어요. 파일 값으로 덮어쓸까요?`);
+}
+
+/* ---- 1. 제휴 OB콜백 업로드 (월별 시트, 상담사명×일자 → 선택한 입력일 컬럼만 읽음) ---- */
+function callJehuSheetDayCols(sheetName, rows){
+  const m = sheetName.match(/(\d{2,4})년\s*(\d{1,2})월/);
+  if(!m) return null; /* 연도 명시 안 된 시트(예: "11월")는 안전하게 건너뜀 */
+  let year = Number(m[1]); if(year<100) year += 2000;
+  const sheetMonth = Number(m[2]);
+  /* 헤더(일자) 행 찾기: '~일' 형태 셀이 여러개 있는 행 */
+  let headerRowIdx = -1;
+  for(let r=0; r<Math.min(rows.length,6); r++){
+    const row = rows[r]||[];
+    const dayCells = row.filter(c=>typeof c==='string' && /^\d{1,2}일$/.test(c));
+    if(dayCells.length>3){ headerRowIdx = r; break; }
+  }
+  if(headerRowIdx<0) return null;
+  const dayCols = []; /* {colIdx, dateKey} */
+  let curMonth = sheetMonth, prevDay = 0;
+  rows[headerRowIdx].forEach((h,ci)=>{
+    const dm = String(h||'').match(/^(\d{1,2})일$/);
+    if(!dm) return;
+    const dayNum = Number(dm[1]);
+    if(prevDay && dayNum < prevDay){ /* 30,31 -> 3,4처럼 줄어들면 시트 지정월로 진입 */
+      curMonth = sheetMonth;
+    }else if(prevDay===0 && dayNum > 20){
+      curMonth = sheetMonth - 1; if(curMonth<1){ curMonth=12; }
+    }
+    const y = curMonth>sheetMonth ? year-1 : year;
+    dayCols.push({colIdx:ci, dateKey:callDateKey(y, curMonth, dayNum)});
+    prevDay = dayNum;
+  });
+  return {sheetMonth, year, headerRowIdx, dayCols};
+}
 async function onCallObJehuUpload(ev){
   const file = ev.target.files[0]; if(!file) return;
+  const target = callInputDate;
+  const [ty, tm] = target.split('-').map(Number);
   try{
     const wb = await readWorkbookFromFile(file);
-    let totalDays=0, totalPeople=0;
+    /* 입력일 컬럼이 있는 시트 중, 시트 월이 입력일의 월과 같은 시트를 우선 */
+    let found = null;
     wb.SheetNames.forEach(sheetName=>{
-      const m = sheetName.match(/(\d{2,4})년\s*(\d{1,2})월/);
-      if(!m) return; /* 연도 명시 안 된 시트(예: "11월")는 안전하게 건너뜀 */
-      let year = Number(m[1]); if(year<100) year += 2000;
-      const sheetMonth = Number(m[2]);
-      const ws = wb.Sheets[sheetName];
-      const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:null});
-      /* 헤더(일자) 행 찾기: '~일' 형태 셀이 여러개 있는 행 */
-      let headerRowIdx = -1;
-      for(let r=0; r<Math.min(rows.length,6); r++){
-        const row = rows[r]||[];
-        const dayCells = row.filter(c=>typeof c==='string' && /^\d{1,2}일$/.test(c));
-        if(dayCells.length>3){ headerRowIdx = r; break; }
-      }
-      if(headerRowIdx<0) return;
-      const headerRow = rows[headerRowIdx];
-      const dayCols = []; /* {colIdx, year, month, day} */
-      let curMonth = sheetMonth, prevDay = 0;
-      headerRow.forEach((h,ci)=>{
-        const dm = String(h||'').match(/^(\d{1,2})일$/);
-        if(!dm) return;
-        const dayNum = Number(dm[1]);
-        if(prevDay && dayNum < prevDay){ /* 30,31 -> 3,4처럼 줄어들면 시트 지정월로 진입 */
-          curMonth = sheetMonth;
-        }else if(prevDay===0 && dayNum > 20){
-          curMonth = sheetMonth - 1; if(curMonth<1){ curMonth=12; }
-        }
-        dayCols.push({colIdx:ci, month:curMonth, day:dayNum});
-        prevDay = dayNum;
-      });
-      for(let r=headerRowIdx+1; r<rows.length; r++){
-        const row = rows[r]; if(!row) continue;
-        const name = row[0]; if(!name) continue;
-        totalPeople++;
-        dayCols.forEach(dc=>{
-          const val = row[dc.colIdx];
-          if(val===null || val===undefined || val==='') return;
-          const y = dc.month>sheetMonth ? year-1 : year;
-          const dateKey = callDateKey(y, dc.month, dc.day);
-          callStatsStore.obJehu[dateKey] = callStatsStore.obJehu[dateKey] || {};
-          callStatsStore.obJehu[dateKey][String(name).trim()] = numOrNull(val) || 0;
-          totalDays++;
-        });
-      }
+      const rows = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], {header:1, defval:null});
+      const info = callJehuSheetDayCols(sheetName, rows);
+      if(!info) return;
+      const dc = info.dayCols.find(x=>x.dateKey===target);
+      if(!dc) return;
+      const exact = info.year===ty && info.sheetMonth===tm;
+      if(!found || (exact && !found.exact)) found = {sheetName, rows, info, colIdx:dc.colIdx, exact};
     });
+    if(!found){ alert(`파일에서 ${callFmtDateLabel(target)} 일자 컬럼을 찾지 못했어요. 시트명(예: "26년8월")과 입력일을 확인해주세요.`); return; }
+    const values = {};
+    for(let r=found.info.headerRowIdx+1; r<found.rows.length; r++){
+      const row = found.rows[r]; if(!row) continue;
+      const name = row[0]; if(!name) continue;
+      const val = row[found.colIdx];
+      if(val===null || val===undefined || val==='') continue;
+      values[String(name).trim()] = numOrNull(val) || 0;
+    }
+    const count = Object.keys(values).length;
+    if(!count){ alert(`"${found.sheetName}" 시트의 ${callFmtDateLabel(target)} 값이 비어 있어요.`); return; }
+    if(!callConfirmOverwrite('obJehu', '제휴 OB콜백')) return;
+    callStatsStore.obJehu[target] = values;
     saveCallStatsData();
     renderCallRefresh();
-    alert(`제휴 OB콜백 반영 완료 (${totalDays}건의 일자별 데이터를 읽었어요)`);
+    alert(`제휴 OB콜백 ${callFmtDateLabel(target)} 반영 완료 ("${found.sheetName}" 시트, ${count}명)`);
   }catch(err){
     console.error(err);
     alert('제휴 OB콜백 파일을 읽는 중 문제가 발생했어요.');
+  }finally{
+    ev.target.value='';
   }
-  ev.target.value='';
 }
 
-/* ---- 2. 장기사고 콜보정 업로드 (일별 시트 여러개) ---- */
+/* ---- 2. 장기사고 콜보정 업로드 (일별 시트 여러개 → 선택한 입력일 시트만 읽음) ---- */
 async function onCallObJanggiUpload(ev){
   const file = ev.target.files[0]; if(!file) return;
+  const target = callInputDate;
   try{
     const wb = await readWorkbookFromFile(file);
-    let matchedSheets=0, totalPeople=0;
-    wb.SheetNames.forEach(sheetName=>{
-      const dateKey = callParseDateFromDigits(sheetName);
-      if(!dateKey) return;
-      const ws = wb.Sheets[sheetName];
-      const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:null});
-      /* 헤더행에서 '오비/콜백' 또는 유사 항목 컬럼 탐색, 없으면 마지막에서 세번째 컬럼 등 휴리스틱 */
-      let headerRowIdx=-1, valColIdx=-1;
-      for(let r=0; r<Math.min(rows.length,4); r++){
-        const row = rows[r]||[];
-        const idx = row.findIndex(c=> typeof c==='string' && c.replace(/\s/g,'').includes('오비/콜백'));
-        if(idx>=0){ headerRowIdx=r; valColIdx=idx; break; }
-      }
-      if(headerRowIdx<0) return;
-      matchedSheets++;
-      for(let r=headerRowIdx+1; r<rows.length; r++){
-        const row = rows[r]; if(!row) continue;
-        const name = row[0]; if(!name) continue;
-        const val = row[valColIdx];
-        if(val===null||val===undefined||val==='') continue;
-        callStatsStore.obJanggi[dateKey] = callStatsStore.obJanggi[dateKey] || {};
-        callStatsStore.obJanggi[dateKey][String(name).trim()] = numOrNull(val) || 0;
-        totalPeople++;
-      }
-    });
+    const sheetName = wb.SheetNames.find(n=>callParseDateFromDigits(n)===target);
+    if(!sheetName){ alert(`파일에 ${callFmtDateLabel(target)} 시트가 없어요. 시트명(예: "20260929")과 입력일을 확인해주세요.`); return; }
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], {header:1, defval:null});
+    /* 헤더행에서 '오비/콜백' 컬럼 탐색 */
+    let headerRowIdx=-1, valColIdx=-1;
+    for(let r=0; r<Math.min(rows.length,4); r++){
+      const row = rows[r]||[];
+      const idx = row.findIndex(c=> typeof c==='string' && c.replace(/\s/g,'').includes('오비/콜백'));
+      if(idx>=0){ headerRowIdx=r; valColIdx=idx; break; }
+    }
+    if(headerRowIdx<0){ alert(`"${sheetName}" 시트에서 '오비/콜백' 항목을 찾지 못했어요.`); return; }
+    const values = {};
+    for(let r=headerRowIdx+1; r<rows.length; r++){
+      const row = rows[r]; if(!row) continue;
+      const name = row[0]; if(!name) continue;
+      const val = row[valColIdx];
+      if(val===null||val===undefined||val==='') continue;
+      values[String(name).trim()] = numOrNull(val) || 0;
+    }
+    const count = Object.keys(values).length;
+    if(!count){ alert(`"${sheetName}" 시트에 값이 없어요.`); return; }
+    if(!callConfirmOverwrite('obJanggi', '장기사고 콜보정')) return;
+    callStatsStore.obJanggi[target] = values;
     saveCallStatsData();
     renderCallRefresh();
-    alert(`장기사고 콜보정 반영 완료 (${matchedSheets}개 날짜 시트, ${totalPeople}건)`);
+    alert(`장기사고 콜보정 ${callFmtDateLabel(target)} 반영 완료 ("${sheetName}" 시트, ${count}명)`);
   }catch(err){
     console.error(err);
     alert('장기사고 콜보정 파일을 읽는 중 문제가 발생했어요.');
+  }finally{
+    ev.target.value='';
   }
-  ev.target.value='';
+}
+
+/* ---- 입력일 데이터 수기 수정 ---- */
+function callEditValue(kind, name, value){
+  const day = callStatsStore[kind][callInputDate] = callStatsStore[kind][callInputDate] || {};
+  day[name] = numOrNull(value) || 0;
+  saveCallStatsData();
+}
+function callDeleteName(kind, name){
+  const day = callStatsStore[kind][callInputDate]; if(!day) return;
+  delete day[name];
+  if(!Object.keys(day).length) delete callStatsStore[kind][callInputDate];
+  saveCallStatsData();
+  renderCallRefresh();
+}
+function callAddName(kind){
+  const nameEl = document.getElementById(`callAddName-${kind}`);
+  const valEl = document.getElementById(`callAddVal-${kind}`);
+  const name = nameEl.value.trim();
+  if(!name){ nameEl.focus(); return; }
+  const day = callStatsStore[kind][callInputDate] = callStatsStore[kind][callInputDate] || {};
+  if(name in day && !confirm(`${name}님 값이 이미 있어요 (${day[name]}). 바꿀까요?`)) return;
+  day[name] = numOrNull(valEl.value) || 0;
+  saveCallStatsData();
+  renderCallRefresh();
+}
+function callClearDay(kind, label){
+  if(!confirm(`${callFmtDateLabel(callInputDate)} ${label} 데이터를 전부 삭제할까요?`)) return;
+  delete callStatsStore[kind][callInputDate];
+  saveCallStatsData();
+  renderCallRefresh();
+}
+function renderCallDayTable(kind, label){
+  const day = (callStatsStore[kind]||{})[callInputDate] || {};
+  const names = Object.keys(day).sort((a,b)=>a.localeCompare(b,'ko'));
+  const total = names.reduce((s,n)=>s+(Number(day[n])||0),0);
+  const k = escapeHtml(kind);
+  const rows = names.map(n=>`<tr>
+      <td style="text-align:left;">${escapeHtml(n)}</td>
+      <td><input type="number" step="any" class="call-edit-input" value="${escapeHtml(String(day[n]))}" data-name="${escapeHtml(n)}" onchange="callEditValue('${k}', this.dataset.name, this.value)"></td>
+      <td><button class="eval-row-delete-btn" title="삭제" data-name="${escapeHtml(n)}" onclick="callDeleteName('${k}', this.dataset.name)">✕</button></td>
+    </tr>`).join('');
+  return `<div class="duty-report-section" style="margin-bottom:0;">
+    <div class="duty-report-section-title" style="justify-content:space-between;">
+      <span>${label} · ${names.length}명 · 합계 ${total.toLocaleString()}</span>
+      ${names.length?`<button class="btn-danger-text" onclick="callClearDay('${k}','${label}')">이 날짜 삭제</button>`:''}
+    </div>
+    <div class="duty-table-scroll" style="max-height:360px;">
+      <table class="duty-report-table call-day-table">
+        <thead><tr><th style="text-align:left;">이름</th><th style="width:120px;">값</th><th style="width:44px;"></th></tr></thead>
+        <tbody>${rows || `<tr><td colspan="3" style="color:var(--text-faint);padding:18px;">이 날짜에 입력된 값이 없어요. 파일을 올리거나 아래에서 직접 추가하세요.</td></tr>`}</tbody>
+      </table>
+    </div>
+    <div class="call-add-row">
+      <input type="text" id="callAddName-${k}" placeholder="이름" onkeydown="if(event.key==='Enter') callAddName('${k}')">
+      <input type="number" step="any" id="callAddVal-${k}" placeholder="값" onkeydown="if(event.key==='Enter') callAddName('${k}')">
+      <button class="btn-secondary" onclick="callAddName('${k}')">+ 추가</button>
+    </div>
+  </div>`;
+}
+/* 입력일이 속한 달의 영업일별 입력 현황 (클릭하면 그 날짜로 이동) */
+function renderCallMonthStrip(){
+  const [y, m] = callInputDate.split('-').map(Number);
+  const last = new Date(y, m, 0).getDate();
+  const cells = [];
+  for(let d=1; d<=last; d++){
+    const ds = callDateKey(y, m, d);
+    if(!callIsBizDay(ds)) continue;
+    const j = !!(callStatsStore.obJehu||{})[ds], g = !!(callStatsStore.obJanggi||{})[ds];
+    const cls = j&&g ? 'full' : (j||g ? 'half' : '');
+    const tip = `제휴 OB콜백 ${j?'입력됨':'미입력'} · 장기사고 콜보정 ${g?'입력됨':'미입력'}`;
+    cells.push(`<button class="call-day-chip ${cls} ${ds===callInputDate?'current':''}" title="${tip}" onclick="callSetInputDate('${ds}')">${d}</button>`);
+  }
+  return `<div class="call-month-strip">${cells.join('')}</div>`;
 }
 
 /* ---- 3. RAW(상담사실적통계) 업로드 - 2단 헤더를 합쳐서 통째로 저장, 날짜+사번+업무 기준 병합 ---- */
@@ -6423,28 +6568,30 @@ function clearCallAttendanceDeduction(){
 
 /* ---- 실적입력 화면 ---- */
 function renderCallInputView(){
-  const jehuDates = Object.keys(callStatsStore.obJehu||{}).sort();
-  const janggiDates = Object.keys(callStatsStore.obJanggi||{}).sort();
   const rawDates = Object.keys(callStatsStore.raw||{}).sort();
   const offCount = (callStatsStore.offDeduction||[]).length;
   const attCount = (callStatsStore.attendanceDeduction||[]).length;
   return `<div class="duty-report-view">
-    <div class="duty-report-section">
-      <div class="duty-report-section-title">📥 실적입력 · 종합콜현황과는 별개로, 여기서 쌓인 데이터를 기반으로 다음 단계에서 종합현황·실적순위를 계산할 예정이에요</div>
+    <div class="duty-month-bar">
+      <span class="duty-month-label">📅 입력일</span>
+      <button class="nav-btn" title="이전 영업일" onclick="callStepInputDate(-1)">‹</button>
+      <input type="date" class="duty-month-select" value="${callInputDate}" onchange="callSetInputDate(this.value)">
+      <button class="nav-btn" title="다음 영업일" onclick="callStepInputDate(1)">›</button>
+      <span class="duty-month-label">${callFmtDateLabel(callInputDate)}</span>
+      <span class="duty-month-hint">주말·공휴일은 건너뛰어요. 파일을 올리면 이 날짜의 시트/컬럼만 읽고, 아래 표에서 값을 직접 고칠 수 있어요.</span>
+      ${renderCallMonthStrip()}
     </div>
 
     <div class="duty-upload-grid">
       <div class="duty-upload-card">
         <div class="duty-upload-title">① 제휴 OB콜백 업로드</div>
-        <div class="duty-upload-desc">제휴상담 OB/콜백 월별 파일. 시트명(예: "26년8월")과 일자별 값을 자동으로 읽어요.</div>
+        <div class="duty-upload-desc">제휴상담 OB/콜백 월별 파일에서 <b>${callFmtDateLabel(callInputDate)}</b> 컬럼만 읽어요.</div>
         <input type="file" accept=".xlsx,.xls" onchange="onCallObJehuUpload(event)">
-        <div style="font-size:10.5px;color:var(--text-faint);margin-top:6px;">저장된 날짜: ${jehuDates.length}일 ${jehuDates.length?`(${jehuDates[0]} ~ ${jehuDates[jehuDates.length-1]})`:''}</div>
       </div>
       <div class="duty-upload-card">
         <div class="duty-upload-title">② 장기사고 콜보정 업로드</div>
-        <div class="duty-upload-desc">장기사고 콜보정 파일. 날짜별로 나뉜 시트를 전부 자동으로 읽어요 (기존 날짜는 다시 올려도 최신값으로 갱신돼요).</div>
+        <div class="duty-upload-desc">장기사고 콜보정 파일에서 <b>${callFmtDateLabel(callInputDate)}</b> 시트만 읽어요.</div>
         <input type="file" accept=".xlsx,.xls" onchange="onCallObJanggiUpload(event)">
-        <div style="font-size:10.5px;color:var(--text-faint);margin-top:6px;">저장된 날짜: ${janggiDates.length}일 ${janggiDates.length?`(${janggiDates[0]} ~ ${janggiDates[janggiDates.length-1]})`:''}</div>
       </div>
       <div class="duty-upload-card">
         <div class="duty-upload-title">③ RAW(상담사실적통계) 업로드</div>
@@ -6452,6 +6599,11 @@ function renderCallInputView(){
         <input type="file" accept=".xlsx,.xls" onchange="onCallRawUpload(event)">
         <div style="font-size:10.5px;color:var(--text-faint);margin-top:6px;">저장된 날짜: ${rawDates.length}일 ${rawDates.length?`(${rawDates[0]} ~ ${rawDates[rawDates.length-1]})`:''}</div>
       </div>
+    </div>
+
+    <div class="duty-report-row2">
+      ${renderCallDayTable('obJehu', '① 제휴 OB콜백')}
+      ${renderCallDayTable('obJanggi', '② 장기사고 콜보정')}
     </div>
 
     <div class="duty-report-section">
