@@ -1898,16 +1898,41 @@ async function supabaseUpsertRow(cleanPayload){
     call_stats: cleanPayload.callStats,
     updated_at: new Date().toISOString()
   };
-  const res = await authFetch(`${SUPABASE_URL}/rest/v1/${SUPABASE_TABLE}`, {
-    method: 'POST',
-    extraHeaders: {'Prefer': 'resolution=merge-duplicates,return=minimal'},
-    body: JSON.stringify(body)
-  });
+  /* 충돌 방지: 마지막으로 불러온 뒤 DB가 그대로일 때만 덮어써요.
+     다른 창/사람이 그 사이 저장했으면 0행이 바뀌고 SyncConflictError를 던져요. */
+  let res;
+  if(syncLastUpdatedAt){
+    delete body.id;
+    res = await authFetch(`${SUPABASE_URL}/rest/v1/${SUPABASE_TABLE}?id=eq.${SUPABASE_ROOM}&updated_at=eq.${encodeURIComponent(syncLastUpdatedAt)}&select=updated_at`, {
+      method: 'PATCH',
+      extraHeaders: {'Prefer': 'return=representation'},
+      body: JSON.stringify(body)
+    });
+  }else{
+    res = await authFetch(`${SUPABASE_URL}/rest/v1/${SUPABASE_TABLE}?select=updated_at`, {
+      method: 'POST',
+      extraHeaders: {'Prefer': 'resolution=merge-duplicates,return=representation'},
+      body: JSON.stringify(body)
+    });
+  }
   if(!res.ok){
     const text = await res.text().catch(()=> '');
     throw new Error('저장 실패 (코드 ' + res.status + ') ' + text.slice(0,120));
   }
-  syncLastUpdatedAt = body.updated_at;
+  const rows = await res.json().catch(()=>[]);
+  if(!rows.length) throw new SyncConflictError();
+  /* DB가 돌려준 값 그대로 기억해야 폴링 비교/다음 조건부 저장이 정확해요 */
+  syncLastUpdatedAt = rows[0].updated_at;
+}
+class SyncConflictError extends Error{}
+/* 다른 곳에서 먼저 저장된 경우: 내 화면의 오래된 데이터로 덮어쓰지 않고 최신 데이터를 다시 불러옴 */
+async function reloadAfterSyncConflict(){
+  const row = await supabaseFetchRow();
+  if(row){
+    applySupabaseRow(row);
+    if(state.view==='duty') renderDutyRefresh();
+    else render();
+  }
 }
 function applySupabaseRow(row){
   syncApplyingRemote = true;
@@ -2062,6 +2087,11 @@ async function saveData(){
       try{ localStorage.setItem(STORAGE_KEY, payload); }catch(e){}
       return true;
     }catch(e){
+      if(e instanceof SyncConflictError){
+        try{ await reloadAfterSyncConflict(); }catch(e2){ console.error('최신 데이터 불러오기 실패', e2); }
+        alert('다른 창이나 다른 사람이 먼저 저장해서 최신 데이터를 다시 불러왔어요.\n방금 한 수정은 저장되지 않았으니 다시 입력해주세요.');
+        return false;
+      }
       console.error('동기화 저장 실패', e);
       showSaveError('⚠ 동기화 저장에 실패했어요. 인터넷 연결을 확인해주세요. (로컬에는 저장됨)');
       try{ localStorage.setItem(STORAGE_KEY, payload); }catch(e2){}
