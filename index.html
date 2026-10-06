@@ -453,6 +453,8 @@
   .call-edit-input:hover{border-color:var(--border-strong);}
   .call-edit-input:focus{outline:none;border-color:var(--accent);background:var(--bg-card);}
   .call-add-row{display:flex;gap:6px;margin-top:10px;}
+  .eval-metric-upload{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;}
+  .eval-metric-upload label.btn-secondary{display:inline-flex;align-items:center;}
   .call-raw-table th{max-width:120px;white-space:normal;line-height:1.3;}
   .call-raw-table td{padding:1px 2px !important;}
   .call-raw-input{width:auto;text-align:left;height:24px;font-size:11px;}
@@ -5959,6 +5961,86 @@ function renderEvalLockModalBody(){
 document.getElementById('evalLockModalOverlay').addEventListener('click', (e)=>{
   if(e.target.id==='evalLockModalOverlay') closeEvalLockModal();
 });
+/* ---- 팀별 지표 파일 업로드 (TOP2·NPS: 고객만족도 상담사별 / 발신율: 관리자만족도) ---- */
+function evalTeamKey(name){ return String(name||'').replace(/\s+/g,''); }
+/* 파일의 팀 이름(예: "IS장기사고1팀")에 들어 있는 평가 팀(예: "장기사고 1팀")을 찾음 */
+function evalMatchTeam(cellText){
+  const t = evalTeamKey(cellText);
+  if(!t) return null;
+  return EVAL_TEAMS.find(team=>{
+    const k = evalTeamKey(team);
+    const i = t.indexOf(k);
+    return i>=0 && !/\d/.test(t.charAt(i+k.length)); /* "1팀"이 "11팀"에 걸리지 않도록 */
+  }) || null;
+}
+/* 퍼센트 값 → % 숫자 (엑셀 % 서식이면 ×100, "96.15%" 글자도 처리) */
+function evalPercentValue(cell, assumeFraction){
+  if(!cell || cell.v===null || cell.v===undefined || cell.v==='') return null;
+  if(typeof cell.v==='string'){
+    const n = Number(cell.v.replace(/[%,\s]/g,''));
+    return isNaN(n) ? null : n;
+  }
+  if(typeof cell.v!=='number') return null;
+  const isPct = (cell.z && String(cell.z).includes('%')) || (cell.w && String(cell.w).includes('%'));
+  const v = (isPct || (assumeFraction && Math.abs(cell.v)<=1)) ? cell.v*100 : cell.v;
+  return Math.round(v*100)/100;
+}
+function evalSheetCell(ws, r, c){ return ws[XLSX.utils.encode_cell({r, c})]; }
+async function onEvalMetricFileUpload(ev, kind){
+  const file = ev.target.files[0]; if(!file) return;
+  ev.target.value = '';
+  const sel = getEvalSelectedWeek();
+  const week = evalStore.weekly[sel];
+  if(!week){ alert('먼저 종합콜현황 파일을 업로드해주세요.'); return; }
+  if(isEvalWeekLocked(sel)){ alert('마감(잠금)된 주차는 수정할 수 없어요.'); return; }
+  try{
+    const wb = await readWorkbookFromFile(file);
+    const found = {}; /* team -> {top2, nps} 또는 {outboundRate} */
+    wb.SheetNames.forEach(name=>{
+      const ws = wb.Sheets[name];
+      if(!ws['!ref']) return;
+      const range = XLSX.utils.decode_range(ws['!ref']);
+      for(let r=range.s.r; r<=range.e.r; r++){
+        if(kind==='csat'){
+          /* B열 팀이름 + D열 "소계" 행 → TOP2: R열, NPS: T열 */
+          const d = evalSheetCell(ws, r, 3);
+          if(!d || String(d.v).replace(/\s/g,'')!=='소계') continue;
+          const team = evalMatchTeam((evalSheetCell(ws, r, 1)||{}).v);
+          if(!team || found[team]) continue;
+          found[team] = { top2: evalPercentValue(evalSheetCell(ws, r, 17), true), nps: evalPercentValue(evalSheetCell(ws, r, 19), false) };
+        }else{
+          /* C열 팀이름 → K열 실적 */
+          const team = evalMatchTeam((evalSheetCell(ws, r, 2)||{}).v);
+          if(!team || found[team]) continue;
+          const v = evalPercentValue(evalSheetCell(ws, r, 10), false);
+          if(v===null) continue;
+          found[team] = { outboundRate: v };
+        }
+      }
+    });
+    const teams = EVAL_TEAMS.filter(t=>found[t]);
+    if(!teams.length){
+      alert(kind==='csat'
+        ? '파일에서 팀 소계 행을 찾지 못했어요. (B열 팀이름, D열 "소계", R열 TOP2, T열 NPS)'
+        : '파일에서 팀 이름을 찾지 못했어요. (C열 팀이름, K열 실적)');
+      return;
+    }
+    week.teamMetrics = week.teamMetrics || {};
+    const lines = teams.map(team=>{
+      const m = week.teamMetrics[team] = week.teamMetrics[team] || {};
+      const f = found[team];
+      Object.keys(f).forEach(k=>{ if(f[k]!==null) m[k] = f[k]; });
+      return kind==='csat' ? `· ${team}: TOP2 ${f.top2??'-'}% / NPS ${f.nps??'-'}` : `· ${team}: 발신율 ${f.outboundRate}%`;
+    });
+    const missing = EVAL_TEAMS.filter(t=>!found[t]);
+    saveEvalData();
+    renderEvalRefresh();
+    alert(`${kind==='csat'?'TOP2·NPS':'발신율'} ${teams.length}개 팀 반영 완료\n\n${lines.join('\n')}${missing.length?`\n\n파일에 없어서 그대로 둔 팀: ${missing.join(', ')}`:''}`);
+  }catch(err){
+    console.error(err);
+    alert('파일을 읽는 중 문제가 발생했어요.');
+  }
+}
 function evalMetricInputId(team, field){
   return `evalMetric_${team.replace(/\s+/g,'_')}_${field}`;
 }
@@ -5987,6 +6069,11 @@ function renderEvalTeamMetricInputs(week, locked){
   }).join('');
   return `<div class="duty-report-section">
     <div class="duty-report-section-title">✏️ 팀별 지표 입력 (TOP2 · NPS · 발신율 · 민원건수) · 값 입력 후 Enter 누르면 다음 팀으로 이동</div>
+    ${locked ? '' : `<div class="eval-metric-upload">
+      <label class="btn-secondary">📤 고객만족도(상담사별) 업로드 → TOP2·NPS<input type="file" accept=".xlsx,.xls" hidden onchange="onEvalMetricFileUpload(event,'csat')"></label>
+      <label class="btn-secondary">📤 관리자만족도 업로드 → 발신율<input type="file" accept=".xlsx,.xls" hidden onchange="onEvalMetricFileUpload(event,'outbound')"></label>
+      <span class="duty-month-hint" style="flex-basis:auto;">업로드하면 아래 칸이 자동으로 채워지고, 직접 고칠 수도 있어요. 민원건수는 직접 입력해주세요.</span>
+    </div>`}
     <div style="overflow-x:auto;">
       <table class="duty-report-table">
         <thead><tr><th>팀</th><th>TOP2 (%)</th><th>NPS</th><th>발신율 (%)</th><th>민원건수</th></tr></thead>
