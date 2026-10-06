@@ -6218,7 +6218,7 @@ function renderEvalTeamMetricInputs(week, locked){
       <td><input type="number" step="0.01" id="${evalMetricInputId(team,'top2')}" value="${m.top2!=null?m.top2:''}" style="width:70px;" placeholder="예: 97" onchange="updateEvalTeamMetric('${team}','top2',this.value)" onkeydown="onEvalMetricKeydown(event,'${team}','top2')" ${dis}></td>
       <td><input type="number" step="0.01" id="${evalMetricInputId(team,'nps')}" value="${m.nps!=null?m.nps:''}" style="width:70px;" onchange="updateEvalTeamMetric('${team}','nps',this.value)" onkeydown="onEvalMetricKeydown(event,'${team}','nps')" ${dis}></td>
       <td><input type="number" step="0.1" id="${evalMetricInputId(team,'outboundRate')}" value="${m.outboundRate!=null?m.outboundRate:''}" style="width:70px;" placeholder="예: 4.5" onchange="updateEvalTeamMetric('${team}','outboundRate',this.value)" onkeydown="onEvalMetricKeydown(event,'${team}','outboundRate')" ${dis}></td>
-      <td><input type="number" id="${evalMetricInputId(team,'complaints')}" value="${m.complaints!=null?m.complaints:''}" style="width:60px;" onchange="updateEvalTeamMetric('${team}','complaints',this.value)" onkeydown="onEvalMetricKeydown(event,'${team}','complaints')" ${dis}></td>
+      <td><input type="number" id="${evalMetricInputId(team,'complaints')}" value="${m.complaints!=null?m.complaints:0}" style="width:60px;" onchange="updateEvalTeamMetric('${team}','complaints',this.value)" onkeydown="onEvalMetricKeydown(event,'${team}','complaints')" ${dis}></td>
     </tr>`;
   }).join('');
   return `<div class="duty-report-section">
@@ -6485,7 +6485,7 @@ function generateEvalExcel(){
       row[13] = tm.top2!=null ? Number((tm.top2/100).toFixed(4)) : '';
       row[14] = tm.nps!=null ? tm.nps : '';
       row[15] = tm.outboundRate!=null ? Number((tm.outboundRate/100).toFixed(4)) : '';
-      row[16] = tm.complaints!=null ? tm.complaints : '';
+      row[16] = tm.complaints!=null ? tm.complaints : 0;
       row[17] = tm.outboundRate!=null ? evalOutboundPenalty(tm.outboundRate) : '';
     }
     if(i < resigned.length){
