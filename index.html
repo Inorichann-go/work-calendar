@@ -5996,7 +5996,14 @@ async function onEvalMetricFileUpload(ev, kind){
   try{
     const wb = await readWorkbookFromFile(file);
     const found = {}; /* team -> {top2, nps} 또는 {outboundRate} */
-    wb.SheetNames.forEach(name=>{
+    let usedSheet = '';
+    /* 발신율: 시트명에 '평가기준'이 있는 시트를 우선, 여러 개면 맨 뒤(최신) 시트부터 */
+    const sheetNames = kind==='csat' ? wb.SheetNames : [
+      ...wb.SheetNames.filter(n=>n.includes('평가기준')).reverse(),
+      ...wb.SheetNames.filter(n=>!n.includes('평가기준'))
+    ];
+    sheetNames.forEach(name=>{
+      if(kind!=='csat' && Object.keys(found).length) return; /* 한 시트에서 찾았으면 다른 시트는 보지 않음 */
       const ws = wb.Sheets[name];
       if(!ws['!ref']) return;
       const range = XLSX.utils.decode_range(ws['!ref']);
@@ -6008,6 +6015,7 @@ async function onEvalMetricFileUpload(ev, kind){
           const team = evalMatchTeam((evalSheetCell(ws, r, 1)||{}).v);
           if(!team || found[team]) continue;
           found[team] = { top2: evalPercentValue(evalSheetCell(ws, r, 17), true), nps: evalPercentValue(evalSheetCell(ws, r, 19), false) };
+          usedSheet = usedSheet || name;
         }else{
           /* C열 팀이름 → K열 실적 */
           const team = evalMatchTeam((evalSheetCell(ws, r, 2)||{}).v);
@@ -6015,6 +6023,7 @@ async function onEvalMetricFileUpload(ev, kind){
           const v = evalPercentValue(evalSheetCell(ws, r, 10), false);
           if(v===null) continue;
           found[team] = { outboundRate: v };
+          usedSheet = name;
         }
       }
     });
@@ -6035,7 +6044,7 @@ async function onEvalMetricFileUpload(ev, kind){
     const missing = EVAL_TEAMS.filter(t=>!found[t]);
     saveEvalData();
     renderEvalRefresh();
-    alert(`${kind==='csat'?'TOP2·NPS':'발신율'} ${teams.length}개 팀 반영 완료\n\n${lines.join('\n')}${missing.length?`\n\n파일에 없어서 그대로 둔 팀: ${missing.join(', ')}`:''}`);
+    alert(`${kind==='csat'?'TOP2·NPS':'발신율'} ${teams.length}개 팀 반영 완료 ("${usedSheet}" 시트)\n\n${lines.join('\n')}${missing.length?`\n\n파일에 없어서 그대로 둔 팀: ${missing.join(', ')}`:''}`);
   }catch(err){
     console.error(err);
     alert('파일을 읽는 중 문제가 발생했어요.');
