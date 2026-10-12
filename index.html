@@ -7040,7 +7040,7 @@ function renderCallInputView(){
 /* ============ 종합콜현황 - 종합현황 (엑셀 "종합현황" 시트와 같은 계산) ============
    근무일수 = 기간 시작일~기준일 영업일수 - (휴무일수[반차 0.5] + 근태차감분 ÷ 480[단시간 240])
    누적 CPD IN/OB(전산) = RAW 응답호/성공호 합 ÷ 근무일수, OB(인센) = OB콜백·콜보정 합 ÷ 근무일수
-   Call Time = RAW 통화시간 합 ÷ 근무일수(엑셀과 같이 항상 480 기준), 평가 CPD = Total(+제휴 10)
+   Call Time = RAW 통화시간 합 ÷ 근무일수(단시간 근무자는 CPD와 같이 240 기준), 평가 CPD = Total(+제휴 10)
    평균은 0이 아닌 값만, 이름 비교는 엑셀처럼 대소문자·앞뒤 공백 무시 */
 const CALL_TEAMS = ['제휴1팀','제휴2팀','제휴3팀','사고1팀','사고2팀','사고3팀','사고4팀','사고5팀','사고6팀','실효OB'];
 const CALL_TEAM_LABEL = t=>t.replace(/^제휴(\d)팀$/,'제휴상담 $1팀').replace(/^사고(\d)팀$/,'장기사고 $1팀');
@@ -7145,14 +7145,13 @@ function computeCallSummary(period, ref){
     const childcare = (Number(p.childcareMin)||0) * Math.max(0, ccDays);
     const attMin = (mins[k]||0) + childcare;
     const dCnt = bizDays.length - (offDays + attMin/(p.shortTime ? 240 : 480));
-    const dTime = bizDays.length - (offDays + attMin/480);
     const div = (x, d)=> d>0 ? x/d : 0;
     const r = raw[String(p.sabun||'').trim()] || {inCnt:0,inSec:0,obCnt:0,obSec:0};
     const rd = rawDay[String(p.sabun||'').trim()] || {inCnt:0,inSec:0,obCnt:0,obSec:0};
     const o = {
       ...p, workDays: dCnt, offDays, attMin,
       I: div(r.inCnt, dCnt), J: div(ob[k]||0, dCnt), K: div(r.obCnt, dCnt),
-      M: div(r.inSec, dTime), N: div(r.obSec, dTime),
+      M: div(r.inSec, dCnt), N: div(r.obSec, dCnt),
       S: rd.inCnt, T: obDay[k]||0, U: rd.obCnt, W: rd.inSec, X: rd.obSec
     };
     o.L = o.I + o.K; o.O = o.M + o.N;
@@ -7239,7 +7238,7 @@ function callSummaryDeletePeriod(id){
 /* ---- 상담사 명단 ---- */
 function callRosterEdit(idx, key, value){
   const p = (callStatsStore.roster||[])[idx]; if(!p) return;
-  if(key==='shortTime') p.shortTime = !!value;
+  if(key==='workHours'){ const h = Number(value)||8; p.workHours = h; p.shortTime = h<=4; }
   else if(key==='childcareMin') p.childcareMin = Number(value)||0;
   else if(key==='childcareStart') p.childcareStart = callNormalizePastedDate(value) || '';
   else p[key] = String(value).trim();
@@ -7254,75 +7253,66 @@ function callRosterDelete(idx){
 }
 function callRosterAdd(sabun, name, team){
   callEnsureSummaryStore();
-  callStatsStore.roster.push({ sabun: sabun||'', name: name||'', team: team||'', hireDate:'', shortTime:false, childcareMin:0, childcareStart:'' });
+  callStatsStore.roster.push({ sabun: sabun||'', name: name||'', team: team||'', hireDate:'', workHours:8, shortTime:false, childcareMin:0, childcareStart:'' });
   saveCallStatsData(); renderCallSummaryRefresh();
 }
 function callRosterAddFromRaw(sabun, name, rawTeam){ callRosterAdd(sabun, name, callTeamFromRaw(rawTeam)); }
-/* 종합콜현황 엑셀(종합현황·순위·근태 시트)에서 명단·단시간·육아단축 가져오기 */
+/* 상담사 명단 엑셀(이름·사번·팀·입사일·근무시간) 업로드
+   근무시간 8 = 일반, 4 이하 = 단시간(근무일 240분 기준). 육아단축은 명단 표에서 직접 입력하며, 다시 올려도 사번 기준으로 유지돼요. */
 async function onCallRosterImport(ev){
   const file = ev.target.files[0]; if(!file) return;
   ev.target.value = '';
   try{
-    const wb = XLSX.read(await file.arrayBuffer(), {type:'array', cellFormula:true});
-    const ws = wb.Sheets[wb.SheetNames.find(n=>n.includes('종합현황')) || wb.SheetNames[0]];
-    const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:null, raw:true});
-    /* '투입인원' 헤더가 있는 열 = 팀 열 + 1 → 이름/사번/팀/입사일 = 팀열-2 ~ 팀열+1 */
-    let teamCol = -1;
-    for(let r=0; r<Math.min(rows.length,12) && teamCol<0; r++) (rows[r]||[]).forEach((c,i)=>{ if(teamCol<0 && String(c||'').trim()==='투입인원') teamCol = i-1; });
-    if(teamCol<1){ alert('"종합현황" 시트에서 투입인원 헤더를 찾지 못했어요.'); return; }
-    const people = [];
-    rows.forEach(r=>{
-      const name = r[teamCol-2], sab = r[teamCol-1], team = r[teamCol];
-      if(!name || !sab || !team) return;
-      const t = CALL_TEAMS.includes(String(team).trim()) ? String(team).trim() : callTeamFromRaw(team);
-      if(!t) return;
-      const h = r[teamCol+1];
-      const hire = typeof h==='number' ? (()=>{ const d = XLSX.SSF.parse_date_code(h); return d ? callDateKey(d.y,d.m,d.d) : ''; })() : (h ? String(h) : '');
-      people.push({ sabun: String(sab).trim(), name: String(name).trim(), team: t, hireDate: hire, shortTime:false, childcareMin:0, childcareStart:'' });
-    });
-    if(!people.length){ alert('명단을 찾지 못했어요.'); return; }
-    /* 순위 시트: "단시간" 제목 왼쪽 열의 이름들 */
-    let shortCount = 0;
-    const rk = wb.Sheets[wb.SheetNames.find(n=>n.includes('순위'))];
-    if(rk){
-      const rr = XLSX.utils.sheet_to_json(rk, {header:1, defval:null, raw:false});
-      let col = -1;
-      for(let r=0; r<Math.min(rr.length,5) && col<0; r++) (rr[r]||[]).forEach((c,i)=>{ if(col<0 && String(c||'').includes('단시간')) col = i-1; });
-      if(col>=0){
-        const names = new Set(rr.slice(4).map(r=>callNameKey(r[col])).filter(Boolean));
-        people.forEach(p=>{ if(names.has(callNameKey(p.name))){ p.shortTime = true; shortCount++; } });
+    const wb = await readWorkbookFromFile(file);
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header:1, defval:null, raw:true});
+    let hr = -1, col = {};
+    for(let r=0; r<Math.min(rows.length,10) && hr<0; r++){
+      const row = (rows[r]||[]).map(c=>String(c||'').replace(/\s/g,''));
+      if(row.includes('이름') && row.includes('사번')){
+        hr = r;
+        col = { name: row.indexOf('이름'), sabun: row.indexOf('사번'), team: row.indexOf('팀'),
+                hire: row.findIndex(c=>c.includes('입사')), hours: row.findIndex(c=>c.includes('근무시간')) };
       }
     }
-    /* 근태 시트: 날짜 칸에 '육아단축'이라고 적힌 행의 수식에서 하루 단축분(×240 등) */
-    const childcare = [];
-    const kt = wb.Sheets[wb.SheetNames.find(n=>n.includes('근태'))];
-    if(kt){
-      Object.keys(kt).forEach(a=>{
-        if(a[0]==='!' || String(kt[a].v||'').trim()!=='육아단축') return;
-        const c = XLSX.utils.decode_cell(a);
-        const nameCell = kt[XLSX.utils.encode_cell({r:c.r, c:c.c+1})], minCell = kt[XLSX.utils.encode_cell({r:c.r, c:c.c+2})];
-        const m = minCell && minCell.f && String(minCell.f).match(/\*\s*(\d+)/);
-        const p = nameCell && people.find(x=>callNameKey(x.name)===callNameKey(nameCell.v));
-        if(p && m){
-          p.childcareMin = Number(m[1]);
-          /* COUNTA(OB!F5:Y5) 처럼 OB 시트 날짜 머리글의 시작 칸 = 육아단축 시작일 */
-          const sc = String(minCell.f).match(/COUNTA\(OB!\$?([A-Z]+)\$?(\d+)/);
-          const obSheet = wb.Sheets[wb.SheetNames.find(n=>n.trim()==='OB')];
-          const hc = sc && obSheet && obSheet[`${sc[1]}${sc[2]}`];
-          if(hc && typeof hc.v==='number'){ const d = XLSX.SSF.parse_date_code(hc.v); if(d) p.childcareStart = callDateKey(d.y,d.m,d.d); }
-          childcare.push(`${p.name} 하루 ${m[1]}분${p.childcareStart?` (${p.childcareStart}부터)`:''}`);
-        }
-      });
-    }
+    if(hr<0){ alert('첫 줄에서 "이름", "사번" 제목을 찾지 못했어요. (양식: 이름 · 사번 · 팀 · 입사일 · 근무시간)'); return; }
     callEnsureSummaryStore();
-    if(callStatsStore.roster.length && !confirm(`지금 명단(${callStatsStore.roster.length}명)을 파일의 명단(${people.length}명)으로 바꿀까요?`)) return;
+    const prevBySabun = {};
+    callStatsStore.roster.forEach(p=>{ prevBySabun[String(p.sabun).trim()] = p; });
+    const people = [], badTeam = [];
+    rows.slice(hr+1).forEach(r=>{
+      const name = r[col.name], sab = r[col.sabun];
+      if(!name || !sab) return;
+      const rawTeam = col.team>=0 ? String(r[col.team]||'').trim() : '';
+      const team = CALL_TEAMS.includes(rawTeam.replace(/\s/g,'')) ? rawTeam.replace(/\s/g,'') : callTeamFromRaw(rawTeam);
+      if(!team) badTeam.push(`${name}(${rawTeam||'팀 없음'})`);
+      const h = col.hire>=0 ? r[col.hire] : null;
+      const hire = h instanceof Date ? toISODate(h) : (h ? (callNormalizePastedDate(h) || String(h)) : '');
+      const hours = col.hours>=0 ? Number(r[col.hours]) : 8;
+      const prev = prevBySabun[String(sab).trim()] || {};
+      people.push({ sabun: String(sab).trim(), name: String(name).trim(), team, hireDate: hire,
+        workHours: hours||8, shortTime: !!hours && hours<=4,
+        childcareMin: prev.childcareMin||0, childcareStart: prev.childcareStart||'' });
+    });
+    if(!people.length){ alert('명단에 상담사가 없어요.'); return; }
+    if(callStatsStore.roster.length && !confirm(`지금 명단(${callStatsStore.roster.length}명)을 파일의 명단(${people.length}명)으로 바꿀까요?\n(육아단축 설정은 사번 기준으로 유지돼요)`)) return;
     callStatsStore.roster = people;
     saveCallStatsData(); renderCallSummaryRefresh();
-    alert(`명단 ${people.length}명을 가져왔어요.\n단시간 근무자: ${shortCount}명\n육아단축: ${childcare.length ? childcare.join(', ') : '없음'}`);
+    const shorts = people.filter(p=>p.shortTime).map(p=>p.name);
+    alert(`명단 ${people.length}명을 가져왔어요.\n단시간 근무자(근무시간 4 이하): ${shorts.length}명${shorts.length?` - ${shorts.join(', ')}`:''}${badTeam.length?`\n\n팀을 알 수 없는 ${badTeam.length}명: ${badTeam.join(', ')}\n명단 표에서 팀을 골라주세요.`:''}`);
   }catch(err){
     console.error(err);
     alert('파일을 읽는 중 문제가 발생했어요.');
   }
+}
+function downloadCallRosterTemplate(){
+  callEnsureSummaryStore();
+  const rows = [['이름','사번','팀','입사일','근무시간']];
+  callStatsStore.roster.forEach(p=>rows.push([p.name, p.sabun, p.team, p.hireDate||'', p.workHours || (p.shortTime?4:8)]));
+  if(rows.length===1) rows.push(['홍길동','U000000','제휴1팀','2024-01-02',8]);
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols'] = [{wch:10},{wch:10},{wch:9},{wch:12},{wch:8}];
+  const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, '상담사명단');
+  XLSX.writeFile(wb, '상담사명단.xlsx');
 }
 
 /* ---- 화면 ---- */
@@ -7387,7 +7377,7 @@ function renderCallSummaryView(){
   const roster = callStatsStore.roster;
 
   const warn = [];
-  if(!roster.length) warn.push('상담사 명단이 비어 있어요. 아래 "상담사 명단"에서 종합콜현황 엑셀로 가져오거나 직접 추가해주세요.');
+  if(!roster.length) warn.push('상담사 명단이 비어 있어요. 아래 "상담사 명단"에서 명단 엑셀을 올리거나 직접 추가해주세요.');
   if(res.missingRaw.length) warn.push(`RAW가 없는 영업일: ${res.missingRaw.join(', ')} (근무일수에는 포함돼요)`);
   if(res.oldTimeFormat) warn.push('예전 방식으로 올라간 RAW가 있어 통화시간이 조금 다를 수 있어요. 해당 날짜 RAW를 다시 업로드해주세요.');
 
@@ -7396,7 +7386,7 @@ function renderCallSummaryView(){
   const personRows = filtered.map(p=>{
     const search = escapeHtml(`${p.name} ${p.sabun} ${p.team}`);
     const hidden = callSummarySearch && !search.includes(callSummarySearch) ? ' style="display:none;"' : '';
-    const tip = `근무일수 ${p.workDays.toFixed(2)}일 (휴무 ${p.offDays}일, 근태차감 ${Math.round(p.attMin)}분${p.shortTime?', 단시간':''})`;
+    const tip = `근무일수 ${p.workDays.toFixed(2)}일 (휴무 ${p.offDays}일, 근태차감 ${Math.round(p.attMin)}분${p.shortTime?', 단시간 240분 기준':''})`;
     return `<tr data-search="${search}"${hidden}><td class="cs-label" title="${tip}">${escapeHtml(p.name)}</td><td>${escapeHtml(p.sabun)}</td><td>${escapeHtml(p.team)}</td><td>${escapeHtml(p.hireDate||'')}</td><td title="${tip}">${p.workDays.toFixed(1)}</td>${callSummaryCells(p)}</tr>`;
   }).join('');
   const chips = ['', ...CALL_TEAMS].map(t=>`<button class="category-chip ${callSummaryTeamFilter===t?'active':''}" onclick="onCallSummaryFilter('${t}')">${t?escapeHtml(CALL_TEAM_LABEL(t)):'전체'}</button>`).join('');
@@ -7408,7 +7398,7 @@ function renderCallSummaryView(){
       <td><input class="call-edit-input call-raw-input" value="${escapeHtml(p.sabun)}" size="9" onchange="callRosterEdit(${i},'sabun',this.value)"></td>
       <td><select class="duty-month-select" onchange="callRosterEdit(${i},'team',this.value)">${teamOpts(p.team)}</select></td>
       <td><input class="call-edit-input call-raw-input" value="${escapeHtml(p.hireDate||'')}" size="10" onchange="callRosterEdit(${i},'hireDate',this.value)"></td>
-      <td><input type="checkbox" ${p.shortTime?'checked':''} onchange="callRosterEdit(${i},'shortTime',this.checked)"></td>
+      <td><input class="call-edit-input call-raw-input num" value="${p.workHours || (p.shortTime?4:8)}" size="2" title="4 이하 = 단시간" onchange="callRosterEdit(${i},'workHours',this.value)">${p.shortTime?' <span class="eval-badge eval-badge-blue">단시간</span>':''}</td>
       <td><input class="call-edit-input call-raw-input num" value="${p.childcareMin||0}" size="4" onchange="callRosterEdit(${i},'childcareMin',this.value)"></td>
       <td><input class="call-edit-input call-raw-input" value="${escapeHtml(p.childcareStart||'')}" size="10" placeholder="기간 시작일" onchange="callRosterEdit(${i},'childcareStart',this.value)"></td>
     </tr>`).join('');
@@ -7457,12 +7447,13 @@ function renderCallSummaryView(){
     <details class="duty-report-section" id="csRosterBox">
       <summary class="duty-report-section-title" style="cursor:pointer;margin:0;">👥 상담사 명단 (${roster.length}명)${res.notInRoster.length?` · RAW에만 있는 상담사 ${res.notInRoster.length}명`:''}</summary>
       <div class="eval-metric-upload" style="margin-top:10px;">
-        <label class="btn-secondary">📤 종합콜현황 엑셀에서 명단 가져오기<input type="file" accept=".xlsx,.xls" hidden onchange="onCallRosterImport(event)"></label>
+        <label class="btn-secondary">📤 상담사 명단 업로드<input type="file" accept=".xlsx,.xls" hidden onchange="onCallRosterImport(event)"></label>
+        <button class="btn-secondary" onclick="downloadCallRosterTemplate()">📥 양식 다운로드</button>
         <button class="btn-secondary" onclick="callRosterAdd()">+ 직접 추가</button>
-        <span class="duty-month-hint" style="flex-basis:auto;">이름은 OB·휴무·근태 데이터와 맞출 때 쓰여요(대소문자 무시). 단시간은 CPD 계산 시 근태차감을 240분=1일로, 육아단축은 하루 단축분(분)을 근태차감에 더해요.</span>
+        <span class="duty-month-hint" style="flex-basis:auto;">양식: 이름 · 사번 · 팀 · 입사일 · 근무시간 (근무시간 4 이하 = 단시간, 근무일을 240분 기준으로 계산). 이름은 OB·휴무·근태 데이터와 맞출 때 쓰여요(대소문자 무시). 육아단축은 표에서 하루 단축분(분)과 시작일을 입력해요.</span>
       </div>
       ${roster.length?`<div class="duty-table-scroll" style="max-height:420px;margin-top:10px;">
-        <table class="duty-table call-raw-table"><thead><tr><th class="call-raw-del"></th><th>이름</th><th>사번</th><th>팀</th><th>입사일</th><th>단시간</th><th>육아단축(분/일)</th><th>육아단축 시작일</th></tr></thead><tbody>${rosterRows}</tbody></table>
+        <table class="duty-table call-raw-table"><thead><tr><th class="call-raw-del"></th><th>이름</th><th>사번</th><th>팀</th><th>입사일</th><th>근무시간</th><th>육아단축(분/일)</th><th>육아단축 시작일</th></tr></thead><tbody>${rosterRows}</tbody></table>
       </div>`:''}
       ${notIn?`<div class="duty-report-section-title" style="margin-top:14px;">RAW에는 있지만 명단에 없는 상담사 (팀장·지원팀 등은 그대로 두면 돼요)</div><ul class="center-list" style="max-height:220px;">${notIn}</ul>`:''}
     </details>
