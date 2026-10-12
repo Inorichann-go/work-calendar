@@ -453,6 +453,16 @@
   .call-edit-input:hover{border-color:var(--border-strong);}
   .call-edit-input:focus{outline:none;border-color:var(--accent);background:var(--bg-card);}
   .call-add-row{display:flex;gap:6px;margin-top:10px;}
+  .cs-table{font-size:11px;}
+  .cs-table th,.cs-table td{padding:4px 6px;text-align:right;font-variant-numeric:tabular-nums;}
+  .cs-table th{text-align:center;}
+  .cs-table td.cs-label{text-align:left;font-weight:700;white-space:nowrap;position:sticky;left:0;background:var(--bg-card);z-index:1;}
+  .cs-table .cs-sep{border-left:2px solid var(--border-strong);}
+  .cs-table td.cs-em{font-weight:800;}
+  .cs-table th.cs-day{background:#eef2ff;}
+  .cs-table tr.cs-avg td,.cs-table tr.cs-group td{background:var(--bg-card-2);font-weight:700;}
+  .cs-table tr.cs-sum td{color:var(--text-soft);}
+  .cs-table tr.cs-avg td.cs-label,.cs-table tr.cs-group td.cs-label{background:var(--bg-card-2);}
   .eval-metric-upload{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;}
   .eval-metric-upload label.btn-secondary{display:inline-flex;align-items:center;}
   .call-raw-table th{max-width:120px;white-space:normal;line-height:1.3;}
@@ -2135,7 +2145,7 @@ function render(){
   else if(state.view==='docubeInput'){ vc.innerHTML = renderDocubeInputView(); initDocubeInputView(); }
   else if(state.view==='docubeAtt'){ vc.innerHTML = renderDocubeAttView(); initDocubeAttView(); }
   else if(state.view==='callInput') vc.innerHTML = renderCallInputView();
-  else if(state.view==='callSummary') vc.innerHTML = renderCallPlaceholder('종합현황');
+  else if(state.view==='callSummary') vc.innerHTML = renderCallSummaryView();
   else if(state.view==='callRank') vc.innerHTML = renderCallPlaceholder('실적순위');
   else if(state.view==='duty') vc.innerHTML = renderDuty();
   updateTodayCard();
@@ -7024,6 +7034,440 @@ function renderCallInputView(){
         <button class="btn-primary" onclick="applyAttendanceDeductionPaste()">반영</button>
       </div>
     </div>
+  </div>`;
+}
+
+/* ============ 종합콜현황 - 종합현황 (엑셀 "종합현황" 시트와 같은 계산) ============
+   근무일수 = 기간 시작일~기준일 영업일수 - (휴무일수[반차 0.5] + 근태차감분 ÷ 480[단시간 240])
+   누적 CPD IN/OB(전산) = RAW 응답호/성공호 합 ÷ 근무일수, OB(인센) = OB콜백·콜보정 합 ÷ 근무일수
+   Call Time = RAW 통화시간 합 ÷ 근무일수(엑셀과 같이 항상 480 기준), 평가 CPD = Total(+제휴 10)
+   평균은 0이 아닌 값만, 이름 비교는 엑셀처럼 대소문자·앞뒤 공백 무시 */
+const CALL_TEAMS = ['제휴1팀','제휴2팀','제휴3팀','사고1팀','사고2팀','사고3팀','사고4팀','사고5팀','사고6팀','실효OB'];
+const CALL_TEAM_LABEL = t=>t.replace(/^제휴(\d)팀$/,'제휴상담 $1팀').replace(/^사고(\d)팀$/,'장기사고 $1팀');
+let callSummaryPeriodId = null;
+let callSummaryRefDate = null;
+let callSummaryTeamFilter = '';
+let callSummarySearch = '';
+function callNameKey(n){ return String(n||'').trim().toLowerCase(); }
+function callEnsureSummaryStore(){
+  callStatsStore.roster = callStatsStore.roster || [];
+  callStatsStore.periods = callStatsStore.periods || [];
+}
+/* RAW 팀명(IS장기사고2팀, 제휴상담1팀) → 종합현황 팀 코드(사고2팀, 제휴1팀) */
+function callTeamFromRaw(t){
+  const s = String(t||'').replace(/\s/g,'');
+  let m = s.match(/장기사고(\d)팀/); if(m) return `사고${m[1]}팀`;
+  m = s.match(/제휴상담(\d)팀/); if(m) return `제휴${m[1]}팀`;
+  m = s.match(/^(제휴|사고)(\d)팀$/); if(m) return s;
+  if(s.includes('실효')) return '실효OB';
+  return '';
+}
+/* "1:46:17" / 엑셀 일 단위 숫자 / 예전 업로드의 Date 문자열 → 초 */
+function callTimeToSec(v){
+  if(v===null || v===undefined || v==='') return 0;
+  if(typeof v==='number') return Math.round(v*86400);
+  const s = String(v);
+  const m = s.match(/^(-?\d+):(\d{1,2})(?::(\d{1,2}))?$/);
+  if(m) return Number(m[1])*3600 + Number(m[2])*60 + Number(m[3]||0);
+  if(/^\d{4}-\d{2}-\d{2}T/.test(s)){ const d = new Date(s); return isNaN(d) ? 0 : d.getHours()*3600+d.getMinutes()*60+d.getSeconds(); }
+  return 0;
+}
+function callFmtSec(sec){
+  if(!sec || !isFinite(sec)) return '0:00:00';
+  const t = Math.round(sec), h = Math.floor(t/3600), m = Math.floor(t%3600/60), s = t%60;
+  return `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+function callFmtNum(v){ return (!v || !isFinite(v)) ? '0.0' : v.toFixed(1); }
+function callDatesBetween(start, end){
+  const out = []; if(!start || !end || start>end) return out;
+  const d = new Date(start+'T00:00:00'), e = new Date(end+'T00:00:00');
+  while(d<=e){ out.push(toISODate(d)); d.setDate(d.getDate()+1); }
+  return out;
+}
+/* RAW 레코드에서 필요한 4개 칸(라벨) 찾기 */
+function callRawKeys(rec){
+  const keys = Object.keys(rec||{}), norm = k=>k.replace(/\s/g,'');
+  const find = (pre, suf)=>keys.find(k=>norm(k).startsWith(pre) && norm(k).endsWith(suf));
+  return { inCnt: find('I/B','_응답호'), inSec: find('I/B','_통화시간'), obCnt: find('O/B','_성공호'), obSec: find('O/B','_통화시간') };
+}
+function callSummaryPeriod(){
+  callEnsureSummaryStore();
+  const ps = callStatsStore.periods;
+  return ps.find(p=>p.id===callSummaryPeriodId) || ps[ps.length-1] || null;
+}
+function callSummaryDefaultRef(period){
+  const rawDates = Object.keys(callStatsStore.raw||{}).filter(d=>d>=period.start && d<=period.end).sort();
+  if(rawDates.length) return rawDates[rawDates.length-1];
+  const today = toISODate(new Date());
+  return today<period.start ? period.start : (today>period.end ? period.end : today);
+}
+function computeCallSummary(period, ref){
+  const roster = callStatsStore.roster || [];
+  const days = callDatesBetween(period.start, ref);
+  const bizDays = days.filter(callIsBizDay);
+  const missingRaw = bizDays.filter(d=>!(callStatsStore.raw||{})[d] || !callStatsStore.raw[d].length);
+  /* RAW 합계 (사번 기준) */
+  const raw = {}, rawDay = {};
+  let keys = null, oldTimeFormat = false;
+  days.forEach(d=>{
+    (((callStatsStore.raw||{})[d])||[]).forEach(rec=>{
+      if(!keys) keys = callRawKeys(rec);
+      const sab = String(rec['사번']||'').trim(); if(!sab) return;
+      const v = { inCnt: Number(rec[keys.inCnt])||0, inSec: callTimeToSec(rec[keys.inSec]), obCnt: Number(rec[keys.obCnt])||0, obSec: callTimeToSec(rec[keys.obSec]) };
+      if(/^\d{4}-\d{2}-\d{2}T/.test(String(rec[keys.inSec]||''))) oldTimeFormat = true;
+      const a = raw[sab] = raw[sab] || {inCnt:0,inSec:0,obCnt:0,obSec:0};
+      Object.keys(v).forEach(k=>{ a[k]+=v[k]; });
+      if(d===ref){ const b = rawDay[sab] = rawDay[sab] || {inCnt:0,inSec:0,obCnt:0,obSec:0}; Object.keys(v).forEach(k=>{ b[k]+=v[k]; }); }
+    });
+  });
+  /* OB콜백(제휴) + 콜보정(장기사고), 이름 기준 */
+  const ob = {}, obDay = {};
+  days.forEach(d=>['obJehu','obJanggi'].forEach(kind=>{
+    const m = (callStatsStore[kind]||{})[d]; if(!m) return;
+    Object.keys(m).forEach(n=>{ const k = callNameKey(n), v = Number(m[n])||0; ob[k]=(ob[k]||0)+v; if(d===ref) obDay[k]=(obDay[k]||0)+v; });
+  }));
+  /* 휴무(반차 0.5일) / 근태차감(분) */
+  const inRange = r=>{ const d = callNormalizePastedDate(r['날짜']); return d && d>=period.start && d<=ref; };
+  const off = {}, offByDate = {}, mins = {};
+  (callStatsStore.offDeduction||[]).filter(inRange).forEach(r=>{
+    const k = callNameKey(r['이름']), v = String(r['구분']||'').includes('반차') ? 0.5 : 1;
+    off[k] = (off[k]||0) + v;
+    (offByDate[k] = offByDate[k] || []).push({date: callNormalizePastedDate(r['날짜']), v});
+  });
+  (callStatsStore.attendanceDeduction||[]).filter(inRange).forEach(r=>{ const k = callNameKey(r['이름']); mins[k] = (mins[k]||0) + (Number(r['경과시간'])||0); });
+
+  const persons = roster.map(p=>{
+    const k = callNameKey(p.name);
+    const offDays = off[k]||0;
+    /* 육아단축: 적용 시작일~기준일의 (영업일수 - 그 기간 휴무일수) × 하루 단축분을 근태차감에 더함 */
+    const ccStart = p.childcareStart && p.childcareStart>period.start ? p.childcareStart : period.start;
+    const ccDays = bizDays.filter(d=>d>=ccStart).length - (offByDate[k]||[]).filter(x=>x.date>=ccStart).reduce((a,x)=>a+x.v,0);
+    const childcare = (Number(p.childcareMin)||0) * Math.max(0, ccDays);
+    const attMin = (mins[k]||0) + childcare;
+    const dCnt = bizDays.length - (offDays + attMin/(p.shortTime ? 240 : 480));
+    const dTime = bizDays.length - (offDays + attMin/480);
+    const div = (x, d)=> d>0 ? x/d : 0;
+    const r = raw[String(p.sabun||'').trim()] || {inCnt:0,inSec:0,obCnt:0,obSec:0};
+    const rd = rawDay[String(p.sabun||'').trim()] || {inCnt:0,inSec:0,obCnt:0,obSec:0};
+    const o = {
+      ...p, workDays: dCnt, offDays, attMin,
+      I: div(r.inCnt, dCnt), J: div(ob[k]||0, dCnt), K: div(r.obCnt, dCnt),
+      M: div(r.inSec, dTime), N: div(r.obSec, dTime),
+      S: rd.inCnt, T: obDay[k]||0, U: rd.obCnt, W: rd.inSec, X: rd.obSec
+    };
+    o.L = o.I + o.K; o.O = o.M + o.N;
+    o.P = div(o.M, o.I); o.Q = div(o.N, o.K); o.R = div(o.O, o.I + o.K);
+    o.V = o.S + o.U; o.Y = o.W + o.X;
+    o.Z = div(o.W, o.S); o.AA = div(o.X, o.U); o.AB = div(o.Y, o.V);
+    o.F = o.L + (String(p.team).startsWith('제휴') ? 10 : 0); o.G = o.O; o.H = o.R;
+    return o;
+  });
+  /* 그룹(평균: 0 아닌 값만 / 합계) */
+  const avgNZ = (list, key)=>{ const v = list.map(x=>x[key]).filter(x=>x); return v.length ? v.reduce((a,b)=>a+b,0)/v.length : 0; };
+  const sumNZ = (list, key)=>list.reduce((a,x)=>a+(x[key]||0),0);
+  const div = (x, d)=> d>0 ? x/d : 0;
+  const finish = (g, list)=>{
+    g.L = g.I + g.K; g.O = g.M + g.N; g.V = g.S + g.U; g.Y = g.W + g.X;
+    g.P = div(g.M, g.I); g.Q = div(g.N, g.K); g.R = div(g.O, g.I + g.K);
+    g.Z = div(g.W, g.S); g.AA = div(g.X, g.U); g.AB = div(g.Y, g.S + g.U);
+    g.F = g.L; g.G = g.O; g.H = g.R;
+    g.E = list.filter(x=>x.V>0).length;
+    return g;
+  };
+  const avgRow = (label, list, kind)=>finish({label, kind, ...Object.fromEntries(['I','J','K','M','N','S','T','U','W','X'].map(k=>[k, avgNZ(list,k)]))}, list);
+  const sumRow = (label, list)=>{
+    const g = {label, kind:'sum', ...Object.fromEntries(['I','J','K','M','N','S','T','U','W','X'].map(k=>[k, sumNZ(list,k)]))};
+    finish(g, list); g.E = null; g.F = g.L; g.G = g.O; return g;
+  };
+  const jehu = persons.filter(x=>String(x.team).startsWith('제휴')), sago = persons.filter(x=>String(x.team).startsWith('사고'));
+  const rows = [];
+  const all = avgRow('평균', persons, 'avg'); all.E = jehu.filter(x=>x.V>0).length + sago.filter(x=>x.V>0).length;
+  rows.push(all, sumRow('합계', persons));
+  [['제휴상담', jehu, ['제휴1팀','제휴2팀','제휴3팀']], ['장기사고', sago, ['사고1팀','사고2팀','사고3팀','사고4팀','사고5팀','사고6팀']]].forEach(([name, list, teams])=>{
+    rows.push(avgRow(`${name} 평균`, list, 'group'), sumRow(`${name} 합계`, list));
+    teams.forEach(t=>rows.push(avgRow(CALL_TEAM_LABEL(t), persons.filter(x=>x.team===t), 'team')));
+  });
+  const rosterSabun = new Set(roster.map(p=>String(p.sabun||'').trim()));
+  const rawPeople = {};
+  days.forEach(d=>(((callStatsStore.raw||{})[d])||[]).forEach(rec=>{
+    const sab = String(rec['사번']||'').trim();
+    if(sab && !rosterSabun.has(sab)) rawPeople[sab] = { sabun: sab, name: rec['이름']||'', rawTeam: rec['팀']||'' };
+  }));
+  return { persons, rows, bizDays, missingRaw, oldTimeFormat, notInRoster: Object.values(rawPeople) };
+}
+
+/* ---- 기간/기준일 ---- */
+function callSummarySelectPeriod(id){ callSummaryPeriodId = id; callSummaryRefDate = null; renderCallSummaryRefresh(); }
+function callSummarySetRef(v){ if(v){ callSummaryRefDate = v; renderCallSummaryRefresh(); } }
+function callSummaryStepRef(step){
+  const p = callSummaryPeriod(); if(!p) return;
+  let d = callShiftBizDay(callSummaryRefDate || callSummaryDefaultRef(p), step);
+  if(d<p.start || d>p.end) return;
+  callSummaryRefDate = d; renderCallSummaryRefresh();
+}
+function callSummarySavePeriod(){
+  callEnsureSummaryStore();
+  const name = document.getElementById('csPeriodName').value.trim();
+  const start = document.getElementById('csPeriodStart').value, end = document.getElementById('csPeriodEnd').value;
+  if(!name || !start || !end){ alert('기간 이름, 시작일, 종료일을 모두 입력해주세요.'); return; }
+  if(start>end){ alert('시작일이 종료일보다 늦어요.'); return; }
+  const editId = document.getElementById('csPeriodEditId').value;
+  const p = editId && callStatsStore.periods.find(x=>x.id===editId);
+  if(p){ Object.assign(p, {name, start, end}); }
+  else { const id = uid(); callStatsStore.periods.push({id, name, start, end}); callSummaryPeriodId = id; }
+  callStatsStore.periods.sort((a,b)=>a.start.localeCompare(b.start));
+  callSummaryRefDate = null;
+  saveCallStatsData(); renderCallSummaryRefresh();
+}
+function callSummaryEditPeriod(id){
+  const p = (callStatsStore.periods||[]).find(x=>x.id===id); if(!p) return;
+  document.getElementById('csPeriodEditId').value = p.id;
+  document.getElementById('csPeriodName').value = p.name;
+  document.getElementById('csPeriodStart').value = p.start;
+  document.getElementById('csPeriodEnd').value = p.end;
+  document.getElementById('csPeriodSaveBtn').textContent = '수정 저장';
+  document.getElementById('csPeriodEditor').open = true;
+}
+function callSummaryDeletePeriod(id){
+  const p = (callStatsStore.periods||[]).find(x=>x.id===id); if(!p) return;
+  if(!confirm(`"${p.name}" 기간을 삭제할까요? (실적 데이터는 지워지지 않아요)`)) return;
+  callStatsStore.periods = callStatsStore.periods.filter(x=>x.id!==id);
+  if(callSummaryPeriodId===id) callSummaryPeriodId = null;
+  saveCallStatsData(); renderCallSummaryRefresh();
+}
+
+/* ---- 상담사 명단 ---- */
+function callRosterEdit(idx, key, value){
+  const p = (callStatsStore.roster||[])[idx]; if(!p) return;
+  if(key==='shortTime') p.shortTime = !!value;
+  else if(key==='childcareMin') p.childcareMin = Number(value)||0;
+  else if(key==='childcareStart') p.childcareStart = callNormalizePastedDate(value) || '';
+  else p[key] = String(value).trim();
+  saveCallStatsData();
+  setTimeout(renderCallSummaryRefresh, 0);
+}
+function callRosterDelete(idx){
+  const p = (callStatsStore.roster||[])[idx]; if(!p) return;
+  if(!confirm(`${p.name}님을 명단에서 뺄까요?`)) return;
+  callStatsStore.roster.splice(idx,1);
+  saveCallStatsData(); renderCallSummaryRefresh();
+}
+function callRosterAdd(sabun, name, team){
+  callEnsureSummaryStore();
+  callStatsStore.roster.push({ sabun: sabun||'', name: name||'', team: team||'', hireDate:'', shortTime:false, childcareMin:0, childcareStart:'' });
+  saveCallStatsData(); renderCallSummaryRefresh();
+}
+function callRosterAddFromRaw(sabun, name, rawTeam){ callRosterAdd(sabun, name, callTeamFromRaw(rawTeam)); }
+/* 종합콜현황 엑셀(종합현황·순위·근태 시트)에서 명단·단시간·육아단축 가져오기 */
+async function onCallRosterImport(ev){
+  const file = ev.target.files[0]; if(!file) return;
+  ev.target.value = '';
+  try{
+    const wb = XLSX.read(await file.arrayBuffer(), {type:'array', cellFormula:true});
+    const ws = wb.Sheets[wb.SheetNames.find(n=>n.includes('종합현황')) || wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:null, raw:true});
+    /* '투입인원' 헤더가 있는 열 = 팀 열 + 1 → 이름/사번/팀/입사일 = 팀열-2 ~ 팀열+1 */
+    let teamCol = -1;
+    for(let r=0; r<Math.min(rows.length,12) && teamCol<0; r++) (rows[r]||[]).forEach((c,i)=>{ if(teamCol<0 && String(c||'').trim()==='투입인원') teamCol = i-1; });
+    if(teamCol<1){ alert('"종합현황" 시트에서 투입인원 헤더를 찾지 못했어요.'); return; }
+    const people = [];
+    rows.forEach(r=>{
+      const name = r[teamCol-2], sab = r[teamCol-1], team = r[teamCol];
+      if(!name || !sab || !team) return;
+      const t = CALL_TEAMS.includes(String(team).trim()) ? String(team).trim() : callTeamFromRaw(team);
+      if(!t) return;
+      const h = r[teamCol+1];
+      const hire = typeof h==='number' ? (()=>{ const d = XLSX.SSF.parse_date_code(h); return d ? callDateKey(d.y,d.m,d.d) : ''; })() : (h ? String(h) : '');
+      people.push({ sabun: String(sab).trim(), name: String(name).trim(), team: t, hireDate: hire, shortTime:false, childcareMin:0, childcareStart:'' });
+    });
+    if(!people.length){ alert('명단을 찾지 못했어요.'); return; }
+    /* 순위 시트: "단시간" 제목 왼쪽 열의 이름들 */
+    let shortCount = 0;
+    const rk = wb.Sheets[wb.SheetNames.find(n=>n.includes('순위'))];
+    if(rk){
+      const rr = XLSX.utils.sheet_to_json(rk, {header:1, defval:null, raw:false});
+      let col = -1;
+      for(let r=0; r<Math.min(rr.length,5) && col<0; r++) (rr[r]||[]).forEach((c,i)=>{ if(col<0 && String(c||'').includes('단시간')) col = i-1; });
+      if(col>=0){
+        const names = new Set(rr.slice(4).map(r=>callNameKey(r[col])).filter(Boolean));
+        people.forEach(p=>{ if(names.has(callNameKey(p.name))){ p.shortTime = true; shortCount++; } });
+      }
+    }
+    /* 근태 시트: 날짜 칸에 '육아단축'이라고 적힌 행의 수식에서 하루 단축분(×240 등) */
+    const childcare = [];
+    const kt = wb.Sheets[wb.SheetNames.find(n=>n.includes('근태'))];
+    if(kt){
+      Object.keys(kt).forEach(a=>{
+        if(a[0]==='!' || String(kt[a].v||'').trim()!=='육아단축') return;
+        const c = XLSX.utils.decode_cell(a);
+        const nameCell = kt[XLSX.utils.encode_cell({r:c.r, c:c.c+1})], minCell = kt[XLSX.utils.encode_cell({r:c.r, c:c.c+2})];
+        const m = minCell && minCell.f && String(minCell.f).match(/\*\s*(\d+)/);
+        const p = nameCell && people.find(x=>callNameKey(x.name)===callNameKey(nameCell.v));
+        if(p && m){
+          p.childcareMin = Number(m[1]);
+          /* COUNTA(OB!F5:Y5) 처럼 OB 시트 날짜 머리글의 시작 칸 = 육아단축 시작일 */
+          const sc = String(minCell.f).match(/COUNTA\(OB!\$?([A-Z]+)\$?(\d+)/);
+          const obSheet = wb.Sheets[wb.SheetNames.find(n=>n.trim()==='OB')];
+          const hc = sc && obSheet && obSheet[`${sc[1]}${sc[2]}`];
+          if(hc && typeof hc.v==='number'){ const d = XLSX.SSF.parse_date_code(hc.v); if(d) p.childcareStart = callDateKey(d.y,d.m,d.d); }
+          childcare.push(`${p.name} 하루 ${m[1]}분${p.childcareStart?` (${p.childcareStart}부터)`:''}`);
+        }
+      });
+    }
+    callEnsureSummaryStore();
+    if(callStatsStore.roster.length && !confirm(`지금 명단(${callStatsStore.roster.length}명)을 파일의 명단(${people.length}명)으로 바꿀까요?`)) return;
+    callStatsStore.roster = people;
+    saveCallStatsData(); renderCallSummaryRefresh();
+    alert(`명단 ${people.length}명을 가져왔어요.\n단시간 근무자: ${shortCount}명\n육아단축: ${childcare.length ? childcare.join(', ') : '없음'}`);
+  }catch(err){
+    console.error(err);
+    alert('파일을 읽는 중 문제가 발생했어요.');
+  }
+}
+
+/* ---- 화면 ---- */
+function renderCallSummaryRefresh(){
+  if(state.view!=='callSummary') return;
+  const vc = document.getElementById('viewContainer');
+  const openRoster = document.getElementById('csRosterBox') && document.getElementById('csRosterBox').open;
+  vc.innerHTML = renderCallSummaryView();
+  if(openRoster && document.getElementById('csRosterBox')) document.getElementById('csRosterBox').open = true;
+}
+function onCallSummaryFilter(team){ callSummaryTeamFilter = team; renderCallSummaryRefresh(); }
+function onCallSummarySearch(v){
+  callSummarySearch = v.trim();
+  document.querySelectorAll('#csPersonTable tbody tr').forEach(tr=>{
+    tr.style.display = !callSummarySearch || tr.dataset.search.includes(callSummarySearch) ? '' : 'none';
+  });
+}
+function callSummaryCells(o){
+  const n = callFmtNum, t = callFmtSec;
+  return `<td class="cs-em">${n(o.F)}</td><td>${t(o.G)}</td><td>${t(o.H)}</td>
+    <td class="cs-sep">${n(o.I)}</td><td>${n(o.J)}</td><td>${n(o.K)}</td><td class="cs-em">${n(o.L)}</td>
+    <td class="cs-sep">${t(o.M)}</td><td>${t(o.N)}</td><td>${t(o.O)}</td>
+    <td class="cs-sep">${t(o.P)}</td><td>${t(o.Q)}</td><td>${t(o.R)}</td>
+    <td class="cs-sep cs-day">${o.S===undefined?'':Math.round(o.S*10)/10}</td><td class="cs-day">${Math.round(o.T*10)/10}</td><td class="cs-day">${Math.round(o.U*10)/10}</td><td class="cs-day cs-em">${Math.round(o.V*10)/10}</td>
+    <td class="cs-sep cs-day">${t(o.W)}</td><td class="cs-day">${t(o.X)}</td><td class="cs-day">${t(o.Y)}</td>
+    <td class="cs-sep cs-day">${t(o.Z)}</td><td class="cs-day">${t(o.AA)}</td><td class="cs-day">${t(o.AB)}</td>`;
+}
+function callSummaryHead(firstCols, ref){
+  const d = new Date(ref+'T00:00:00');
+  return `<thead>
+    <tr><th rowspan="2" colspan="${firstCols.length}">${firstCols.length>1?'상담사':'구분'}</th>${firstCols.length===1?'':''}
+      <th rowspan="2">투입<br>인원</th><th colspan="3">평가</th><th colspan="4" class="cs-sep">누적 CPD</th><th colspan="3" class="cs-sep">누적 Call Time</th><th colspan="3" class="cs-sep">누적 ATT</th>
+      <th colspan="4" class="cs-sep cs-day">${d.getMonth()+1}/${d.getDate()}(${WEEKDAYS[d.getDay()]}) CPD</th><th colspan="3" class="cs-sep cs-day">Call Time</th><th colspan="3" class="cs-sep cs-day">ATT</th></tr>
+    <tr><th>CPD</th><th>CT</th><th>ATT</th><th class="cs-sep">IN</th><th>OB(인센)</th><th>OB(전산)</th><th>Total</th><th class="cs-sep">IN</th><th>OUT</th><th>Total</th><th class="cs-sep">IN</th><th>OUT</th><th>Total</th>
+      <th class="cs-sep cs-day">IN</th><th class="cs-day">OB(인센)</th><th class="cs-day">OB(전산)</th><th class="cs-day">Total</th><th class="cs-sep cs-day">IN</th><th class="cs-day">OUT</th><th class="cs-day">Total</th><th class="cs-sep cs-day">IN</th><th class="cs-day">OUT</th><th class="cs-day">Total</th></tr>
+  </thead>`;
+}
+function renderCallSummaryView(){
+  callEnsureSummaryStore();
+  const periods = callStatsStore.periods;
+  const period = callSummaryPeriod();
+  const periodOpts = periods.map(p=>`<option value="${p.id}" ${period&&p.id===period.id?'selected':''}>${escapeHtml(p.name)} (${p.start} ~ ${p.end})</option>`).join('');
+  const periodList = periods.map(p=>`<li class="center-row"><span style="flex:1;font-size:12px;">${escapeHtml(p.name)} · ${p.start} ~ ${p.end}</span>
+      <button class="btn-secondary" style="padding:4px 10px;font-size:11px;" onclick="callSummaryEditPeriod('${p.id}')">수정</button>
+      <button class="btn-danger-text" onclick="callSummaryDeletePeriod('${p.id}')">삭제</button></li>`).join('');
+  const periodEditor = `<details class="duty-report-section" id="csPeriodEditor" ${periods.length?'':'open'}>
+    <summary class="duty-report-section-title" style="cursor:pointer;margin:0;">🗓️ 기간 관리 · 매달 시작일·종료일을 직접 정해요</summary>
+    <ul class="center-list" style="margin:10px 0;">${periodList || '<li class="empty-state" style="padding:6px 0;">등록된 기간이 없어요. 먼저 기간을 추가해주세요.</li>'}</ul>
+    <div class="call-add-row" style="flex-wrap:wrap;">
+      <input type="hidden" id="csPeriodEditId" value="">
+      <input type="text" id="csPeriodName" placeholder="이름 (예: 10월)" style="flex:0 0 120px;">
+      <input type="date" id="csPeriodStart" style="width:auto;"> <span style="align-self:center;">~</span>
+      <input type="date" id="csPeriodEnd" style="width:auto;">
+      <button class="btn-primary" id="csPeriodSaveBtn" onclick="callSummarySavePeriod()">기간 추가</button>
+    </div>
+  </details>`;
+  if(!period) return `<div class="duty-report-view">${periodEditor}</div>`;
+
+  const ref = (callSummaryRefDate && callSummaryRefDate>=period.start && callSummaryRefDate<=period.end) ? callSummaryRefDate : callSummaryDefaultRef(period);
+  callSummaryRefDate = ref;
+  const res = computeCallSummary(period, ref);
+  const roster = callStatsStore.roster;
+
+  const warn = [];
+  if(!roster.length) warn.push('상담사 명단이 비어 있어요. 아래 "상담사 명단"에서 종합콜현황 엑셀로 가져오거나 직접 추가해주세요.');
+  if(res.missingRaw.length) warn.push(`RAW가 없는 영업일: ${res.missingRaw.join(', ')} (근무일수에는 포함돼요)`);
+  if(res.oldTimeFormat) warn.push('예전 방식으로 올라간 RAW가 있어 통화시간이 조금 다를 수 있어요. 해당 날짜 RAW를 다시 업로드해주세요.');
+
+  const teamRows = res.rows.map(g=>`<tr class="cs-${g.kind}"><td class="cs-label">${escapeHtml(g.label)}</td><td>${g.E===null?'':g.E}</td>${callSummaryCells(g)}</tr>`).join('');
+  const filtered = res.persons.filter(p=>!callSummaryTeamFilter || p.team===callSummaryTeamFilter);
+  const personRows = filtered.map(p=>{
+    const search = escapeHtml(`${p.name} ${p.sabun} ${p.team}`);
+    const hidden = callSummarySearch && !search.includes(callSummarySearch) ? ' style="display:none;"' : '';
+    const tip = `근무일수 ${p.workDays.toFixed(2)}일 (휴무 ${p.offDays}일, 근태차감 ${Math.round(p.attMin)}분${p.shortTime?', 단시간':''})`;
+    return `<tr data-search="${search}"${hidden}><td class="cs-label" title="${tip}">${escapeHtml(p.name)}</td><td>${escapeHtml(p.sabun)}</td><td>${escapeHtml(p.team)}</td><td>${escapeHtml(p.hireDate||'')}</td><td title="${tip}">${p.workDays.toFixed(1)}</td>${callSummaryCells(p)}</tr>`;
+  }).join('');
+  const chips = ['', ...CALL_TEAMS].map(t=>`<button class="category-chip ${callSummaryTeamFilter===t?'active':''}" onclick="onCallSummaryFilter('${t}')">${t?escapeHtml(CALL_TEAM_LABEL(t)):'전체'}</button>`).join('');
+
+  const teamOpts = cur=>['', ...CALL_TEAMS].map(t=>`<option value="${t}" ${t===cur?'selected':''}>${t||'(팀 선택)'}</option>`).join('');
+  const rosterRows = roster.map((p,i)=>`<tr>
+      <td class="call-raw-del"><button class="eval-row-delete-btn" title="빼기" onclick="callRosterDelete(${i})">✕</button></td>
+      <td><input class="call-edit-input call-raw-input" value="${escapeHtml(p.name)}" size="8" onchange="callRosterEdit(${i},'name',this.value)"></td>
+      <td><input class="call-edit-input call-raw-input" value="${escapeHtml(p.sabun)}" size="9" onchange="callRosterEdit(${i},'sabun',this.value)"></td>
+      <td><select class="duty-month-select" onchange="callRosterEdit(${i},'team',this.value)">${teamOpts(p.team)}</select></td>
+      <td><input class="call-edit-input call-raw-input" value="${escapeHtml(p.hireDate||'')}" size="10" onchange="callRosterEdit(${i},'hireDate',this.value)"></td>
+      <td><input type="checkbox" ${p.shortTime?'checked':''} onchange="callRosterEdit(${i},'shortTime',this.checked)"></td>
+      <td><input class="call-edit-input call-raw-input num" value="${p.childcareMin||0}" size="4" onchange="callRosterEdit(${i},'childcareMin',this.value)"></td>
+      <td><input class="call-edit-input call-raw-input" value="${escapeHtml(p.childcareStart||'')}" size="10" placeholder="기간 시작일" onchange="callRosterEdit(${i},'childcareStart',this.value)"></td>
+    </tr>`).join('');
+  const notIn = res.notInRoster.map(x=>`<li class="center-row"><span style="flex:1;font-size:12px;">${escapeHtml(x.name)} · ${escapeHtml(x.sabun)} · ${escapeHtml(x.rawTeam)}</span>
+      <button class="btn-secondary" style="padding:4px 10px;font-size:11px;" data-sab="${escapeHtml(x.sabun)}" data-name="${escapeHtml(x.name)}" data-team="${escapeHtml(x.rawTeam)}" onclick="callRosterAddFromRaw(this.dataset.sab,this.dataset.name,this.dataset.team)">+ 명단에 추가</button></li>`).join('');
+
+  return `<div class="duty-report-view">
+    <div class="duty-month-bar">
+      <span class="duty-month-label">📅 기간</span>
+      <select class="duty-month-select" onchange="callSummarySelectPeriod(this.value)">${periodOpts}</select>
+      <span class="duty-month-label" style="margin-left:8px;">기준일</span>
+      <button class="nav-btn" onclick="callSummaryStepRef(-1)">‹</button>
+      <input type="date" class="duty-month-select" value="${ref}" min="${period.start}" max="${period.end}" onchange="callSummarySetRef(this.value)">
+      <button class="nav-btn" onclick="callSummaryStepRef(1)">›</button>
+      <span class="duty-month-hint" style="flex-basis:auto;">근무일수(영업일) ${res.bizDays.length}일 · ${period.start} ~ ${ref} 누적 · 일실적은 기준일</span>
+    </div>
+    ${warn.length?`<div class="duty-warn-box"><ul class="duty-warn-list">${warn.map(w=>`<li>${escapeHtml(w)}</li>`).join('')}</ul></div>`:''}
+
+    <div class="duty-report-section">
+      <div class="duty-report-section-title">📊 실적현황 (팀별)</div>
+      <div class="duty-table-scroll" style="max-height:none;">
+        <table class="duty-table cs-table">${callSummaryHead(['구분'], ref)}<tbody>${teamRows}</tbody></table>
+      </div>
+    </div>
+
+    <div class="duty-report-section">
+      <div class="duty-report-section-title" style="justify-content:space-between;flex-wrap:wrap;">
+        <span>👤 상담사별 (${filtered.length}명) · 이름에 마우스를 올리면 근무일수 계산 내역이 보여요</span>
+        <input class="duty-search-input" placeholder="이름·사번 검색" value="${escapeHtml(callSummarySearch)}" oninput="onCallSummarySearch(this.value)">
+      </div>
+      <div class="category-chips" style="flex-wrap:wrap;margin-bottom:10px;">${chips}</div>
+      <div class="duty-table-scroll" style="max-height:600px;">
+        <table class="duty-table cs-table" id="csPersonTable">
+          <thead>
+            <tr><th rowspan="2">이름</th><th rowspan="2">사번</th><th rowspan="2">팀</th><th rowspan="2">입사일</th><th rowspan="2">근무<br>일수</th>
+              <th colspan="3">평가</th><th colspan="4" class="cs-sep">누적 CPD</th><th colspan="3" class="cs-sep">누적 Call Time</th><th colspan="3" class="cs-sep">누적 ATT</th>
+              <th colspan="4" class="cs-sep cs-day">일 CPD</th><th colspan="3" class="cs-sep cs-day">Call Time</th><th colspan="3" class="cs-sep cs-day">ATT</th></tr>
+            <tr><th>CPD</th><th>CT</th><th>ATT</th><th class="cs-sep">IN</th><th>OB(인센)</th><th>OB(전산)</th><th>Total</th><th class="cs-sep">IN</th><th>OUT</th><th>Total</th><th class="cs-sep">IN</th><th>OUT</th><th>Total</th>
+              <th class="cs-sep cs-day">IN</th><th class="cs-day">OB(인센)</th><th class="cs-day">OB(전산)</th><th class="cs-day">Total</th><th class="cs-sep cs-day">IN</th><th class="cs-day">OUT</th><th class="cs-day">Total</th><th class="cs-sep cs-day">IN</th><th class="cs-day">OUT</th><th class="cs-day">Total</th></tr>
+          </thead>
+          <tbody>${personRows || `<tr><td colspan="28" style="padding:18px;color:var(--text-faint);">명단에 상담사가 없어요.</td></tr>`}</tbody>
+        </table>
+      </div>
+    </div>
+
+    <details class="duty-report-section" id="csRosterBox">
+      <summary class="duty-report-section-title" style="cursor:pointer;margin:0;">👥 상담사 명단 (${roster.length}명)${res.notInRoster.length?` · RAW에만 있는 상담사 ${res.notInRoster.length}명`:''}</summary>
+      <div class="eval-metric-upload" style="margin-top:10px;">
+        <label class="btn-secondary">📤 종합콜현황 엑셀에서 명단 가져오기<input type="file" accept=".xlsx,.xls" hidden onchange="onCallRosterImport(event)"></label>
+        <button class="btn-secondary" onclick="callRosterAdd()">+ 직접 추가</button>
+        <span class="duty-month-hint" style="flex-basis:auto;">이름은 OB·휴무·근태 데이터와 맞출 때 쓰여요(대소문자 무시). 단시간은 CPD 계산 시 근태차감을 240분=1일로, 육아단축은 하루 단축분(분)을 근태차감에 더해요.</span>
+      </div>
+      ${roster.length?`<div class="duty-table-scroll" style="max-height:420px;margin-top:10px;">
+        <table class="duty-table call-raw-table"><thead><tr><th class="call-raw-del"></th><th>이름</th><th>사번</th><th>팀</th><th>입사일</th><th>단시간</th><th>육아단축(분/일)</th><th>육아단축 시작일</th></tr></thead><tbody>${rosterRows}</tbody></table>
+      </div>`:''}
+      ${notIn?`<div class="duty-report-section-title" style="margin-top:14px;">RAW에는 있지만 명단에 없는 상담사 (팀장·지원팀 등은 그대로 두면 돼요)</div><ul class="center-list" style="max-height:220px;">${notIn}</ul>`:''}
+    </details>
+
+    ${periodEditor}
   </div>`;
 }
 
