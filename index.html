@@ -7323,12 +7323,20 @@ function downloadCallRosterTemplate(){
 /* ---- 육아단축 근무 (시작일~종료일, 근무시간) ---- */
 function callChildcareAdd(){
   callEnsureSummaryStore();
-  const sel = document.getElementById('csCcPerson');
-  const p = (callStatsStore.roster||[])[Number(sel.value)];
+  /* 검색창 값: 목록에서 고른 "이름 (팀·사번)" 또는 이름/사번 직접 입력 */
+  const q = document.getElementById('csCcPerson').value.trim();
+  const roster = callStatsStore.roster||[];
+  const sabM = q.match(/·([^·)]+)\)\s*$/);
+  let p = sabM ? roster.find(x=>String(x.sabun).trim()===sabM[1].trim()) : null;
+  if(!p && q){
+    const hits = roster.filter(x=>String(x.sabun).trim()===q || callNameKey(x.name)===callNameKey(q));
+    if(hits.length>1){ alert(`"${q}" 이름이 ${hits.length}명이에요. 목록에서 팀·사번으로 골라주세요.`); return; }
+    p = hits[0];
+  }
   const start = callNormalizePastedDate(document.getElementById('csCcStart').value);
   const end = document.getElementById('csCcEnd').value ? callNormalizePastedDate(document.getElementById('csCcEnd').value) : '';
   const hours = Number(document.getElementById('csCcHours').value);
-  if(!p){ alert('상담사를 골라주세요.'); return; }
+  if(!p){ alert(q ? `"${q}"을(를) 명단에서 찾지 못했어요. 이름이나 사번을 입력하고 목록에서 골라주세요.` : '상담사를 검색해서 골라주세요.'); return; }
   if(!start){ alert('시작일을 입력해주세요.'); return; }
   if(end && end<start){ alert('종료일이 시작일보다 빨라요.'); return; }
   if(!(hours>0 && hours<8)){ alert('근무시간은 0보다 크고 8보다 작은 시간으로 입력해주세요. (예: 6)'); return; }
@@ -7358,8 +7366,8 @@ function callChildcareDelete(id){
 function renderCallChildcareSection(){
   const list = (callStatsStore.childcare||[]).slice().sort((a,b)=>(a.start||'').localeCompare(b.start||''));
   const roster = callStatsStore.roster||[];
-  const personOpts = roster.map((p,i)=>({p,i})).sort((a,b)=>a.p.name.localeCompare(b.p.name,'ko'))
-    .map(({p,i})=>`<option value="${i}">${escapeHtml(p.name)} (${escapeHtml(p.team||'')}·${escapeHtml(p.sabun)})</option>`).join('');
+  const personOpts = roster.slice().sort((a,b)=>a.name.localeCompare(b.name,'ko'))
+    .map(p=>`<option value="${escapeHtml(`${p.name} (${p.team||'팀 없음'}·${p.sabun})`)}"></option>`).join('');
   const rows = list.map(c=>`<tr>
       <td class="call-raw-del"><button class="eval-row-delete-btn" title="삭제" onclick="callChildcareDelete('${c.id}')">✕</button></td>
       <td style="text-align:left;font-weight:600;">${escapeHtml(c.name)} <span style="color:var(--text-faint);">${escapeHtml(c.sabun||'')}</span></td>
@@ -7375,7 +7383,8 @@ function renderCallChildcareSection(){
       <table class="duty-table call-raw-table"><thead><tr><th class="call-raw-del"></th><th>상담사</th><th>시작일</th><th>종료일</th><th>근무시간</th><th>보정</th><th></th></tr></thead><tbody>${rows}</tbody></table>
     </div>`:''}
     <div class="call-add-row" style="flex-wrap:wrap;align-items:center;">
-      <select class="duty-month-select" id="csCcPerson" style="min-width:200px;">${personOpts || '<option value="">명단을 먼저 올려주세요</option>'}</select>
+      <input type="search" id="csCcPerson" list="csCcPeople" placeholder="${roster.length?'🔍 이름·사번 검색':'명단을 먼저 올려주세요'}" autocomplete="off" style="width:230px;height:30px;border:1px solid var(--border-strong);border-radius:var(--radius-sm);padding:0 10px;font-size:12px;font-family:inherit;">
+      <datalist id="csCcPeople">${personOpts}</datalist>
       <span>시작</span><input type="date" id="csCcStart" style="width:auto;">
       <span>종료</span><input type="date" id="csCcEnd" style="width:auto;" title="비우면 계속 적용">
       <span>근무</span><input type="number" id="csCcHours" placeholder="예: 6" step="0.5" min="0.5" max="7.5" style="width:70px;"><span>시간</span>
