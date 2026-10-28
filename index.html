@@ -5638,7 +5638,7 @@ async function onEvalCallDataUpload(ev){
       ev.target.value=''; return;
     }
     const colName = cpdCol-7, colSabun = cpdCol-6, colTeam = cpdCol-5, colHire = cpdCol-4;
-    const colCpdIn = cpdCol, colCpdOb = cpdCol+1, colCpdTotal = cpdCol+3;
+    const colCpdIn = cpdCol, colCpdOb = cpdCol+2, colCpdTotal = cpdCol+3; /* IN, OB(인센), OB(전산), Total 순서 → OB는 OB(전산) */
     const colCtIn = cpdCol+4, colCtOut = cpdCol+5, colCtTotal = cpdCol+6;
 
     const employees = [];
